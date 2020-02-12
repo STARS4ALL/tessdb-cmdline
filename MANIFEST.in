@@ -1,0 +1,4 @@
+include versioneer.py
+include tess/_version.py
+include README.md
+recursive-include files *

@@ -1,0 +1,15 @@
+_trial_temp/
+*.egg-info/
+build
+dist
+*.pyc
+*.pyo
+*~
+tess/*.pyc
+tess/*.pyo
+tess/*~
+*.txt
+my*
+*.db
+sftp-config.json
+
