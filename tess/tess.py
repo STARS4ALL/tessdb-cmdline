@@ -166,6 +166,11 @@ def createParser():
     #
     subparser = parser_readings.add_subparsers(dest='subcommand')
 
+
+    run = subparser.add_parser('unassigned', help='count all unassigned location readings')
+    run.add_argument('-c', '--count', type=int, default=200, help='list up to <count> entries')
+    run.add_argument('-d', '--dbase', default=DEFAULT_DBASE, help='SQLite database full file path')
+
     rli = subparser.add_parser('list', help='list readings')
     rliex = rli.add_mutually_exclusive_group(required=False)
     rliex.add_argument('-n', '--name', type=str, help='instrument name')
@@ -1416,6 +1421,26 @@ def location_rename(connection, options):
 # --------------------
 # READINGS SUBCOMMANDS
 # --------------------
+
+
+def readings_unassigned(connection, options):
+    cursor = connection.cursor()
+    row = {}
+    row['count'] = options.count
+    cursor.execute(
+        '''
+        SELECT m.name, i.mac_address, l.site, min(d.sql_date), max(d.sql_date), count(*)
+        FROM name_to_mac_t AS m, tess_readings_t AS r
+        JOIN tess_t     AS i USING (tess_id)
+        JOIN date_t     AS d USING (date_id)
+        JOIN location_t AS l USING (location_id)
+        WHERE m.mac_address = i.mac_address 
+        AND r.location_id < 0
+        GROUP BY m.name
+        ORDER BY CAST(substr(m.name, 6) as decimal) ASC;
+        ''' , row)
+    paging(cursor, ["TESS","MAC","Location","Earliest Date","Latest Date","Records"], size=options.count)
+
 
 def readings_list_name_single(connection, options):
     cursor = connection.cursor()
