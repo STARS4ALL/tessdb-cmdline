@@ -34,10 +34,10 @@ CLASSIFIERS  = [
     'Development Status :: 4 - Beta',
 ]
 
-DATA_FILES  = [ 
-  ('/usr/local/bin',         ['files/usr/local/bin/tess']),
-]
 
+SCRIPTS = [
+    'files/usr/local/bin/tess'
+]
 
 if os.name == "posix":
 
@@ -55,7 +55,7 @@ if os.name == "posix":
         classifiers      = CLASSIFIERS,
         packages         = PACKAGES,
         install_requires = DEPENDENCIES,
-        data_files       = DATA_FILES
+        scripts          = SCRIPTS
         )
  
   
