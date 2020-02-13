@@ -1514,7 +1514,7 @@ def readings_adjloc(connection, options):
         # Find out how many rows to change fro infromative purposes
         cursor.execute(
             '''
-            SELECT (SELECT name FROM name_to_mac_t WHERE mac_address == :mac AND valid_state = "Current"), :mac, tess_id, :old_site_id, :new_site_id, :start_date, :end_date, COUNT(*) 
+            SELECT (SELECT name FROM name_to_mac_t WHERE mac_address == :mac AND valid_state = "Current"), :mac, tess_id, :old_site_id, :new_site_id, MIN(date_id), MAX(date_id), COUNT(*) 
             FROM tess_readings_t
             WHERE location_id == :old_site_id
             AND   (date_id*1000000 + time_id) BETWEEN :start_date AND :end_date
@@ -1535,7 +1535,7 @@ def readings_adjloc(connection, options):
         row['name']       = options.name
         cursor.execute(
             '''
-            SELECT :name, i.mac_address , tess_id, :old_site_id, :new_site_id, :start_date, :end_date, COUNT(*) 
+            SELECT :name, i.mac_address , tess_id, :old_site_id, :new_site_id, MIN(date_id), MAX(date_id), COUNT(*) 
             FROM tess_readings_t AS r
             JOIN tess_t AS i USING (tess_id) 
             WHERE r.location_id == :old_site_id
@@ -1580,7 +1580,7 @@ def readings_adjins(connection, options):
     # Find out how many rows to change fro infromative purposes
     cursor.execute(
         '''
-        SELECT :old_mac, tess_id, :new_mac, :new_tess_id, :start_date, :end_date, COUNT(*) 
+        SELECT :old_mac, tess_id, :new_mac, :new_tess_id, MIN(date_id), MAX(date_id), COUNT(*) 
         FROM tess_readings_t
         WHERE tess_id IN (SELECT tess_id FROM tess_t WHERE mac_address == :old_mac)
         AND   (date_id*1000000 + time_id) BETWEEN :start_date AND :end_date
@@ -1619,7 +1619,7 @@ def readings_purge(connection, options):
         # Find out how many rows to change fro infromative purposes
         cursor.execute(
             '''
-            SELECT (SELECT name FROM name_to_mac_t WHERE mac_address == :mac AND valid_state = "Current"), :mac, tess_id, :site, :start_date, :end_date, COUNT(*)
+            SELECT (SELECT name FROM name_to_mac_t WHERE mac_address == :mac AND valid_state = "Current"), :mac, tess_id, :site, MIN(date_id), MAX(date_id), COUNT(*)
             FROM tess_readings_t
             WHERE location_id == :site_id
             AND   (date_id*1000000 + time_id) BETWEEN :start_date AND :end_date
@@ -1641,7 +1641,7 @@ def readings_purge(connection, options):
         row['name']       = options.name
         cursor.execute(
             '''
-            SELECT :name, i.mac_address , tess_id, :site, :start_date, :end_date, COUNT(*) 
+            SELECT :name, i.mac_address , tess_id, :site, MIN(date_id), MAX(date_id), COUNT(*) 
             FROM tess_readings_t AS r
             JOIN tess_t AS i USING (tess_id) 
             WHERE r.location_id == :site_id
@@ -1673,7 +1673,7 @@ def readings_count(connection, options):
         # Find out how many rows to change fro infromative purposes
         cursor.execute(
             '''
-            SELECT (SELECT name FROM name_to_mac_t WHERE mac_address == :mac AND valid_state = "Current"), :mac, tess_id, l.site, :start_date, :end_date, COUNT(*)
+            SELECT (SELECT name FROM name_to_mac_t WHERE mac_address == :mac AND valid_state = "Current"), :mac, tess_id, l.site, MIN(date_id), MAX(date_id), COUNT(*)
             FROM tess_readings_t
             JOIN location_t AS l USING (location_id)
             JOIN tess_t AS i USING (tess_id)
@@ -1686,7 +1686,7 @@ def readings_count(connection, options):
         row['name']        = options.name
         cursor.execute(
             '''
-            SELECT :name, i.mac_address, tess_id, l.site, :start_date, :end_date, COUNT(*)
+            SELECT :name, i.mac_address, tess_id, l.site,  MIN(date_id), MAX(date_id), COUNT(*)
             FROM tess_readings_t
             JOIN location_t AS l USING (location_id)
             JOIN tess_t     AS i USING (tess_id)

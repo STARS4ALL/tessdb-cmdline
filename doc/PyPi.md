@@ -2,6 +2,15 @@
 
 How to upload a new package release into PyPi
 
+## Summary
+
+```bash
+	git tag -a MAJOR.MINOR.PATCH
+	python3 setup.py sdist
+	python3 -m twine upload dist/*
+	git push --tags origin master
+``` 
+
 ## Prerequisites
 
 	- Install the latest versions of setuptools, wheel and twine
