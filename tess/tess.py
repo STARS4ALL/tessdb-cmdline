@@ -83,7 +83,8 @@ def mkdate(datestr):
 def createParser():
     # create the top-level parser
     name = os.path.split(os.path.dirname(sys.argv[0]))[-1]
-    parser    = argparse.ArgumentParser(prog=name, description="tessdb command line tool " + __version__)
+    parser    = argparse.ArgumentParser(prog=name, description="tessdb command line tool")
+    parser.add_argument('--version', action='version', version='{0} {1}'.format(name, __version__))
     subparser = parser.add_subparsers(dest='command')
 
     # --------------------------
