@@ -15,7 +15,7 @@ DESCRIPTION  = 'tessdb command line tool to manage tessdb database',
 LICENSE      = 'MIT'
 KEYWORDS     = 'Astronomy Python RaspberryPi LightPollution'
 URL          = 'http://github.com/stars4all/tessdb-comdline/'
-PACKAGES     = ["tess"]
+PACKAGES     = ["tess","tess_event"]
 DEPENDENCIES = [
                   'tabulate',
 ]
@@ -36,7 +36,8 @@ CLASSIFIERS  = [
 
 
 SCRIPTS = [
-    'files/usr/local/bin/tess'
+    'files/usr/local/bin/tess',
+    'files/usr/local/bin/tess_event'
 ]
 
 if os.name == "posix":
