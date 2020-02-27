@@ -83,7 +83,8 @@ def mkdate(datestr):
 def createParser():
     # create the top-level parser
     name = os.path.split(os.path.dirname(sys.argv[0]))[-1]
-    parser    = argparse.ArgumentParser(prog=name, description="tessdb command line tool " + __version__)
+    parser    = argparse.ArgumentParser(prog=name, description="tessdb command line tool")
+    parser.add_argument('--version', action='version', version='{0} {1}'.format(name, __version__))
     subparser = parser.add_subparsers(dest='command')
 
     # --------------------------
@@ -236,7 +237,7 @@ def createParser():
     icr.add_argument('name',   type=str,   help='friendly name')
     icr.add_argument('mac',    type=str,   help='MAC address')
     icr.add_argument('zp',     type=float, help='Zero Point')
-    icr.add_argument('filter', type=str,   help='Filter (i.e. DG, BG39, GG495, etc.)')
+    icr.add_argument('filter', type=str,   help='Filter (i.e. UV/IR-cut, BG39, GG495, etc.)')
     icr.add_argument('-a', '--azimuth',    type=float, default=DEFAULT_AZIMUTH, help='Azimuth (degrees). 0.0 = North')
     icr.add_argument('-t', '--altitude',   type=float, default=DEFAULT_ALTITUDE, help='Altitude (degrees). 90.0 = Zenith')
     icr.add_argument('-d', '--dbase', default=DEFAULT_DBASE, help='SQLite database full file path')
