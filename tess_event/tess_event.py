@@ -29,7 +29,7 @@ import datetime
 # other imports
 # -------------
 
-
+# 2020-03-02T04:48:06+0000 [registry#info] stars294 changed instrument calibration data to 20.42 (MAC = 60:1:94:73:54:72)
 #--------------
 # local imports
 # -------------
@@ -51,12 +51,16 @@ EVENTS = (
         'pattern' : r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})[+-]\d{4} \[.+\] starting tessdb (\d{1,2}\.\d{1,2}\.\d{1,2}) on Python \d{1}\.\d{1} using (Twisted \d{1,2}\.\d{1,2}\.\d{1,2})',       
     },
     {
+        'name'    : 'started-v2',
+        'pattern' : r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})[+-]\d{4} \[.+\] starting (\d{1,2}\.\d{1,2}\.\d{1,2}) on (Twisted \d{1,2}\.\d{1,2}\.\d{1,2}), Python \d{1}\.\d{1}',       
+    },
+    {
         'name'    : 'stopped',
         'pattern' : r'^^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})[+-]\d{4} \[-\] Main loop terminated.',       
     },
     {
         'name'    : 'reboot',
-        'pattern' : r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})[+-]\d{4} \[.+\] Detected reboot for photometer (\w+) (MAC = \w{2}:\w{2}:\w{2}:\w{2}:\w{2}:\w{2})',       
+        'pattern' : r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})[+-]\d{4} \[.+\] Detected reboot for photometer (\w+) \(MAC = (\w{2}:\w{2}:\w{2}:\w{2}:\w{2}:\w{2})\)',       
     },
     
 )
@@ -78,6 +82,7 @@ def createParser():
     parser = argparse.ArgumentParser(prog=name, description="TESS Event log file parser " + __version__)
     parser.add_argument('--version', action='version', version='{0} {1}'.format(name, __version__))
     parser.add_argument('-d', '--dbase',   default=DEFAULT_DBASE, help='SQLite database full file path')
+    parser.add_argument('-l', '--log-dir',   default=DEFAULT_LOGDIR, help='Log directory')
     parser.add_argument('-t', '--testing', action='store_true', help='Testing environment.')
     parser.add_argument('-a', '--automatic', action='store_true', help='Launched automatically (i..e cron job).')
     parser.add_argument('--dry-run', action='store_true', help='Do not insert into the database.')
@@ -175,9 +180,11 @@ def process_line(line, context, accum):
     accum.append(copy.deepcopy(context))
 
 def write_to_database(accum, connection):
-    starts = [item for item in accum if item['event'] == 'started']
+    starts = [item for item in accum if (item['event'] == 'started') or (item['event'] == 'started-v2')]
     stops  = [item for item in accum if item['event'] == 'stopped']
-    logging.info("writting to database a list of {0} events, {1} 'started' and {2} 'stopped'".format(len(accum), len(starts), len(stops)))
+    reboots = [item for item in accum if item['event'] == 'reboot']
+    logging.info("writting to database a list of {0} events, {3} reboots, {1} 'started' and {2} 'stopped'".format(
+        len(accum), len(starts), len(stops), len(reboots)))
     cursor = connection.cursor()
     cursor.execute("SELECT COUNT(*) FROM event_log_t");
     n1 = cursor.fetchone()[0]
@@ -224,7 +231,7 @@ def main():
         connection = open_database(options.dbase)
         create_table(connection)
         event_list = []
-        for logfile_path in sorted(glob.glob("/var/log/tessdb*")):
+        for logfile_path in sorted(glob.glob(options.log_dir + "/tessdb*")):
             with open(logfile_path,'r') as fd:
                 logging.debug("processing file {0}".format(logfile_path))
                 for line in fd:
