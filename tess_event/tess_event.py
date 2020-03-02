@@ -54,6 +54,10 @@ EVENTS = (
         'name'    : 'stopped',
         'pattern' : r'^^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})[+-]\d{4} \[-\] Main loop terminated.',       
     },
+    {
+        'name'    : 'reboot',
+        'pattern' : r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})[+-]\d{4} \[.+\] Detected reboot for photometer (\w+) (MAC = \w{2}:\w{2}:\w{2}:\w{2}:\w{2}:\w{2})',       
+    },
     
 )
 EVENTS_PATTERNS = [ re.compile(event['pattern']) for event in EVENTS ]
@@ -72,6 +76,7 @@ def createParser():
     # create the top-level parser
     name = os.path.split(os.path.dirname(sys.argv[0]))[-1]
     parser = argparse.ArgumentParser(prog=name, description="TESS Event log file parser " + __version__)
+    parser.add_argument('--version', action='version', version='{0} {1}'.format(name, __version__))
     parser.add_argument('-d', '--dbase',   default=DEFAULT_DBASE, help='SQLite database full file path')
     parser.add_argument('-t', '--testing', action='store_true', help='Testing environment.')
     parser.add_argument('-a', '--automatic', action='store_true', help='Launched automatically (i..e cron job).')
@@ -160,6 +165,10 @@ def process_line(line, context, accum):
         context['tstamp'] = matchobj.group(1)
         context['scope']   = "global"
         context['comment'] = None
+    elif event['name'] == 'reboot':
+        context['tstamp'] = matchobj.group(1)
+        context['scope']   = matchobj.group(2)
+        context['comment'] = matchobj.group(3)
     else:
         pass
     logging.debug(context)
