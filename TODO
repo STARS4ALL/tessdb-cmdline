@@ -1,3 +1,3 @@
 Retocar la utilidad de tess para mostar min(fecha), max(fecha) con reading counts y demás
 en luger de la fecha metida por linea de comandos.
-tess instrument coalesce --name <name> | --mac <mac> --dry-run
+tess instrument coalesce --name <name> | --mac <mac> --test

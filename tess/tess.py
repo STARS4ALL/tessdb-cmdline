@@ -321,6 +321,13 @@ def createParser():
     ings.add_argument('-c', '--count', type=int, default=10, help='list up to <count> entries')
     ings.add_argument('-d', '--dbase', default=DEFAULT_DBASE, help='SQLite database full file path')
 
+    ico = subparser.add_parser('coalesce', help='coalesce redundant instrument ids')
+    icoex = ico.add_mutually_exclusive_group(required=True)
+    icoex.add_argument('-n', '--name', type=str, help='instrument name')
+    icoex.add_argument('-m', '--mac',  type=str, help='instrument MAC')
+    ico.add_argument('-d', '--dbase', default=DEFAULT_DBASE, help='SQLite database full file path')
+    ico.add_argument('-t', '--test', action='store_true',  help='test only, do not delete')
+
     return parser
 
 def main():
@@ -376,6 +383,143 @@ def paging(cursor, headers, size=10):
 # ----------------------
 # INSTRUMENT SUBCOMMANDS
 # ----------------------
+
+def instrument_coalesce(connection, options):
+    if options.name:
+        instrument_coalesce_by_name(connection, options)
+    elif options.mac:
+        instrument_coalesce_by_mac(connection, options)
+
+def instrument_coalesce_by_mac(connection,options):
+    cursor = connection.cursor()
+    row = {'mac': options.mac}
+    cursor.execute(
+        '''
+        SELECT (SELECT name FROM name_to_mac_t WHERE mac_address == src.mac_address), src.mac_address,src.tess_id, dst.tess_id, src.zero_point, src.valid_since
+        FROM tess_t AS src
+        CROSS JOIN tess_t AS dst
+        WHERE src.mac_address == dst.mac_address
+        AND src.tess_id != dst.tess_id
+        AND src.valid_until == dst.valid_since
+        AND src.zero_point == dst.zero_point
+        AND src.filter == dst.filter
+        AND src.mac_address = :mac
+        ORDER BY src.valid_since ASC
+        ''', row)
+    paging(cursor,["TESS","MAC","From Id","To Id","ZP", "Since"])
+
+    cursor.execute(
+        '''
+        SELECT src.tess_id
+        FROM tess_t AS src
+        CROSS JOIN tess_t AS dst
+        WHERE src.mac_address == dst.mac_address
+        AND src.tess_id != dst.tess_id
+        AND src.valid_until == dst.valid_since
+        AND src.zero_point == dst.zero_point
+        AND src.filter == dst.filter
+        AND src.mac_address = :mac
+        ORDER BY src.tess_id ASC;
+         ''', row)
+    result = [ x[0] for x in cursor.fetchall()]
+    cursor.execute(
+        '''
+        SELECT :mac, count(*) 
+        FROM tess_readings_t
+        WHERE tess_id IN 
+        (
+            SELECT src.tess_id
+            FROM tess_t AS src
+            CROSS JOIN tess_t AS dst
+            WHERE src.mac_address == dst.mac_address
+            AND src.tess_id != dst.tess_id
+            AND src.valid_until == dst.valid_since
+            AND src.zero_point == dst.zero_point
+            AND src.filter == dst.filter
+            AND src.mac_address = :row
+            ORDER BY src.tess_id ASC
+        )
+        ''', row)
+    paging(cursor,["MAC","#Readings"])
+
+
+def instrument_coalesce_by_name(connection,options):
+    cursor = connection.cursor()
+    row = {'name': options.name}
+    cursor.execute(
+        '''
+        SELECT :name, src.mac_address,src.tess_id, dst.tess_id, src.zero_point, src.valid_since
+        FROM tess_t AS src
+        CROSS JOIN tess_t AS dst
+        WHERE src.mac_address == dst.mac_address
+        AND src.tess_id != dst.tess_id
+        AND src.valid_until == dst.valid_since
+        AND src.zero_point == dst.zero_point
+        AND src.filter == dst.filter
+        AND src.mac_address IN (SELECT mac_address FROM name_to_mac_t WHERE name == :name)
+        ORDER BY src.valid_since ASC
+        ''', row)
+    paging(cursor,["TESS","MAC","From Id","To Id","ZP", "Since"])
+
+    cursor.execute(
+        '''
+        SELECT src.tess_id
+        FROM tess_t AS src
+        CROSS JOIN tess_t AS dst
+        WHERE src.mac_address == dst.mac_address
+        AND src.tess_id != dst.tess_id
+        AND src.valid_until == dst.valid_since
+        AND src.zero_point == dst.zero_point
+        AND src.filter == dst.filter
+        AND src.mac_address IN (SELECT mac_address FROM name_to_mac_t WHERE name == :name)
+        ORDER BY src.tess_id ASC;
+         ''', row)
+    result = [ x[0] for x in cursor.fetchall()]
+    cursor.execute(
+        '''
+        SELECT :name, count(*) 
+        FROM tess_readings_t
+        WHERE tess_id IN 
+        (
+            SELECT src.tess_id
+            FROM tess_t AS src
+            CROSS JOIN tess_t AS dst
+            WHERE src.mac_address == dst.mac_address
+            AND src.tess_id != dst.tess_id
+            AND src.valid_until == dst.valid_since
+            AND src.zero_point == dst.zero_point
+            AND src.filter == dst.filter
+            AND src.mac_address IN (SELECT mac_address FROM name_to_mac_t WHERE name == :name)
+            ORDER BY src.tess_id ASC
+        )
+        ''', row)
+    paging(cursor,["Name","#Readings"])
+   
+
+
+def instrument_coalesce_all(connection,options):
+    cursor = connection.cursor()
+    row = {'name': options.name}
+    cursor.execute(
+        '''
+        SELECT src.zero_point, MIN(src.tess_id), MAX(dst.tess_id), MIN(src.valid_since), MAX(dst.valid_until)
+        FROM tess_t AS src
+        CROSS JOIN tess_t AS dst
+        WHERE src.mac_address == dst.mac_address
+        AND src.tess_id != dst.tess_id
+        AND src.valid_until == dst.valid_since
+        AND src.zero_point == dst.zero_point
+        AND src.filter == dst.filter
+        GROUP BY src.mac_address
+        ORDER BY src.valid_since ASC;
+        ''', row)
+    resultset = cursor.fetchall()
+    
+
+
+
+
+
 
 def instrument_assign(connection, options):
     cursor = connection.cursor()
