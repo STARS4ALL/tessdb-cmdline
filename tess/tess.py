@@ -325,6 +325,7 @@ def createParser():
     icoex = ico.add_mutually_exclusive_group(required=True)
     icoex.add_argument('-n', '--name', type=str, help='instrument name')
     icoex.add_argument('-m', '--mac',  type=str, help='instrument MAC')
+    icoex.add_argument('-a', '--all', action='store_true', help='all instruments')
     ico.add_argument('-d', '--dbase', default=DEFAULT_DBASE, help='SQLite database full file path')
     ico.add_argument('-t', '--test', action='store_true',  help='test only, do not delete')
 
@@ -389,39 +390,29 @@ def instrument_coalesce(connection, options):
         instrument_coalesce_by_name(connection, options)
     elif options.mac:
         instrument_coalesce_by_mac(connection, options)
+    elif options.all:
+        instrument_coalesce_all(connection, options)
+
 
 def instrument_coalesce_by_mac(connection,options):
     cursor = connection.cursor()
     row = {'mac': options.mac}
     cursor.execute(
         '''
-        SELECT (SELECT name FROM name_to_mac_t WHERE mac_address == src.mac_address), src.mac_address,src.tess_id, dst.tess_id, src.zero_point, src.valid_since
+        SELECT (SELECT name FROM name_to_mac_t WHERE mac_address == src.mac_address), src.mac_address,src.tess_id, dst.tess_id, src.zero_point, src.filter, src.azimuth, src.altitude
         FROM tess_t AS src
         CROSS JOIN tess_t AS dst
         WHERE src.mac_address == dst.mac_address
-        AND src.tess_id != dst.tess_id
-        AND src.valid_until == dst.valid_since
-        AND src.zero_point == dst.zero_point
-        AND src.filter == dst.filter
-        AND src.mac_address = :mac
+        AND src.tess_id       != dst.tess_id
+        AND src.valid_until   == dst.valid_since
+        AND src.zero_point    == dst.zero_point
+        AND src.filter        == dst.filter
+        AND src.azimuth       == dst.azimuth
+        AND src.altitude      == dst.altitude
+        AND src.mac_address   == :mac
         ORDER BY src.valid_since ASC
         ''', row)
-    paging(cursor,["TESS","MAC","From Id","To Id","ZP", "Since"])
-
-    cursor.execute(
-        '''
-        SELECT src.tess_id
-        FROM tess_t AS src
-        CROSS JOIN tess_t AS dst
-        WHERE src.mac_address == dst.mac_address
-        AND src.tess_id != dst.tess_id
-        AND src.valid_until == dst.valid_since
-        AND src.zero_point == dst.zero_point
-        AND src.filter == dst.filter
-        AND src.mac_address = :mac
-        ORDER BY src.tess_id ASC;
-         ''', row)
-    result = [ x[0] for x in cursor.fetchall()]
+    paging(cursor,["TESS","MAC","From Id","To Id","ZP","Filter","Azimuth","Altitude"],size=20)
     cursor.execute(
         '''
         SELECT :mac, count(*) 
@@ -432,15 +423,94 @@ def instrument_coalesce_by_mac(connection,options):
             FROM tess_t AS src
             CROSS JOIN tess_t AS dst
             WHERE src.mac_address == dst.mac_address
-            AND src.tess_id != dst.tess_id
-            AND src.valid_until == dst.valid_since
-            AND src.zero_point == dst.zero_point
-            AND src.filter == dst.filter
-            AND src.mac_address = :row
-            ORDER BY src.tess_id ASC
+            AND src.tess_id       != dst.tess_id
+            AND src.valid_until   == dst.valid_since
+            AND src.zero_point    == dst.zero_point
+            AND src.filter        == dst.filter
+            AND src.azimuth       == dst.azimuth
+            AND src.altitude      == dst.altitude
+            AND src.mac_address   == :mac
+            ORDER BY src.valid_since ASC
         )
         ''', row)
     paging(cursor,["MAC","#Readings"])
+    if options.test:
+        return
+
+    cursor.execute(
+        '''
+        SELECT MAX(dst.tess_id), MIN(src.valid_since)
+        FROM tess_t AS src
+        CROSS JOIN tess_t AS dst
+        WHERE src.mac_address == dst.mac_address
+        AND src.tess_id       != dst.tess_id
+        AND src.valid_until   == dst.valid_since
+        AND src.zero_point    == dst.zero_point
+        AND src.filter        == dst.filter
+        AND src.azimuth       == dst.azimuth
+        AND src.altitude      == dst.altitude
+        AND src.mac_address   == :mac
+        GROUP BY src.mac_address
+        ORDER BY src.valid_since ASC;
+        ''', row)
+    result = cursor.fetchone()
+    row['target_tess_id'] = result[0]
+    row[ 'target_date']   = result[1]
+    # change all readings frist
+    cursor.execute(
+        '''
+        UPDATE tess_readings_t
+        SET  tess_id = :target_tess_id
+        WHERE tess_id IN
+        (
+            SELECT src.tess_id
+            FROM tess_t AS src
+            CROSS JOIN tess_t AS dst
+            WHERE src.mac_address == dst.mac_address
+            AND src.tess_id       != dst.tess_id
+            AND src.valid_until   == dst.valid_since
+            AND src.zero_point    == dst.zero_point
+            AND src.filter        == dst.filter
+            AND src.azimuth       == dst.azimuth
+            AND src.altitude      == dst.altitude
+            AND src.mac_address   == :mac
+            ORDER BY src.valid_since ASC
+        )
+        ''', row)
+    
+
+    # delete all intermediate tess_ids
+    cursor.execute(
+        '''
+        DELETE FROM tess_t
+        WHERE tess_id IN
+        (
+            SELECT src.tess_id
+            FROM tess_t AS src
+            CROSS JOIN tess_t AS dst
+            WHERE src.mac_address == dst.mac_address
+            AND src.tess_id       != dst.tess_id
+            AND src.valid_until   == dst.valid_since
+            AND src.zero_point    == dst.zero_point
+            AND src.filter        == dst.filter
+            AND src.azimuth       == dst.azimuth
+            AND src.altitude      == dst.altitude
+            AND src.mac_address   == :mac
+            ORDER BY src.valid_since ASC
+        )
+        ''', row)
+    
+    # Fix target tess_id, this must be done last
+    cursor.execute(
+        '''
+        UPDATE tess_t
+        SET  valid_since = :target_date
+        WHERE tess_id   == :target_tess_id
+        ''', row)
+    connection.commit()
+
+
+
 
 
 def instrument_coalesce_by_name(connection,options):
@@ -448,33 +518,20 @@ def instrument_coalesce_by_name(connection,options):
     row = {'name': options.name}
     cursor.execute(
         '''
-        SELECT :name, src.mac_address,src.tess_id, dst.tess_id, src.zero_point, src.valid_since
+        SELECT :name, src.mac_address, src.tess_id, dst.tess_id, src.zero_point, src.filter, src.azimuth, src.altitude
         FROM tess_t AS src
         CROSS JOIN tess_t AS dst
         WHERE src.mac_address == dst.mac_address
-        AND src.tess_id != dst.tess_id
-        AND src.valid_until == dst.valid_since
-        AND src.zero_point == dst.zero_point
-        AND src.filter == dst.filter
+        AND src.tess_id       != dst.tess_id
+        AND src.valid_until   == dst.valid_since
+        AND src.zero_point    == dst.zero_point
+        AND src.filter        == dst.filter
+        AND src.azimuth       == dst.azimuth
+        AND src.altitude      == dst.altitude
         AND src.mac_address IN (SELECT mac_address FROM name_to_mac_t WHERE name == :name)
         ORDER BY src.valid_since ASC
         ''', row)
-    paging(cursor,["TESS","MAC","From Id","To Id","ZP", "Since"])
-
-    cursor.execute(
-        '''
-        SELECT src.tess_id
-        FROM tess_t AS src
-        CROSS JOIN tess_t AS dst
-        WHERE src.mac_address == dst.mac_address
-        AND src.tess_id != dst.tess_id
-        AND src.valid_until == dst.valid_since
-        AND src.zero_point == dst.zero_point
-        AND src.filter == dst.filter
-        AND src.mac_address IN (SELECT mac_address FROM name_to_mac_t WHERE name == :name)
-        ORDER BY src.tess_id ASC;
-         ''', row)
-    result = [ x[0] for x in cursor.fetchall()]
+    paging(cursor,["TESS","MAC","From Id","To Id","ZP", "Filter","Azimuth","Altitude"], size=20)
     cursor.execute(
         '''
         SELECT :name, count(*) 
@@ -485,15 +542,96 @@ def instrument_coalesce_by_name(connection,options):
             FROM tess_t AS src
             CROSS JOIN tess_t AS dst
             WHERE src.mac_address == dst.mac_address
-            AND src.tess_id != dst.tess_id
-            AND src.valid_until == dst.valid_since
-            AND src.zero_point == dst.zero_point
-            AND src.filter == dst.filter
+            AND src.tess_id       != dst.tess_id
+            AND src.valid_until   == dst.valid_since
+            AND src.zero_point    == dst.zero_point
+            AND src.filter        == dst.filter
+            AND src.azimuth       == dst.azimuth
+            AND src.altitude      == dst.altitude
             AND src.mac_address IN (SELECT mac_address FROM name_to_mac_t WHERE name == :name)
-            ORDER BY src.tess_id ASC
+            ORDER BY src.valid_since ASC
         )
         ''', row)
-    paging(cursor,["Name","#Readings"])
+    paging(cursor,["Name","#Readings"], size=20)
+    if options.test:
+        return
+
+    cursor.execute(
+        '''
+        SELECT MAX(dst.tess_id), MIN(src.valid_since)
+        FROM tess_t AS src
+        CROSS JOIN tess_t AS dst
+        WHERE src.mac_address == dst.mac_address
+        AND src.tess_id       != dst.tess_id
+        AND src.valid_until   == dst.valid_since
+        AND src.zero_point    == dst.zero_point
+        AND src.filter        == dst.filter
+        AND src.azimuth       == dst.azimuth
+        AND src.altitude      == dst.altitude
+        AND src.mac_address IN (SELECT mac_address FROM name_to_mac_t WHERE name == :name)
+        GROUP BY src.mac_address
+        ORDER BY src.valid_since ASC;
+        ''', row)
+    result = cursor.fetchone()
+    row['target_tess_id'] = result[0]
+    row[ 'target_date']   = result[1]
+
+    # change all readings first
+    cursor.execute(
+        '''
+        UPDATE tess_readings_t
+        SET  tess_id = :target_tess_id
+        WHERE tess_id IN
+        (
+            SELECT src.tess_id
+            FROM tess_t AS src
+            CROSS JOIN tess_t AS dst
+            WHERE src.mac_address == dst.mac_address
+            AND src.tess_id       != dst.tess_id
+            AND src.valid_until   == dst.valid_since
+            AND src.zero_point    == dst.zero_point
+            AND src.filter        == dst.filter
+            AND src.azimuth       == dst.azimuth
+            AND src.altitude      == dst.altitude
+            AND src.mac_address IN (SELECT mac_address FROM name_to_mac_t WHERE name == :name)
+            ORDER BY src.valid_since ASC
+        )
+        ''', row)
+   
+
+    # delete all intermediate tess_ids
+    cursor.execute(
+        '''
+        DELETE FROM tess_t
+        WHERE tess_id IN
+        (
+            SELECT src.tess_id
+            FROM tess_t AS src
+            CROSS JOIN tess_t AS dst
+            WHERE src.mac_address == dst.mac_address
+            AND src.tess_id       != dst.tess_id
+            AND src.valid_until   == dst.valid_since
+            AND src.zero_point    == dst.zero_point
+            AND src.filter        == dst.filter
+            AND src.azimuth       == dst.azimuth
+            AND src.altitude      == dst.altitude
+            AND src.mac_address IN (SELECT mac_address FROM name_to_mac_t WHERE name == :name)
+            ORDER BY src.valid_since ASC
+        )
+        ''', row)
+
+      # Fix target tess_id, this must be done last
+    cursor.execute(
+        '''
+        UPDATE tess_t
+        SET  valid_since = :target_date
+        WHERE tess_id   = :target_tess_id
+        ''', row)
+
+    connection.commit()
+
+
+
    
 
 
@@ -502,18 +640,36 @@ def instrument_coalesce_all(connection,options):
     row = {'name': options.name}
     cursor.execute(
         '''
-        SELECT src.zero_point, MIN(src.tess_id), MAX(dst.tess_id), MIN(src.valid_since), MAX(dst.valid_until)
+        SELECT src.mac_address,  MIN(src.tess_id), MAX(dst.tess_id), COUNT(*), MIN(src.valid_since), MAX(dst.valid_until), src.zero_point, src.filter, src.azimuth, src.altitude
         FROM tess_t AS src
         CROSS JOIN tess_t AS dst
         WHERE src.mac_address == dst.mac_address
-        AND src.tess_id != dst.tess_id
-        AND src.valid_until == dst.valid_since
-        AND src.zero_point == dst.zero_point
-        AND src.filter == dst.filter
+        AND src.tess_id       != dst.tess_id
+        AND src.valid_until   == dst.valid_since
+        AND src.zero_point    == dst.zero_point
+        AND src.filter        == dst.filter
+        AND src.azimuth       == dst.azimuth
+        AND src.altitude      == dst.altitude
         GROUP BY src.mac_address
         ORDER BY src.valid_since ASC;
         ''', row)
-    resultset = cursor.fetchall()
+    paging(cursor,["MAC","From TESS Id","To TESS Id","Count","From Date","To Date","ZP","Filter","Azimuth","Altitude"], size=20)
+    
+    cursor.execute(
+        '''
+        SELECT MAX(dst.tess_id), MIN(src.valid_since)
+        FROM tess_t AS src
+        CROSS JOIN tess_t AS dst
+        WHERE src.mac_address == dst.mac_address
+        AND src.tess_id       != dst.tess_id
+        AND src.valid_until   == dst.valid_since
+        AND src.zero_point    == dst.zero_point
+        AND src.filter        == dst.filter
+        AND src.azimuth       == dst.azimuth
+        AND src.altitude      == dst.altitude
+        GROUP BY src.mac_address
+        ORDER BY src.valid_since ASC;
+        ''', row)
     
 
 
