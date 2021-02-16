@@ -556,7 +556,7 @@ def instrument_renamings(connection, options):
             AND   src.valid_state == "Expired"
             ORDER BY dst.valid_since ASC;
             ''', row)
-        paging(cursor,[,"When","Original TESS Name","Renamed To TESS name"], size=100)
+        paging(cursor,["When","Original TESS Name","Renamed To TESS name"], size=100)
 
     elif options.name:
         cursor.execute(
