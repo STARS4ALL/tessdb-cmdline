@@ -549,14 +549,14 @@ def instrument_renamings(connection, options):
     if options.summary:
         cursor.execute(
             '''
-            SELECT src.name,dst.name,dst.valid_since
+            SELECT dst.valid_since,src.name,dst.name
             FROM name_to_mac_t AS src
             JOIN name_to_mac_t AS dst USING (mac_address)
             WHERE src.name != dst.name
             AND   src.valid_state == "Expired"
-            ORDER BY CAST(substr(src.name, 6) as decimal) ASC;
+            ORDER BY dst.valid_since ASC;
             ''', row)
-        paging(cursor,["Original TESS Name","Renamed To TESS name.","Renamed at"], size=100)
+        paging(cursor,[,"When","Original TESS Name","Renamed To TESS name"], size=100)
 
     elif options.name:
         cursor.execute(
