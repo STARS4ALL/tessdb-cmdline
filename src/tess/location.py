@@ -18,10 +18,15 @@ import sqlite3
 import os
 import os.path
 import datetime
+import logging
 
 #--------------
 # other imports
 # -------------
+
+from timezonefinder import TimezoneFinder
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
 
 #--------------
 # local imports
@@ -161,8 +166,40 @@ def location_duplicates(connection, options):
         ''', row)
     paging(cursor,["Site A","Site B","Delta Latitude","Delta Longitude"], size=100)
 
-# Location update is a nightmare if done properly, since we have to generate
-# SQL updates tailored to the attributes being given in the command line
+
+geolocator = Nominatim(user_agent="STARS4ALL project")
+tf         = TimezoneFinder()  
+
+def location_search_by_coord(row):
+    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=2)
+    location = geolocator.reverse(f"{row['latitude']}, {row['longitude']}", language="en")
+    address = location.raw['address']
+    print(f"################## Geolocating Lat. {row['latitude']} Long. {row['longitude']} ##############")
+
+    print(address)
+    print("#"*78)
+    for location_type in ('village','town','city','municipality'):
+        try:
+            row['location'] = address[location_type]
+        except KeyError:
+            photometer['location'] = "Unknown"
+            continue
+        else:
+            break
+    for province_type in ('state','state_district'):
+        try:
+            row['province'] = address[province_type]
+        except KeyError:
+            row['province'] = "Unknown"
+            continue
+        else:
+            break
+    row['state'] = address.get('state_district',UNKNOWN)
+    row['zipcode'] = address.get('postcode',UNKNOWN)
+    row['country'] = address.get('country',UNKNOWN)
+    row['tzone'] = tf.timezone_at(lng=row['longitude'], lat=row['latitude'])
+
+
 
 def location_create(connection, options):
     cursor = connection.cursor()
@@ -171,14 +208,12 @@ def location_create(connection, options):
     row['longitude'] = options.longitude
     row['latitude']  = options.latitude
     row['elevation'] = options.elevation
-    row['zipcode']   = options.zipcode
-    row['location']  = options.location
-    row['province']  = options.province
-    row['country']   = options.country
     row['email']     = options.email
     row['owner']     = options.owner
     row['org']       = options.org
-    row['tzone']     = options.tzone
+  
+    location_search_by_coord(row)
+
     # Fetch existing site
     cursor.execute(
         '''
@@ -231,6 +266,8 @@ def location_create(connection, options):
     paging(cursor,["Name","Longitude","Latitude","Elevation","Contact","Email","Organization","ZIP Code","Location","Province","Country","Timezone"], size=5)
 
 
+# Location update is a nightmare if done properly, since we have to generate
+# SQL updates tailored to the attributes being given in the command line
 
 def location_update(connection, options):
     cursor = connection.cursor()
