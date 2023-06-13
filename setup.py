@@ -36,7 +36,9 @@ CLASSIFIERS  = [
 PACKAGE_DATA = {}
 
 SCRIPTS = [
-    "scripts/tess", 
+    "scripts/tess",
+    "scripts/tessdb_pause", 
+    "scripts/tessdb_resume", 
 ]
 
 DATA_FILES  = []
