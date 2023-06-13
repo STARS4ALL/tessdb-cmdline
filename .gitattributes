@@ -1,1 +1,2 @@
-tess/_version.py export-subst
+src/_version.py export-subst
+src/tess/_version.py export-subst

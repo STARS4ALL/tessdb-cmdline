@@ -5,4 +5,4 @@
 # See the LICENSE file for details
 # ----------------------------------------------------------------------
 
-python3 -m tess "$@"
+python -m tess "$@"

@@ -12,4 +12,4 @@ tess/*~
 my*
 *.db
 sftp-config.json
-
+.venv
