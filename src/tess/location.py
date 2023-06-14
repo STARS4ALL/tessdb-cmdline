@@ -202,6 +202,9 @@ def location_search_by_coord(row):
 
 
 def location_create(connection, options):
+    if (options.site == "") or options.site.isspace():
+        raise valueError("Empty location name")
+
     cursor = connection.cursor()
     row = {}
     row['site']      = options.site
