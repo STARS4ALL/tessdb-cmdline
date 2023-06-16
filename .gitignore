@@ -18,6 +18,7 @@ sftp-config.json
 *.txt
 *.db
 *.json
+*.log
 src/*.sh
 src/*.csv
 src/*.txt
