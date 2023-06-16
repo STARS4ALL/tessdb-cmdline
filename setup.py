@@ -12,6 +12,7 @@ LICENSE      = 'MIT'
 KEYWORDS     = ['Light Pollution','Astronomy']
 URL          = 'http://github.com/stars4all/tessdb-cmdline/'
 DEPENDENCIES = [
+    'jinja2',
     'tabulate',
     'geopy',
     'timezonefinder',
@@ -33,12 +34,18 @@ CLASSIFIERS  = [
     'Natural Language :: Spanish',
 ]
 
-PACKAGE_DATA = {}
+PACKAGE_DATA  = {
+    'tessutils': [
+        'templates/*.j2',
+    ],
+}
+
 
 SCRIPTS = [
     "scripts/tess",
     "scripts/tessdb_pause", 
-    "scripts/tessdb_resume", 
+    "scripts/tessdb_resume",
+    "scripts/tessutils", 
 ]
 
 DATA_FILES  = []

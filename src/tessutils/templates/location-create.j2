@@ -1,0 +1,17 @@
+#!/bin/bash
+{% set executable = "tess" %}
+{% for location in locations %}
+### {{ location.stars }} ###
+{{ executable }} location create "{{ location['Nombre lugar'] }}" --longitude "{{ location.Longitud }}" --latitude "{{ location.Latitud }}" --elevation "{{ location.MSNM | float }}" --dbase "{{ database }}"
+{% if location.owner is defined -%}
+{{ executable }} location update "{{ location['Nombre lugar'] }}" --dbase "{{ database }}" --owner "{{ location.owner }}"
+{% endif -%}
+{% if location.email is defined -%}
+{{ executable }} location update "{{ location['Nombre lugar'] }}" --dbase "{{ database }}" --email "{{ location.email }}"
+{% endif -%}
+{% if location.org is defined -%}
+{{ executable }} location update "{{ location['Nombre lugar'] }}" --dbase "{{ database }}" --org "{{ location.org }}"
+{% endif -%}
+{{ executable }} instrument assign --name {{ location.stars }} --location "{{ location['Nombre lugar'] }}" --dbase "{{ database }}"
+{{ executable }} instrument enable -n {{ location.stars }}  --dbase "{{ database }}"
+{% endfor -%}

@@ -182,7 +182,7 @@ def location_search_by_coord(row):
         try:
             row['location'] = address[location_type]
         except KeyError:
-            photometer['location'] = "Unknown"
+            row['location'] = "Unknown"
             continue
         else:
             break

@@ -71,7 +71,7 @@ def createParser():
     name = os.path.split(os.path.dirname(sys.argv[0]))[-1]
     parser    = argparse.ArgumentParser(prog=name, description="tessdb command line tool")
     parser.add_argument('--version', action='version', version='{0} {1}'.format(name, __version__))
-    parser.add_argument('--excp', action='store_true', help='print stack trace')
+    parser.add_argument('-x', '--exceptions', action='store_true',  help='print exception traceback when exiting.')
     subparser = parser.add_subparsers(dest='command')
 
     # --------------------------
@@ -313,13 +313,16 @@ def createParser():
 
     return parser
 
+
 def main():
     '''
     Utility entry point
     '''
+    options = argparse.Namespace()
+    exit_code = 0
     try:
         invalid_cache = False
-        options = createParser().parse_args(sys.argv[1:])
+        options = createParser().parse_args(sys.argv[1:], namespace=options)
         connection = open_database(options)
         command = options.command
         subcommand = options.subcommand
@@ -328,14 +331,16 @@ def main():
         # Call the function dynamically
         func = command + '_' + subcommand
         globals()[func](connection, options)
-
     except KeyboardInterrupt:
         print('')
+        exit_code = 1
     except Exception as e:
-        if(options.excp):
+        if(options.exceptions):
             traceback.print_exc()
         print("Error => {0}".format( utf8(str(e)) ))
+        exit_code = 1
     finally:
         if invalid_cache:
             print("WARNING: Do not forget to issue 'service tessdb reload' afterwards to invalidate tessdb caches")
+    sys.exit(exit_code)
 

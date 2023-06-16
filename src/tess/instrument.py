@@ -594,7 +594,7 @@ def instrument_unassigned(connection, options):
 
 def instrument_enable(connection, options):
     cursor = connection.cursor()
-    row = {'tess': options.name, 'state': CURRENT}
+    row = {'name': options.name, 'state': CURRENT}
     cursor.execute('''
         UPDATE tess_t 
         SET authorised = 1 
@@ -607,7 +607,7 @@ def instrument_enable(connection, options):
         SELECT name,site,authorised
         FROM tess_v
         WHERE valid_state == :state
-        AND name = :tess
+        AND name = :name
         ''',row)
     paging(cursor,["TESS","Site","Authorised"])
     connection.commit()    
@@ -668,7 +668,7 @@ def instrument_create(connection, options):
         ''', row)
     result = cursor.fetchone()
     if result:
-        raise IndexError("Other instrument already using friendly name %s" (row['name'],) )
+        raise IndexError("Other instrument already using friendly name %s" % (row['name'],) )
     # Write into database
     cursor.execute(
         '''
