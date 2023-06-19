@@ -107,18 +107,29 @@ def createParser():
 
     subparser = parser.add_subparsers(dest='command')
 
-    parser_image  = subparser.add_parser('location', help='image command')
+    parser_location  = subparser.add_parser('location', help='location commands')
+    parser_mongo  = subparser.add_parser('mongo', help='MongoDB commands')
     
-    # ---------------------------------------
+    # ------------------------------------------
     # Create second level parsers for 'location'
-    # ---------------------------------------
+    # ------------------------------------------
 
-    subparser = parser_image.add_subparsers(dest='subcommand')
+    subparser = parser_location.add_subparsers(dest='subcommand')
     locg = subparser.add_parser('generate',  help="Generate location creation script")
     locg.add_argument('-d', '--dbase', type=validfile, default=DEFAULT_DBASE, help='SQLite database full file path')
     locg.add_argument('-i', '--input-file', type=validfile, required=True, help='Input CSV file')
     locg.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
-  
+
+    # ---------------------------------------
+    # Create second level parsers for 'mongo'
+    # ---------------------------------------
+
+    subparser = parser_mongo.add_subparsers(dest='subcommand')
+    mgcommon = subparser.add_parser('intersect',  help="common coordinates between MongoDB and tessDB")
+    mgcommon.add_argument('-d', '--dbase', type=validfile, default=DEFAULT_DBASE, help='SQLite tessDB database full file path')
+    mgcommon.add_argument('-u', '--url', type=str, required=True, help='API URL for MongoDB queries')
+    mgcommon.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
     return parser
 
 

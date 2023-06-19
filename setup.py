@@ -16,6 +16,7 @@ DEPENDENCIES = [
     'tabulate',
     'geopy',
     'timezonefinder',
+    'requests',
 ]
 
 CLASSIFIERS  = [
