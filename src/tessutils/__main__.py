@@ -112,6 +112,7 @@ def createParser():
     parser_location  = subparser.add_parser('location', help='location commands')
     parser_mongodb = subparser.add_parser('mongodb', help='MongoDB commands')
     parser_tessdb  = subparser.add_parser('tessdb', help='TessDB commands')
+    parser_crossdb = subparser.add_parser('crossdb', help='Cross database check commands')
     
     # ------------------------------------------
     # Create second level parsers for 'location'
@@ -148,6 +149,29 @@ def createParser():
     tdphot = subparser.add_parser('photometers',  help="TessDB photometers metadata check")
     tdphot.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
     tdphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
+    # -----------------------------------------
+    # Create second level parsers for 'crossdb'
+    # -----------------------------------------
+
+    subparser = parser_crossdb.add_subparsers(dest='subcommand')
+    xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
+    xdbloc.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
+    xdbloc.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
+    xdbloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    grp = xdbloc.add_mutually_exclusive_group(required=True)
+    grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')
+    grp.add_argument('-t', '--tess', action='store_true',  help='TessDB exclusive locations')
+    grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
+
+    xdbphot = subparser.add_parser('photometers',  help="Cross DB photometers metadata check")
+    xdbphot.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
+    xdbphot.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
+    xdbphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    grp = xdbphot.add_mutually_exclusive_group(required=True)
+    grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')
+    grp.add_argument('-t', '--tess', action='store_true',  help='TessDB exclusive locations')
+    grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
 
     return parser
 

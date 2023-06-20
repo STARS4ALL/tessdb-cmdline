@@ -39,10 +39,10 @@ log = logging.getLogger('mongo')
 # Module auxiliar functions
 # -------------------------
 
-
-def photometers_from_mongo(url):
+def _photometers_from_mongo(url):
     response = requests.get(url)
     return response.json()
+
 
 def mongo_remap_info(row):
     for key in ('zero_point', "filters", "latitude", "longitude", "country", "city", "place", "mov_sta_position", "local_timezone", "tester", "location"):
@@ -62,13 +62,16 @@ def mongo_remap_info(row):
     return row
 
 
+def photometers_from_mongo(url):
+    return list(map(mongo_remap_info, _photometers_from_mongo(url)))
+
 # ===================
 # Module entry points
 # ===================
 
 def locations(options):
     log.info(" ====================== ANALIZING MONGODB LOCATION METADATA ======================")
-    mongo_input_list = list(map(mongo_remap_info, photometers_from_mongo(options.url)))
+    mongo_input_list = photometers_from_mongo(options.url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_loc  = by_location(mongo_input_list)
     log_locations(mongo_loc)
@@ -76,7 +79,7 @@ def locations(options):
 
 def photometers(options):
     log.info(" ====================== ANALIZING MONGODB PHOTOMETER METADATA ======================")
-    mongo_input_list = list(map(mongo_remap_info, photometers_from_mongo(options.url)))
+    mongo_input_list = photometers_from_mongo(options.url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_phot = by_photometer(mongo_input_list)
     log_photometers(mongo_phot)

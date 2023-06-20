@@ -34,7 +34,7 @@ log = logging.getLogger('tessdb')
 # Module auxiliar functions
 # -------------------------
 
-def photometers_from_tessdb(connection):
+def _photometers_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
@@ -64,6 +64,8 @@ def tessdb_remap_info(row):
     newrow["timezone"] = row[8]
     return newrow
 
+def photometers_from_tessdb(connection):
+    return list(map(tessdb_remap_info, _photometers_from_tessdb(connection)))
 
 # ===================
 # Module entry points
@@ -72,7 +74,7 @@ def tessdb_remap_info(row):
 def locations(options):
     connection = open_database(options.dbase)
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
-    tessdb_input_list = list(map(tessdb_remap_info,  photometers_from_tessdb(connection)))
+    tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_loc  = by_location(tessdb_input_list)
     log_locations(tessdb_loc)
@@ -81,7 +83,7 @@ def locations(options):
 def photometers(options):
     connection = open_database(options.dbase)
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
-    tessdb_input_list = list(map(tessdb_remap_info,  photometers_from_tessdb(connection)))
+    tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_phot = by_photometer(tessdb_input_list)
     log_photometers(tessdb_phot)
