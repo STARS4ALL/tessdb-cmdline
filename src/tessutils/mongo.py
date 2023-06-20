@@ -15,6 +15,7 @@ import math
 import json
 import logging
 import traceback
+import collections
 
 # -------------------
 # Third party imports
@@ -68,7 +69,7 @@ def error_lat(latitude, arc_error):
     return arc_error /  EARTH_RADIUS
 
 
-def error_lomg(longitude, latitude, arc_error):
+def error_long(longitude, latitude, arc_error):
     '''
     returns longitude estimated angle error for an estimated arc error in meters
     longitude given in radians
@@ -83,7 +84,7 @@ def photometers_from_mongo(url):
     response = requests.get(url)
     return response.json()
 
-def remap_tessdb_info(row):
+def tessdb_remap_info(row):
     newrow = dict()
     newrow['name'] = row[0]
     try:
@@ -102,11 +103,11 @@ def remap_tessdb_info(row):
     newrow["timezone"] = row[8]
     return newrow
 
-def remap_mongo_info(row):
+def mongo_remap_info(row):
     for key in ('zero_point', "filters", "latitude", "longitude", "country", "city", "place", "mov_sta_position", "local_timezone", "tester", "location"):
         row.pop('key', None)
-    row["longitude"] = row["info_location"]["longitude"]
-    row["latitude"] = row["info_location"]["latitude"]
+    row["longitude"] = float(row["info_location"]["longitude"])
+    row["latitude"] = float(row["info_location"]["latitude"])
     row["place"] = row["info_location"]["place"]
     row["location"] = row["info_location"].get("town")
     row["region"] = row["info_location"]["place"]
@@ -119,6 +120,29 @@ def remap_mongo_info(row):
         row["timezone"] = "Etc/UTC"
     return row
 
+
+def check_location_consistency(place, photometers):
+    '''Check for coordinates consistency among phothometers deployed on the same 'place' name'''
+    longitudes = set(phot['longitude'] for phot in photometers)
+    latitudes = set(phot['latitude'] for phot in photometers)
+    if len(longitudes) > 1:
+        log.warn("Location %s has different longitudes. %s", place, longitudes)
+    if len(latitudes) > 1:
+        log.warn("Location %s has different latitudes. %s", place, latitudes)
+
+
+
+def extract_locations(phot_iterable):
+    loc = collections.defaultdict(list)
+    for row in phot_iterable:
+        loc[row['place']].append(row)
+    log.info("From %d photometers, we have extracted %d different places",len(phot_iterable), len(loc.keys()))
+    for place, photometers in loc.items():
+        if len(photometers) > 1:
+            log.info("Location %s has %d photometers: %s", place, len(photometers), [phot['name'] for phot in photometers])
+            check_location_consistency(place, photometers)
+    return loc
+
 # ===================
 # Module entry points
 # ===================
@@ -126,8 +150,12 @@ def remap_mongo_info(row):
 def intersect(options):
     connection = open_database(options.dbase)
     log.info("Common coordinates locations between MomgoDB and TessDB")
-    mongo_list = list(map(remap_mongo_info, photometers_from_mongo(options.url)))
-    log.info("read %d photometers from MongoDB", len(mongo_list))
-    #log.debug(json.dumps(mongo_list, sort_keys=True, indent=2))
-    tessdb_list = list(map(remap_tessdb_info, photometers_from_tessdb(connection)))
-    log.info("read %d photometers from TessDB", len(tessdb_list))
+    mongo_phot_list = list(map(mongo_remap_info, photometers_from_mongo(options.url)))
+    log.info("read %d photometers from MongoDB", len(mongo_phot_list))
+    log.info(" ====================== ANALIZING MONGODB DATA ======================")
+    mongo_loc = extract_locations(mongo_phot_list)
+    log.info(" ====================== ANALIZING TESSDB  DATA ======================")
+    #log.debug(json.dumps(mongo_phot_list, sort_keys=True, indent=2))
+    tessdb_phot_list = list(map(tessdb_remap_info, photometers_from_tessdb(connection)))
+    tessdb_loc = extract_locations(tessdb_phot_list)
+    #log.info("read %d photometers from TessDB", len(tessdb_phot_list))

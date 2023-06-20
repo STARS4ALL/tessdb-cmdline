@@ -25,3 +25,5 @@ src/*.txt
 src/*.db
 src/*.json
 src/*.sh
+tess.db*
+
