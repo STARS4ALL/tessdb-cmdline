@@ -17,6 +17,7 @@ DEPENDENCIES = [
     'geopy',
     'timezonefinder',
     'requests',
+    'validators',
 ]
 
 CLASSIFIERS  = [

@@ -18,8 +18,12 @@ import os
 import os.path
 import datetime
 
-import tabulate
+# ---------------------
+# Third party libraries
+# ---------------------
 
+import validators
+import tabulate
 
 #--------------
 # local imports
@@ -42,6 +46,10 @@ import tabulate
 # Module global functions
 # -----------------------
 
+def url(string):
+    if not validators.url(string):
+        raise ValueError("Invalid URL: %s" % string)
+    return string
 
 # ==============
 # DATABASE STUFF

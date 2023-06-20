@@ -17,11 +17,13 @@ import logging
 import traceback
 import importlib
 
+
 #--------------
 # local imports
 # -------------
 
 from . import __version__, DEFAULT_DBASE
+from .utils import url
 
 # ----------------
 # Module constants
@@ -108,7 +110,8 @@ def createParser():
     subparser = parser.add_subparsers(dest='command')
 
     parser_location  = subparser.add_parser('location', help='location commands')
-    parser_mongo  = subparser.add_parser('mongo', help='MongoDB commands')
+    parser_mongodb = subparser.add_parser('mongodb', help='MongoDB commands')
+    parser_tessdb  = subparser.add_parser('tessdb', help='TessDB commands')
     
     # ------------------------------------------
     # Create second level parsers for 'location'
@@ -120,15 +123,31 @@ def createParser():
     locg.add_argument('-i', '--input-file', type=validfile, required=True, help='Input CSV file')
     locg.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
-    # ---------------------------------------
-    # Create second level parsers for 'mongo'
-    # ---------------------------------------
+    # -----------------------------------------
+    # Create second level parsers for 'mongodb'
+    # -----------------------------------------
 
-    subparser = parser_mongo.add_subparsers(dest='subcommand')
-    mgcommon = subparser.add_parser('intersect',  help="common coordinates between MongoDB and tessDB")
-    mgcommon.add_argument('-d', '--dbase', type=validfile, default=DEFAULT_DBASE, help='SQLite tessDB database full file path')
-    mgcommon.add_argument('-u', '--url', type=str, required=True, help='API URL for MongoDB queries')
-    mgcommon.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    subparser = parser_mongodb.add_subparsers(dest='subcommand')
+    mgloc = subparser.add_parser('locations',  help="MongoDB locations metadata check")
+    mgloc.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
+    mgloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
+    mgphot = subparser.add_parser('photometers',  help="MongoDB photometers metadata check")
+    mgphot.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
+    mgphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
+    # -----------------------------------------
+    # Create second level parsers for 'tessdb'
+    # -----------------------------------------
+
+    subparser = parser_tessdb.add_subparsers(dest='subcommand')
+    tdloc = subparser.add_parser('locations',  help="TessDB locations metadata check")
+    tdloc.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
+    tdloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
+    tdphot = subparser.add_parser('photometers',  help="TessDB photometers metadata check")
+    tdphot.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
+    tdphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
     return parser
 
