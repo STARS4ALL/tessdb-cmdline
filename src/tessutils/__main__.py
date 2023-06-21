@@ -50,7 +50,7 @@ def configureLogging(options):
     if options.verbose:
         level = logging.DEBUG
     elif options.quiet:
-        level = logging.WARN
+        level = logging.ERROR
     else:
         level = logging.INFO
     

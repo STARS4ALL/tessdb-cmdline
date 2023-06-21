@@ -23,7 +23,7 @@ import requests
 # local imports
 # -------------
 
-from .dbutils import by_location, by_photometer, log_locations, log_photometers
+from .dbutils import by_location, by_photometer, by_coordinates, log_locations, log_photometers, log_coordinates
 
 # ----------------
 # Module constants
@@ -75,6 +75,8 @@ def locations(options):
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_loc  = by_location(mongo_input_list)
     log_locations(mongo_loc)
+    mongo_coord  = by_coordinates(mongo_input_list)
+    log_coordinates(mongo_coord)
   
 
 def photometers(options):
