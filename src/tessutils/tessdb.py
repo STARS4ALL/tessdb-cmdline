@@ -46,23 +46,23 @@ def _photometers_from_tessdb(connection):
     return cursor
 
 def tessdb_remap_info(row):
-    newrow = dict()
-    newrow['name'] = row[0]
+    new_row = dict()
+    new_row['name'] = row[0]
     try:
-        newrow['longitude'] = float(row[1])
+        new_row['longitude'] = float(row[1])
     except ValueError:
-        newrow['longitude'] = 0.0
+        new_row['longitude'] = 0.0
     try:
-        newrow['latitude'] = float(row[2])
+        new_row['latitude'] = float(row[2])
     except ValueError:
-        newrow['latitude'] = 0.0
-    newrow['place'] = row[3]
-    newrow["location"] = row[4]
-    newrow["sub_region"] = row[5]
-    newrow["region"] = row[6]
-    newrow["country"] = row[7]
-    newrow["timezone"] = row[8]
-    return newrow
+        new_row['latitude'] = 0.0
+    new_row['place'] = row[3]
+    new_row["location"] = row[4]
+    new_row["sub_region"] = row[5]
+    new_row["region"] = row[6]
+    new_row["country"] = row[7]
+    new_row["timezone"] = row[8]
+    return new_row
 
 def photometers_from_tessdb(connection):
     return list(map(tessdb_remap_info, _photometers_from_tessdb(connection)))

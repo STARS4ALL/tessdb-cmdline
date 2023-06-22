@@ -18,6 +18,9 @@ import logging
 # -------------------
 
 import requests
+from timezonefinder import TimezoneFinder
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
 
 #--------------
 # local imports
@@ -45,21 +48,21 @@ def _photometers_from_mongo(url):
 
 
 def mongo_remap_info(row):
-    for key in ('zero_point', "filters", "latitude", "longitude", "country", "city", "place", "mov_sta_position", "local_timezone", "tester", "location"):
-        row.pop('key', None)
-    row["longitude"] = float(row["info_location"]["longitude"])
-    row["latitude"] = float(row["info_location"]["latitude"])
-    row["place"] = row["info_location"]["place"]
-    row["location"] = row["info_location"].get("town")
-    row["region"] = row["info_location"]["place"]
-    row["sub_region"] = row["info_location"].get("sub_region")
-    row["country"] = row["info_location"]["country"]
+    new_row = dict()
+    new_row['name'] = row['name']
+    new_row["longitude"] = float(row["info_location"]["longitude"])
+    new_row["latitude"] = float(row["info_location"]["latitude"])
+    new_row["place"] = row["info_location"]["place"]
+    new_row["location"] = row["info_location"].get("town")
+    new_row["region"] = row["info_location"]["place"]
+    new_row["sub_region"] = row["info_location"].get("sub_region")
+    new_row["country"] = row["info_location"]["country"]
     tess = row.get("info_tess")
     if(tess):
-        row["timezone"] = row["info_tess"].get("local_timezone","Etc/UTC")
+        new_row["timezone"] = row["info_tess"].get("local_timezone","Etc/UTC")
     else:
-        row["timezone"] = "Etc/UTC"
-    return row
+        new_row["timezone"] = "Etc/UTC"
+    return new_row
 
 
 def photometers_from_mongo(url):
@@ -75,8 +78,7 @@ def locations(options):
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_loc  = by_location(mongo_input_list)
     log_locations(mongo_loc)
-    mongo_coord  = by_coordinates(mongo_input_list)
-    log_coordinates(mongo_coord)
+  
   
 
 def photometers(options):

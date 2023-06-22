@@ -56,7 +56,7 @@ def error_long(longitude, latitude, arc_error):
     return _term1 - _term2
 
 
-def check_location_consistency(place, photometers):
+def check_location_same_coords(place, photometers):
     '''Check for coordinates consistency among phothometers deployed on the same 'place' name'''
     longitudes = set(phot['longitude'] for phot in photometers)
     latitudes = set(phot['latitude'] for phot in photometers)
@@ -64,6 +64,12 @@ def check_location_consistency(place, photometers):
         log.warn("Location %s has different longitudes. %s", place, longitudes)
     if len(latitudes) > 1:
         log.warn("Location %s has different latitudes. %s", place, latitudes)
+
+def check_location_dupl_phot(place, photometers):
+    '''Check duplicate entries fro the same place'''
+    distinct_photometers = set([phot['name'] for phot in photometers])
+    if len(distinct_photometers) == 1:
+        log.error("Location %s has %d duplicated photometer entries for %s", place, len(photometers), distinct_photometers)
 
 
 def by_location(iterable):
@@ -78,18 +84,22 @@ def log_locations(locations_iterable):
     for place, photometers in locations_iterable.items():
         if len(photometers) > 1:
             log.info("Location %s has %d photometers: %s", place, len(photometers), [phot['name'] for phot in photometers])
-            check_location_consistency(place, photometers)
-            distinct_photometers = set([phot['name'] for phot in photometers])
-            if len(distinct_photometers) == 1:
-                log.error("Location %s has %d duplicated photometer entries for %s", place, len(photometers), distinct_photometers)
+            check_location_same_coords(place, photometers)
+            check_location_dupl_phot(place, photometers)
+
+
+def check_photmeter_dupl_locations(name, locations):
+    distinct_locations = set([loc['place'] for loc in locations])
+    if len(distinct_locations) == 1:
+        log.error("Photometer %s has %d duplicated location entries for %s", name, len(locations), distinct_locations)
+
 
 def log_photometers(photometers_iterable):
     for name, locations in photometers_iterable.items():
         if len(locations) > 1:
             log.info("Photometer %s has %d locations: %s", name, len(locations), [loc['place'] for loc in locations])
-            distinct_locations = set([loc['place'] for loc in locations])
-            if len(distinct_locations) == 1:
-                log.error("Photometer %s has %d duplicated location entries for %s", name, len(locations), distinct_locations)
+            check_photmeter_dupl_locations(name, locations)
+
 
 def by_photometer(iterable):
     phot = collections.defaultdict(list)
