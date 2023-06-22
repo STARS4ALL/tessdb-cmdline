@@ -27,6 +27,8 @@ from geopy.extra.rate_limiter import RateLimiter
 # -------------
 
 from .dbutils import by_location, by_photometer, by_coordinates, log_locations, log_photometers, log_coordinates
+from .dbutils import filter_dupl_coordinates
+
 
 # ----------------
 # Module constants
@@ -79,7 +81,6 @@ def locations(options):
     mongo_loc  = by_location(mongo_input_list)
     log_locations(mongo_loc)
   
-  
 
 def photometers(options):
     log.info(" ====================== ANALIZING MONGODB PHOTOMETER METADATA ======================")
@@ -87,5 +88,11 @@ def photometers(options):
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_phot = by_photometer(mongo_input_list)
     log_photometers(mongo_phot)
-  
 
+
+def coordinates(options):
+    log.info(" ====================== ANALIZING MONGODB COORDINATES METADATA ======================")
+    mongo_input_list = photometers_from_mongo(options.url)
+    log.info("read %d items from MongoDB", len(mongo_input_list))
+    output = filter_dupl_coordinates(mongo_input_list)
+    log.info("%d entries with inconsistent coordinates", len(output))

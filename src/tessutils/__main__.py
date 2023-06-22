@@ -137,6 +137,12 @@ def createParser():
     mgphot.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
     mgphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
+
+    mgloc = subparser.add_parser('coordinates',  help="Show same places with different coordinates")
+    mgloc.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
+    mgloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
+
     # -----------------------------------------
     # Create second level parsers for 'tessdb'
     # -----------------------------------------
