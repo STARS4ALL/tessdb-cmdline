@@ -67,6 +67,17 @@ def mongo_remap_info(row):
 def photometers_from_mongo(url):
     return list(map(mongo_remap_info, _photometers_from_mongo(url)))
 
+
+def map_csv_proposal(row):
+    new_row = dict()
+    keys = ["place", "place_type", "location", "sub_region", "region", "country", "timezone", "zipcode"]
+    for key in keys:
+        new_row[f"proposed_{key}"] = row[key]
+    for key in set(row.keys()) - set(keys):
+        new_row[key] = row[key]
+    return new_row
+
+
 # ===================
 # Module entry points
 # ===================
@@ -92,4 +103,5 @@ def coordinates(options):
     mongo_input_list = photometers_from_mongo(options.url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     output = geolocate(mongo_input_list)
+    output = list(map(map_csv_proposal,output))
     log.info("%d entries produced", len(output))
