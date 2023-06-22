@@ -18,16 +18,13 @@ import logging
 # -------------------
 
 import requests
-from timezonefinder import TimezoneFinder
-from geopy.geocoders import Nominatim
-from geopy.extra.rate_limiter import RateLimiter
 
 #--------------
 # local imports
 # -------------
 
 from .dbutils import by_location, by_photometer, by_coordinates, log_locations, log_photometers, log_coordinates
-from .dbutils import filter_dupl_coordinates
+from .dbutils import geolocate
 
 
 # ----------------
@@ -94,5 +91,5 @@ def coordinates(options):
     log.info(" ====================== ANALIZING MONGODB COORDINATES METADATA ======================")
     mongo_input_list = photometers_from_mongo(options.url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
-    output = filter_dupl_coordinates(mongo_input_list)
-    log.info("%d entries with inconsistent coordinates", len(output))
+    output = geolocate(mongo_input_list)
+    log.info("%d entries produced", len(output))
