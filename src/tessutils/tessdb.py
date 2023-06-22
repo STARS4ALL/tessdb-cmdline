@@ -57,7 +57,7 @@ def tessdb_remap_info(row):
     except ValueError:
         new_row['latitude'] = 0.0
     new_row['place'] = row[3]
-    new_row["location"] = row[4]
+    new_row["town"] = row[4]
     new_row["sub_region"] = row[5]
     new_row["region"] = row[6]
     new_row["country"] = row[7]

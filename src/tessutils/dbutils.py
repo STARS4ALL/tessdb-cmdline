@@ -69,9 +69,9 @@ def make_remap_location(geolocator, tzfinder):
 
         for location_type in ('village','town','city','municipality'):
             try:
-                out_row['location'] = metadata[location_type]
+                out_row['town'] = metadata[location_type]
             except KeyError:
-                out_row['location'] = None
+                out_row['town'] = None
                 continue
             else:
                 break
