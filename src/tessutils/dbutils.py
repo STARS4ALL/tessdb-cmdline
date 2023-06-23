@@ -29,13 +29,27 @@ from geopy.extra.rate_limiter import RateLimiter
 # Module constants
 # ----------------
 
-EARTH_RADIUS =  6371000.0 # in meters 
+EARTH_RADIUS =  6371009.0 # in meters 
 
 # -----------------------
 # Module global variables
 # -----------------------
 
 log = logging.getLogger('dbutils')
+
+
+def distance(row1, row2):
+    '''
+    Compute approximate geographical distance between 
+    two points on Earth
+    Accurate for small distances only
+    '''
+    delta_long = math.radians(row1['longitude'] - row2['longitude'])
+    delta_lat = math.radians(row1['latitude'] - row2['latitude'])
+    mean_lat = math.radians((row1['latitude'] + row2['latitude'])/2)
+
+    return EARTH_RADIUS*math.sqrt(delta_lat**2 + (math.cos(mean_lat)*delta_long)**2)
+
 
 
 def make_remap_location(geolocator, tzfinder):

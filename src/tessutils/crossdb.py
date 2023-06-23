@@ -26,7 +26,7 @@ import collections
 # -------------
 
 from .utils import open_database
-from .dbutils import by_location, by_photometer, log_locations, log_photometers
+from .dbutils import by_location, by_photometer, log_locations, log_photometers, distance
 from .mongodb import photometers_from_mongo
 from .tessdb import photometers_from_tessdb
 # ----------------
@@ -66,6 +66,12 @@ def mongo_exclusive_locations(mongo_iterable, tessdb_iterable):
 def tessdb_exclusive_locations(mongo_iterable, tessdb_iterable):
     locations = in_tessdb_not_in_mongo(mongo_iterable, tessdb_iterable)
     log.info("%d locations exclusive TessDB locations",len(locations))
+
+
+def make_nearby_filter(row2, lower, upper):
+    def distance_filter(row1):
+        return (lower <= distance(row1, row2) <= upper)
+    return distance_filter
 
 
 # ===================
@@ -118,3 +124,23 @@ def photometers(options):
             log.debug("Photometer %s", photometer)
    
 
+def coordinates(options):
+    log.info(" ====================== ANALIZING CROSS DB PHOTOMETER METADATA ======================")
+    connection = open_database(options.dbase)
+    mongo_input_list = photometers_from_mongo(options.url)
+    log.info("read %d items from MongoDB", len(mongo_input_list))
+    tessdb_input_list = photometers_from_tessdb(connection)
+    log.info("read %d items from TessDB", len(tessdb_input_list))
+    output = list()
+    for mongo_item in mongo_input_list:
+        nearby_filter = make_nearby_filter(mongo_item, options.lower, options.upper)
+        nearby_list = list(filter(nearby_filter, tessdb_input_list))
+        output.append(nearby_list)
+        if (len(nearby_list)):
+            log.info("Nearby to %s (Lon=%f, Lat=%f) are: %s", 
+                mongo_item['place'], 
+                mongo_item['longitude'], 
+                mongo_item['latitude'], 
+                [ (r['place'], r['longitude'], r['latitude']) for r in nearby_list]
+            )
+       

@@ -179,6 +179,14 @@ def createParser():
     grp.add_argument('-t', '--tess', action='store_true',  help='TessDB exclusive locations')
     grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
 
+    xdbcoord = subparser.add_parser('coordinates',  help="Cross DB photometers metadata check")
+    xdbcoord.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
+    xdbcoord.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
+    xdbcoord.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    xdbcoord.add_argument('--lower', type=float, default=0.0, help='Lower limit in meters')
+    xdbcoord.add_argument('--upper', type=float, default=1000.0, help='Upper limit in meters')
+
+
     return parser
 
 
