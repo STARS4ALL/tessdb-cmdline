@@ -70,20 +70,25 @@ def make_remap_location(geolocator, tzfinder):
         for location_type in ('village','town','city','municipality'):
             try:
                 out_row['town'] = metadata[location_type]
+                out_row['town_type'] = location_type
             except KeyError:
                 out_row['town'] = None
+                out_row['town_type'] = None
                 continue
             else:
                 break
-        for province_type in ('state','province','state_district'):
+        for province_type in ('state_district','province'):
             try:
                 out_row['sub_region'] = metadata[province_type]
+                out_row['sub_region_type'] = province_type
             except KeyError:
                 out_row['sub_region'] = None
+                out_row['sub_region_type'] = None
                 continue
             else:
                 break
-        out_row['region']  = metadata.get('state_district',None)
+        out_row['region']  = metadata.get('state',None)
+        out_row['region_type'] = 'state'
         out_row['zipcode'] = metadata.get('postcode',None)
         out_row['country'] = metadata.get('country',None)
         out_row['timezone'] = tzfinder.timezone_at(lng=row['longitude'], lat=row['latitude'])

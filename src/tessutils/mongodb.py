@@ -70,7 +70,7 @@ def photometers_from_mongo(url):
 
 def map_proposal(row):
     new_row = dict()
-    keys = ["place", "place_type", "town", "sub_region", "region", "country", "timezone", "zipcode"]
+    keys = ["place", "place_type", "town", "town_type", "sub_region", "sub_region_type", "region", "region_type", "country", "timezone", "zipcode"]
     for key in keys:
         new_row[f"proposed_{key}"] = row[key]
     for key in set(row.keys()) - set(keys):
@@ -86,8 +86,9 @@ def merge_info(input_iterable, proposal_iterable):
 
 def proposed_location_csv(iterable, path):
     with open(path, 'w', newline='') as csvfile:
-        fieldnames = ('name', 'longitude', 'latitude', 'place', 'proposed_place', 'proposed_place_type', 'town', 'proposed_town',
-            'sub_region', 'proposed_sub_region', 'region', 'proposed_region', 'country', 'proposed_country', 'timezone', 'proposed_timezone', 'proposed_zipcode')
+        fieldnames = ('name', 'longitude', 'latitude', 'place', 'proposed_place', 'proposed_place_type', 'town', 'proposed_town', 'proposed_town_type',
+            'sub_region', 'proposed_sub_region', 'proposed_sub_region_type', 'region', 'proposed_region', 'proposed_region_type', 
+            'country', 'proposed_country', 'timezone', 'proposed_timezone', 'proposed_zipcode')
         writer = csv.DictWriter(csvfile, delimiter=';', fieldnames=fieldnames)
         writer.writeheader()
         for row in iterable:
@@ -118,7 +119,6 @@ def photometers(options):
 def coordinates(options):
     log.info(" ====================== ANALIZING MONGODB COORDINATES METADATA ======================")
     mongo_input_list = photometers_from_mongo(options.url)
-    mongo_input_list  = mongo_input_list[:10]
     log.info("read %d items from MongoDB", len(mongo_input_list))
     output = geolocate(mongo_input_list)
     output = list(map(map_proposal,output))
