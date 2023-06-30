@@ -74,6 +74,17 @@ def make_nearby_filter(row2, lower, upper):
     return distance_filter
 
 
+def similar_locations_csv(iterable, path):
+    with open(path, 'w', newline='') as csvfile:
+        fieldnames = ('source', 'name', 'longitude', 'latitude', 'place', 'town',
+            'sub_region', 'region', 'country', 'timezone', )
+        writer = csv.DictWriter(csvfile, delimiter=';', fieldnames=fieldnames)
+        writer.writeheader()
+        for row in iterable:
+            writer.writerow(row)
+
+
+
 # ===================
 # Module entry points
 # ===================
@@ -135,12 +146,18 @@ def coordinates(options):
     for mongo_item in mongo_input_list:
         nearby_filter = make_nearby_filter(mongo_item, options.lower, options.upper)
         nearby_list = list(filter(nearby_filter, tessdb_input_list))
-        output.append(nearby_list)
         if (len(nearby_list)):
+            mongo_item['source'] = 'mongoDB'
+            output.append(mongo_item)
+            for nearby in nearby_list:
+                nearby['source'] = 'tessDB'
+                output.append(nearby)
             log.info("Nearby to %s (Lon=%f, Lat=%f) are: %s", 
                 mongo_item['place'], 
                 mongo_item['longitude'], 
                 mongo_item['latitude'], 
                 [ (r['place'], r['longitude'], r['latitude']) for r in nearby_list]
             )
+    similar_locations_csv(output, options.output_prefix + '.csv')
+
        
