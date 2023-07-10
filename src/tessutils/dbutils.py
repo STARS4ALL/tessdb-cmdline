@@ -9,6 +9,7 @@
 # System wide imports
 # -------------------
 
+import os
 import math
 import logging
 import collections
@@ -36,6 +37,12 @@ EARTH_RADIUS =  6371009.0 # in meters
 # -----------------------
 
 log = logging.getLogger('dbutils')
+
+def get_mongo_api_url():
+    url = os.environ.get("STARS4ALL_API")
+    if not url:
+        raise KeyError("'STARS4ALL_API' environment variable not set")
+    return url
 
 
 def distance(row1, row2):

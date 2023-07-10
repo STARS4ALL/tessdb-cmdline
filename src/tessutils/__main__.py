@@ -130,18 +130,27 @@ def createParser():
 
     subparser = parser_mongodb.add_subparsers(dest='subcommand')
     mgloc = subparser.add_parser('locations',  help="MongoDB locations metadata check")
-    mgloc.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
     mgloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
     mgphot = subparser.add_parser('photometers',  help="MongoDB photometers metadata check")
-    mgphot.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
     mgphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
 
     mgloc = subparser.add_parser('coordinates',  help="Show same places with different coordinates")
-    mgloc.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
     mgloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
+
+    mgupd = subparser.add_parser('update',  help="MongoDB locations metadata check")
+    mgupd.add_argument('-i', '--input-file', type=validfile, required=True, help='Input CSV')
+    mgex1 = mgupd.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-n', '--name', type=str, help='Only one name in CSV')
+    mgex1.add_argument('-a', '--all',  action='store_true', help='All photometers in CSV')
+    mgex2 = mgupd.add_mutually_exclusive_group(required=True)
+    mgex2.add_argument('-l', '--loc',  action='store_true', help='Location info')
+    mgex2.add_argument('-t', '--tess', action='store_true', help='Tess info')
+    mgex2.add_argument('-m', '--img',  action='store_true', help='Image info')
+    mgex2.add_argument('-o', '--org',  action='store_true', help='Organization info')
+   
 
     # -----------------------------------------
     # Create second level parsers for 'tessdb'
@@ -163,7 +172,6 @@ def createParser():
     subparser = parser_crossdb.add_subparsers(dest='subcommand')
     xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
     xdbloc.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
-    xdbloc.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
     xdbloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
     grp = xdbloc.add_mutually_exclusive_group(required=True)
     grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')
@@ -181,7 +189,6 @@ def createParser():
 
     xdbcoord = subparser.add_parser('coordinates',  help="Cross DB photometers metadata check")
     xdbcoord.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
-    xdbcoord.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
     xdbcoord.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
     xdbcoord.add_argument('--lower', type=float, default=0.0, help='Lower limit in meters')
     xdbcoord.add_argument('--upper', type=float, default=1000.0, help='Upper limit in meters')

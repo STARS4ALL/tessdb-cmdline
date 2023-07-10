@@ -9,6 +9,7 @@
 # System wide imports
 # -------------------
 
+import os
 import csv
 import json
 import logging
@@ -24,12 +25,14 @@ import requests
 # -------------
 
 from .dbutils import by_location, by_photometer, by_coordinates, log_locations, log_photometers, log_coordinates
-from .dbutils import geolocate
+from .dbutils import get_mongo_api_url, geolocate
 
 
 # ----------------
 # Module constants
 # ----------------
+
+STARS4ALL_API_KEY = "foobar"
 
 # -----------------------
 # Module global variables
@@ -41,9 +44,16 @@ log = logging.getLogger('mongo')
 # Module auxiliar functions
 # -------------------------
 
+
 def _photometers_from_mongo(url):
-    response = requests.get(url)
-    return response.json()
+    response = requests.get(url).json()
+    try:
+        response[0] # Single photometer or list
+    except:
+        response = [response]
+    else:
+        pass
+    return response
 
 
 def mongo_remap_info(row):
@@ -95,6 +105,89 @@ def proposed_location_csv(iterable, path):
             writer.writerow(row)
         
 
+def http_body_info_tess(info):
+    body = dict()
+    token = os.environ.get('STARS4ALL_API_KEY')
+    if not token:
+        raise KeyError("STARS4ALL_API_KEY environment variable is not defined")
+    return {
+        "token": token,
+        "isNew": False,
+        "tess": {
+            "name": info['name'],
+            "mac": "qq:qq:qq:qq:qq:qq",
+            "info_tess": {
+                # "zero_point": 20.5,
+                "filters": "UV/IR-740",
+                "period": 60
+            },
+        },
+    }
+
+
+def http_body_info_location(info):
+    token = os.environ.get('STARS4ALL_API_KEY')
+    if not token:
+        raise KeyError("STARS4ALL_API_KEY environment variable is not defined")
+    return {
+        "token": token,
+        "isNew": False,
+        "tess": {
+            "name": info['name'],
+            "mac": "qq:qq:qq:qq:qq:qq",
+            "info_tess": {
+                "local_timezone": info['proposed_timezone'],
+            },
+            "info_location": {
+                "longitude": info['longitude'],
+                "latitude": info['latitude'],
+                "place": info['proposed_place'],
+                "town": info['proposed_town'],
+                "sub_region": info['proposed_sub_region'],
+                "country": info['proposed_sub_region'],
+                "region": info['proposed_region'],
+            },
+        },
+    }
+
+
+def http_body_info_img(info):
+    token = os.environ.get('STARS4ALL_API_KEY')
+    if not token:
+        raise KeyError("STARS4ALL_API_KEY environment variable is not defined")
+    return {
+        "token": token,
+        "isNew": False,
+        "tess": {
+            "name": info['name'],
+            "mac": "qq:qq:qq:qq:qq:qq",
+            "info_img": {
+                "urls": [],
+            }
+        }
+    }
+
+
+def http_body_info_org(info):
+    token = os.environ.get('STARS4ALL_API_KEY')
+    if not token:
+        raise KeyError("STARS4ALL_API_KEY environment variable is not defined")
+    return {
+        "token": token,
+        "isNew": False,
+        "tess": {
+            "name": info['name'],
+            "mac": "qq:qq:qq:qq:qq:qq",
+            "info_org": {
+                "name": info['info_org_name'],
+                "web_url": info['info_org_web_url'],
+                "description": info['info_org_description'],
+                "logo_url": info['info_org_logo_url'],
+                "email": info['info_org_email'],
+                "phone": info['info_org_phone'],
+            }
+        }
+    }
 
 # ===================
 # Module entry points
@@ -102,15 +195,17 @@ def proposed_location_csv(iterable, path):
 
 def locations(options):
     log.info(" ====================== ANALIZING MONGODB LOCATION METADATA ======================")
-    mongo_input_list = photometers_from_mongo(options.url)
+    url = get_mongo_api_url()
+    mongo_input_list = photometers_from_mongo(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_loc  = by_location(mongo_input_list)
     log_locations(mongo_loc)
-  
+
 
 def photometers(options):
     log.info(" ====================== ANALIZING MONGODB PHOTOMETER METADATA ======================")
-    mongo_input_list = photometers_from_mongo(options.url)
+    url = get_mongo_api_url()
+    mongo_input_list = photometers_from_mongo(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_phot = by_photometer(mongo_input_list)
     log_photometers(mongo_phot)
@@ -118,10 +213,34 @@ def photometers(options):
 
 def coordinates(options):
     log.info(" ====================== ANALIZING MONGODB COORDINATES METADATA ======================")
-    mongo_input_list = photometers_from_mongo(options.url)
+    url = get_mongo_api_url()
+    mongo_input_list = photometers_from_mongo(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     output = geolocate(mongo_input_list)
     output = list(map(map_proposal,output))
     output = merge_info(mongo_input_list, output)
     log.info("%d entries produced", len(output))
     proposed_location_csv(output, options.output_prefix + ".csv")
+
+
+
+def update(options):
+    log.info(" ====================== UPDATING MONGODB METADATA ======================")
+    url = get_mongo_api_url()
+    with open(options.input_file, newline='') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        mongo_input_list = [row for row in reader]
+    log.info("read %d items from CSV file", len(mongo_input_list))
+    
+    if not options.all:
+        mongo_input_list = [row for row in mongo_input_list if row['name'] == options.name]
+        log.info("filtered %d items from CSV file containing %s", len(mongo_input_list), options.name)
+
+    for row in mongo_input_list:
+        write_url =  url + '/' + row['name'] + '/' + 'qq:qq:qq:qq:qq:qq'
+        log.debug("write URL is %s", write_url)
+   
+    
+    #resp = requests.post(url, json=http_body(row))
+    #log.info(f"Request response code is {resp.status_code}")
+    #resp.raise_for_status()

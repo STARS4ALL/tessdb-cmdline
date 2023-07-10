@@ -1,3 +1,6 @@
+1) probar actualizar MongoDB con lo minimo
+2) Porbar a actualizar las MAC qqqqqqq (usar stars2000)
+
 Retocar la utilidad de tess para mostar min(fecha), max(fecha) con reading counts y demás
 en luger de la fecha metida por linea de comandos.
 tess instrument coalesce --name <name> | --mac <mac> --test
