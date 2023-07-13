@@ -44,6 +44,12 @@ def get_mongo_api_url():
         raise KeyError("'STARS4ALL_API' environment variable not set")
     return url
 
+def get_mongo_api_key():
+    url = os.environ.get("STARS4ALL_API_KEY")
+    if not url:
+        raise KeyError("'STARS4ALL_API_KEY' environment variable not set")
+    return url
+
 
 def distance(row1, row2):
     '''

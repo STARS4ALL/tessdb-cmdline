@@ -135,9 +135,8 @@ def createParser():
     mgphot = subparser.add_parser('photometers',  help="MongoDB photometers metadata check")
     mgphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
-
-    mgloc = subparser.add_parser('coordinates',  help="Show same places with different coordinates")
-    mgloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    mgloc = subparser.add_parser('propose',  help="Propose new places using Nominatim")
+    mgloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for proposal CSV file')
 
 
     mgupd = subparser.add_parser('update',  help="MongoDB locations metadata check")

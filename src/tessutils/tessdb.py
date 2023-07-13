@@ -38,7 +38,10 @@ def _photometers_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT name, longitude, latitude, site, location, province, "Bug", country, timezone 
+        SELECT DISTINCT name, mac_address, zero_point, filter, 
+        longitude, latitude, site, location, province, country, timezone,
+        contact_name, contact_email,
+        organization
         FROM tess_v 
         WHERE valid_state = 'Current'
         AND name LIKE 'stars%'
@@ -48,20 +51,28 @@ def _photometers_from_tessdb(connection):
 def tessdb_remap_info(row):
     new_row = dict()
     new_row['name'] = row[0]
+    new_row['mac'] = row[1].upper()
     try:
-        new_row['longitude'] = float(row[1])
+        new_row['longitude'] = float(row[4])
     except ValueError:
         new_row['longitude'] = 0.0
     try:
-        new_row['latitude'] = float(row[2])
+        new_row['latitude'] = float(row[5])
     except ValueError:
         new_row['latitude'] = 0.0
-    new_row['place'] = row[3]
-    new_row["town"] = row[4]
-    new_row["sub_region"] = row[5]
-    new_row["region"] = row[6]
-    new_row["country"] = row[7]
-    new_row["timezone"] = row[8]
+    new_row['place'] = row[6]
+    new_row["town"] = row[7]
+    new_row["sub_region"] = row[8]
+    new_row["region"] = None
+    new_row["country"] = row[9]
+    new_row["timezone"] = row[10]
+    new_row["contact_name"] =  row[11]
+    new_row["contact_email"] = row[12]
+    new_row["org_name"] = row[13]
+    new_row['org_email'] = None
+    new_row['org_descr'] = None
+    new_row['org_web'] = None
+    new_row['org_logo'] = None
     return new_row
 
 def photometers_from_tessdb(connection):

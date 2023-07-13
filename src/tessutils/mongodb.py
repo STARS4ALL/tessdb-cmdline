@@ -25,7 +25,7 @@ import requests
 # -------------
 
 from .dbutils import by_location, by_photometer, by_coordinates, log_locations, log_photometers, log_coordinates
-from .dbutils import get_mongo_api_url, geolocate
+from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
 
 
 # ----------------
@@ -46,7 +46,9 @@ log = logging.getLogger('mongo')
 
 
 def _photometers_from_mongo(url):
-    response = requests.get(url).json()
+    url = url + "/photometers_list"
+    body = {"token": get_mongo_api_key() }
+    response = requests.post(url, json=body).json()
     try:
         response[0] # Single photometer or list
     except:
@@ -59,18 +61,45 @@ def _photometers_from_mongo(url):
 def mongo_remap_info(row):
     new_row = dict()
     new_row['name'] = row['name']
+    new_row['mac'] = row.get('mac',None)
     new_row["longitude"] = float(row["info_location"]["longitude"])
     new_row["latitude"] = float(row["info_location"]["latitude"])
     new_row["place"] = row["info_location"]["place"]
     new_row["town"] = row["info_location"].get("town")
-    new_row["region"] = row["info_location"]["place"]
+    new_row["region"] = row["info_location"].get("region")
     new_row["sub_region"] = row["info_location"].get("sub_region")
     new_row["country"] = row["info_location"]["country"]
     tess = row.get("info_tess")
     if(tess):
         new_row["timezone"] = row["info_tess"].get("local_timezone","Etc/UTC")
+        new_row["zero_point"] = row["info_tess"].get("zero_point",None)
+        new_row["filter"] = row["info_tess"].get("filters",None)
     else:
         new_row["timezone"] = "Etc/UTC"
+        new_row["filter"] = None
+        new_row["zero_point"] = None
+
+    organization = row.get("info_org")
+    if(organization):
+        new_row['org_name'] = row["info_org"].get("name")
+        new_row['org_email'] = row["info_org"].get("mail")
+        new_row['org_descr'] = row["info_org"].get("description")
+        new_row['org_web'] = row["info_org"].get("web_url")
+        new_row['org_logo'] = row["info_org"].get("logo_url")
+    else:
+        new_row['org_name'] = None
+        new_row['org_email'] = None
+        new_row['org_descr'] = None
+        new_row['org_web'] = None
+        new_row['org_logo'] = None
+
+    contact = row.get("info_contact")
+    if (contact):
+        new_row['contact_name'] = row["info_contact"].get("name")
+        new_row['contact_email'] = row["info_contact"].get("mail")
+    else:
+        new_row['contact_name'] = None
+        new_row['contact_email'] = None
     return new_row
 
 
@@ -96,9 +125,10 @@ def merge_info(input_iterable, proposal_iterable):
 
 def proposed_location_csv(iterable, path):
     with open(path, 'w', newline='') as csvfile:
-        fieldnames = ('name', 'longitude', 'latitude', 'place', 'proposed_place', 'proposed_place_type', 'town', 'proposed_town', 'proposed_town_type',
+        fieldnames = ('name', 'mac', 'longitude', 'latitude', 'place', 'proposed_place', 'proposed_place_type', 'town', 'proposed_town', 'proposed_town_type',
             'sub_region', 'proposed_sub_region', 'proposed_sub_region_type', 'region', 'proposed_region', 'proposed_region_type', 
-            'country', 'proposed_country', 'timezone', 'proposed_timezone', 'proposed_zipcode')
+            'country', 'proposed_country', 'timezone', 'proposed_timezone', 'proposed_zipcode',
+            'org_name','org_descr','org_web','org_logo','org_email','contact_name','contact_email','zero_point','filter')
         writer = csv.DictWriter(csvfile, delimiter=';', fieldnames=fieldnames)
         writer.writeheader()
         for row in iterable:
@@ -211,8 +241,8 @@ def photometers(options):
     log_photometers(mongo_phot)
 
 
-def coordinates(options):
-    log.info(" ====================== ANALIZING MONGODB COORDINATES METADATA ======================")
+def propose(options):
+    log.info(" ====================== PROPOSE NEW MONGODB LOCATION METADATA ======================")
     url = get_mongo_api_url()
     mongo_input_list = photometers_from_mongo(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
@@ -226,7 +256,7 @@ def coordinates(options):
 
 def update(options):
     log.info(" ====================== UPDATING MONGODB METADATA ======================")
-    url = get_mongo_api_url()
+    url = get_mongo_api_url() + "/photometers"
     with open(options.input_file, newline='') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')
         mongo_input_list = [row for row in reader]
