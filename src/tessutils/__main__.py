@@ -129,16 +129,30 @@ def createParser():
     # -----------------------------------------
 
     subparser = parser_mongodb.add_subparsers(dest='subcommand')
-    mgloc = subparser.add_parser('location',  help="MongoDB locations metadata check")
+    mgloc = subparser.add_parser('location',  help="MongoDB location metadata operations")
     mgloc.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
     mgloc.add_argument('-n', '--name', type=str, default=None, required=False, help='Optional name filter')
     mgex1 = mgloc.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB location data')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB location data')
-    
 
-    mgphot = subparser.add_parser('photcheck',  help="MongoDB photometers metadata check")
-    mgphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    mgphot = subparser.add_parser('photometer',  help="MongoDB photometer metadata operations")
+    mgphot.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
+    mgphot.add_argument('-n', '--name', type=str, default=None, required=False, help='Optional name filter')
+    mgex1 = mgphot.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB photometer data')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB photometer data')
+    mgphot.add_argument('-m', '--mac', type=str, default=None, required=False, help='(Optional) old MAC, needed only to change MAC')
+    
+    mgloc = subparser.add_parser('organization',  help="MongoDB organiaztion metadata check")
+    mgloc.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
+    mgloc.add_argument('-n', '--name', type=str, default=None, required=False, help='Optional name filter')
+    mgex1 = mgloc.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB location data')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB location data')
+
+    mgphck = subparser.add_parser('photcheck',  help="MongoDB photometers metadata check")
+    mgphck.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
     mgloc = subparser.add_parser('propose',  help="Propose new places using Nominatim")
     mgloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for proposal CSV file')
