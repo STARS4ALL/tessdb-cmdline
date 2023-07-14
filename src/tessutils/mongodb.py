@@ -363,10 +363,12 @@ def organization(options):
 def contact(options):
     url = get_mongo_api_url()
     if options.list:
+        log.warn("MongoDB does not store contact info")
         mongo_input_list = mongo_get_contact_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
         write_csv(mongo_input_list, CONTACT_HEADER, options.file)
     elif options.update:
+        log.warn("MongoDB does not store contact info, it is useless to update data")
         mongo_input_list = mongo_get_photometer_info(url)
         mongo_output_list = read_csv(options.file, CONTACT_HEADER)
         log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
