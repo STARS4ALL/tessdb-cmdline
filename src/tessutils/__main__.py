@@ -129,26 +129,19 @@ def createParser():
     # -----------------------------------------
 
     subparser = parser_mongodb.add_subparsers(dest='subcommand')
-    mgloc = subparser.add_parser('locations',  help="MongoDB locations metadata check")
-    mgloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    mgloc = subparser.add_parser('location',  help="MongoDB locations metadata check")
+    mgloc.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
+    mgloc.add_argument('-n', '--name', type=str, default=None, required=False, help='Optional name filter')
+    mgex1 = mgloc.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB location data')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB location data')
+    
 
-    mgphot = subparser.add_parser('photometers',  help="MongoDB photometers metadata check")
+    mgphot = subparser.add_parser('photcheck',  help="MongoDB photometers metadata check")
     mgphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
     mgloc = subparser.add_parser('propose',  help="Propose new places using Nominatim")
     mgloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for proposal CSV file')
-
-
-    mgupd = subparser.add_parser('update',  help="MongoDB locations metadata check")
-    mgupd.add_argument('-i', '--input-file', type=validfile, required=True, help='Input CSV')
-    mgex1 = mgupd.add_mutually_exclusive_group(required=True)
-    mgex1.add_argument('-n', '--name', type=str, help='Only one name in CSV')
-    mgex1.add_argument('-a', '--all',  action='store_true', help='All photometers in CSV')
-    mgex2 = mgupd.add_mutually_exclusive_group(required=True)
-    mgex2.add_argument('-l', '--loc',  action='store_true', help='Location info')
-    mgex2.add_argument('-t', '--tess', action='store_true', help='Tess info')
-    mgex2.add_argument('-m', '--img',  action='store_true', help='Image info')
-    mgex2.add_argument('-o', '--org',  action='store_true', help='Organization info')
    
 
     # -----------------------------------------

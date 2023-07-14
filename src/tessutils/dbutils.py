@@ -45,10 +45,10 @@ def get_mongo_api_url():
     return url
 
 def get_mongo_api_key():
-    url = os.environ.get("STARS4ALL_API_KEY")
-    if not url:
+    token = os.environ.get("STARS4ALL_API_KEY")
+    if not token:
         raise KeyError("'STARS4ALL_API_KEY' environment variable not set")
-    return url
+    return token
 
 
 def distance(row1, row2):

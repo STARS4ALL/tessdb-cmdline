@@ -32,7 +32,12 @@ from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
 # Module constants
 # ----------------
 
-
+# CSV File generation rows
+LOCATION_HEADER = ('name', 'mac', 'longitude', 'latitude', 'place', 'town', 'sub_region', 'region','country','timezone')
+PHOTOMETER_HEADER = ('name', 'mac', 'zero_point', 'filter')
+ORGANIZATION_HEADER = ('name', 'mac', 'org_name', 'org_descr', 'org_email', 'org_web', 'org_logo', 'org_phone')
+CONTACT_HEADER = ('name', 'mac', 'contact_name', 'contact_email', 'contact_phone')
+ALL_HEADER = ('name', 'mac') + PHOTOMETER_HEADER[2:] + LOCATION_HEADER[2:] + ORGANIZATION_HEADER[2:] + CONTACT_HEADER[2:]
 
 # -----------------------
 # Module global variables
@@ -44,21 +49,51 @@ log = logging.getLogger('mongo')
 # Module auxiliar functions
 # -------------------------
 
-
-def _photometers_from_mongo(url):
+def mongo_get_names(url):
+    '''This request gets name, mac & location info'''
     url = url + "/photometers_list"
     body = {"token": get_mongo_api_key() }
     response = requests.post(url, json=body).json()
-    try:
-        response[0] # Single photometer or list
-    except:
-        response = [response]
-    else:
-        pass
+    return response
+
+def mongo_get_details(url):
+    '''This requests gets all infomation except mac'''
+    url = url + "/photometers"
+    response = requests.get(url).json()
+    return response
+
+def mongo_create(url, body):
+    body['isNew'] =  True,
+    body['token'] = get_mongo_api_key()
+    name = body['tess']['name']
+    mac = body['tess']['mac']
+    url = url + "/photometers/" + name + "/" + mac
+    response = requests.post(url, json=body).json()
+    return response
+
+def mongo_update(url, body, mac=None):
+    body['isNew'] =  False,
+    body['token'] = get_mongo_api_key()
+    name = body['tess']['name']
+    if not mac:
+        mac = body['tess']['mac']
+    url = url + "/photometers/" + name + "/" + mac
+    response = requests.post(url, json=body).json()
     return response
 
 
-def mongo_remap_info(row):
+def mongo_get_all(url):
+    names_list = mongo_get_names(url)
+    details_list = mongo_get_details(url)
+    assert len(names_list) == len(details_list)
+    zipped = zip(names_list, details_list)
+    for item in zipped:
+        assert item[0]['name'] == item[1]['name']
+        item[1]['mac'] = item[0].get('mac')
+    return details_list
+
+
+def mongo_flatten_location(row):
     new_row = dict()
     new_row['name'] = row['name']
     new_row['mac'] = row.get('mac',None)
@@ -72,13 +107,27 @@ def mongo_remap_info(row):
     tess = row.get("info_tess")
     if(tess):
         new_row["timezone"] = row["info_tess"].get("local_timezone","Etc/UTC")
+    else:
+        new_row["timezone"] = "Etc/UTC"
+    return new_row
+
+def mongo_flatten_photometer(row):
+    new_row = dict()
+    new_row['name'] = row['name']
+    new_row['mac'] = row.get('mac',None)
+    tess = row.get("info_tess")
+    if(tess):
         new_row["zero_point"] = row["info_tess"].get("zero_point",None)
         new_row["filter"] = row["info_tess"].get("filters",None)
     else:
-        new_row["timezone"] = "Etc/UTC"
         new_row["filter"] = None
         new_row["zero_point"] = None
+    return new_row
 
+def mongo_flatten_organization(row):
+    new_row = dict()
+    new_row['name'] = row['name']
+    new_row['mac'] = row.get('mac',None)
     organization = row.get("info_org")
     if(organization):
         new_row['org_name'] = row["info_org"].get("name")
@@ -86,25 +135,79 @@ def mongo_remap_info(row):
         new_row['org_descr'] = row["info_org"].get("description")
         new_row['org_web'] = row["info_org"].get("web_url")
         new_row['org_logo'] = row["info_org"].get("logo_url")
+        new_row['org_phone'] = row["info_org"].get("logo_phone")
     else:
         new_row['org_name'] = None
         new_row['org_email'] = None
         new_row['org_descr'] = None
         new_row['org_web'] = None
         new_row['org_logo'] = None
+        new_row['org_phone'] = None
+    return new_row
 
+def mongo_flatten_contact(row):
+    new_row = dict()
+    new_row['name'] = row['name']
+    new_row['mac'] = row.get('mac',None)
     contact = row.get("info_contact")
     if (contact):
         new_row['contact_name'] = row["info_contact"].get("name")
         new_row['contact_email'] = row["info_contact"].get("mail")
+        new_row['contact_phone'] = row["info_contact"].get("phone")
     else:
         new_row['contact_name'] = None
         new_row['contact_email'] = None
+        new_row['contact_phone'] = None
+    return new_row
+
+def mongo_flatten_all(row):
+    dict1 = mongo_flatten_photometer(row)
+    dict2 = mongo_flatten_location(row)
+    dict3 = mongo_flatten_organization(row)
+    dict4 = mongo_flatten_contact(row)
+    new_row = {**dict1, **dict2}
+    new_row = {**new_row, **dict3}
+    new_row = {**new_row, **dict4}
     return new_row
 
 
-def photometers_from_mongo(url):
-    return list(map(mongo_remap_info, _photometers_from_mongo(url)))
+def mongo_get_location_info(url):
+    return list(map(mongo_flatten_location, mongo_get_all(url)))
+
+def mongo_get_photometer_info(url):
+    return list(map(mongo_flatten_photometer, mongo_get_all(url)))
+
+def mongo_get_organization_info(url):
+    return list(map(mongo_flatten_organization, mongo_get_all(url)))
+
+def mongo_get_contact_info(url):
+    return list(map(mongo_flatten_contact, mongo_get_all(url)))
+
+def mongo_get_all_info(url):
+    return list(map(mongo_flatten_all, mongo_get_all(url)))
+    
+
+def body_location(row):
+    return {
+        "tess": {
+            "name": row['name'],
+            "mac": row['mac'],
+            "info_tess": {
+                "local_timezone": row['timezone'],
+            },
+            "info_location": {
+                "longitude": row['longitude'],
+                "latitude": row['latitude'],
+                "place": row['place'],
+                "town": row['town'],
+                "sub_region": row['sub_region'],
+                "region": row['region'],
+                "country": row['country'],
+            },
+        },
+    }
+
+#### =========================================
 
 
 def map_proposal(row):
@@ -155,30 +258,6 @@ def http_body_info_tess(info):
     }
 
 
-def http_body_info_location(info):
-    token = os.environ.get('STARS4ALL_API_KEY')
-    if not token:
-        raise KeyError("STARS4ALL_API_KEY environment variable is not defined")
-    return {
-        "token": token,
-        "isNew": False,
-        "tess": {
-            "name": info['name'],
-            "mac": "qq:qq:qq:qq:qq:qq",
-            "info_tess": {
-                "local_timezone": info['proposed_timezone'],
-            },
-            "info_location": {
-                "longitude": info['longitude'],
-                "latitude": info['latitude'],
-                "place": info['proposed_place'],
-                "town": info['proposed_town'],
-                "sub_region": info['proposed_sub_region'],
-                "country": info['proposed_sub_region'],
-                "region": info['proposed_region'],
-            },
-        },
-    }
 
 
 def http_body_info_img(info):
@@ -204,7 +283,6 @@ def http_body_info_org(info):
         raise KeyError("STARS4ALL_API_KEY environment variable is not defined")
     return {
         "token": token,
-        "isNew": False,
         "tess": {
             "name": info['name'],
             "mac": "qq:qq:qq:qq:qq:qq",
@@ -219,23 +297,46 @@ def http_body_info_org(info):
         }
     }
 
+
+def write_csv(sequence, header, path):
+    with open(path, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=header, delimiter=';')
+        writer.writeheader()
+        for row in sequence:
+            writer.writerow(row)
+
+def read_csv(path, header):
+    with open(path, newline='') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        sequence = [row for row in reader]
+        return sequence
+   
+   
 # ===================
 # Module entry points
 # ===================
 
-def locations(options):
-    log.info(" ====================== ANALIZING MONGODB LOCATION METADATA ======================")
+def location(options):
     url = get_mongo_api_url()
-    mongo_input_list = photometers_from_mongo(url)
-    log.info("read %d items from MongoDB", len(mongo_input_list))
-    mongo_loc  = by_location(mongo_input_list)
-    log_locations(mongo_loc)
+    if options.list:
+        mongo_input_list = mongo_get_location_info(url)
+        log.info("read %d items from MongoDB", len(mongo_input_list))
+        write_csv(mongo_input_list, LOCATION_HEADER, options.file)
+        mongo_loc  = by_location(mongo_input_list)
+        log_locations(mongo_loc)
+    elif options.update:
+        mongo_output_list = read_csv(options.file, LOCATION_HEADER)
+        for row in mongo_output_list:
+            log.info("Updating %s (%s)", row['name'], row['mac'])
+            body = body_location(row)
+            mongo_update(url, body)
+    else:
+        log.error("No valid option")
 
-
-def photometers(options):
+def photcheck(options):
     log.info(" ====================== ANALIZING MONGODB PHOTOMETER METADATA ======================")
     url = get_mongo_api_url()
-    mongo_input_list = photometers_from_mongo(url)
+    mongo_input_list = mongo_get_all_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_phot = by_photometer(mongo_input_list)
     log_photometers(mongo_phot)
@@ -244,7 +345,7 @@ def photometers(options):
 def propose(options):
     log.info(" ====================== PROPOSE NEW MONGODB LOCATION METADATA ======================")
     url = get_mongo_api_url()
-    mongo_input_list = photometers_from_mongo(url)
+    mongo_input_list = mongo_get_all_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     output = geolocate(mongo_input_list)
     output = list(map(map_proposal,output))
