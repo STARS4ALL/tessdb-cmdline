@@ -65,8 +65,8 @@ def distance(row1, row2):
 
 
 
-def make_remap_location(geolocator, tzfinder):
-    def remap_location_func(row):
+def _make_remap_location(geolocator, tzfinder):
+    def _remap_location_func(row):
         location = geolocator.reverse(f"{row['latitude']}, {row['longitude']}", language="en")
         metadata = location.raw['address']
         out_row = dict()
@@ -122,7 +122,7 @@ def make_remap_location(geolocator, tzfinder):
         if(row['timezone'] != row['timezone']):
             log.info("Proposal new timezone: %s -> %s", row['timezone'], out_row['timezone'])
         return out_row
-    return remap_location_func
+    return _remap_location_func
 
 
 
@@ -130,7 +130,7 @@ def geolocate(iterable):
     geolocator = Nominatim(user_agent="STARS4ALL project")
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=2)
     tzfinder   = TimezoneFinder()
-    remap_location = make_remap_location(geolocator, tzfinder)
+    remap_location = _make_remap_location(geolocator, tzfinder)
     return list(map(remap_location, iterable))
     
 
