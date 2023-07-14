@@ -62,6 +62,13 @@ def mongo_get_details(url):
     response = requests.get(url).json()
     return response
 
+def mongo_get_details_single(url, name):
+    '''This requests gets all infomation except mac'''
+    url = url + "/photometers/" + name 
+    response = requests.get(url).json()
+    return response
+
+
 def mongo_create(url, body):
     body['isNew'] =  True,
     body['token'] = get_mongo_api_key()
@@ -184,11 +191,13 @@ def mongo_get_all_info(url):
     return list(map(mongo_flatten_all, mongo_get_all(url)))
     
 
-def body_location(row):
+def body_location(row, aux_iterable):
     return {
         "tess": {
             "name": row['name'],
             "info_tess": {
+                "zero_point": get_zero_point(aux_iterable, row['name']), # This is a hack, shouldn't be here
+                "filters": get_filters(aux_iterable, row['name']), # This is a hack, shouldn't be here
                 "local_timezone": row['timezone'],
             },
             "info_location": {
@@ -204,7 +213,7 @@ def body_location(row):
     }
 
 
-def body_photometer(row):
+def body_photometer(row, aux_iterable):
     return {
         "tess": {
             "name": row['name'],
@@ -212,6 +221,7 @@ def body_photometer(row):
             "info_tess": {
                 "zero_point": row['zero_point'],
                 "filters": row['filters'],
+                "local_timezone": get_timezone(aux_iterable, row['name']), # This is a hack, shouldn't be here
             },
         },
     }
@@ -289,14 +299,26 @@ def read_csv(path, header):
         reader = csv.DictReader(csvfile, delimiter=';')
         sequence = [row for row in reader]
         return sequence
-   
-def get_mac(iterable, name):
+
+def get_item(iterable, key, item):
     def _filter_by_name(row):
-        return row['name'] == name
+        return row['name'] == key
     result = list(filter(_filter_by_name, iterable))
     assert len(result) == 1
-    return result[0]['mac']
-   
+    return result[0][item]
+
+def get_mac(iterable, name):
+    return get_item(iterable, name, 'mac')
+
+def get_timezone(iterable, name):
+    return get_item(iterable, name, 'timezone')
+
+def get_zero_point(iterable, name):
+    return get_item(iterable, name, 'zero_point')
+
+def get_filters(iterable, name):
+    return get_item(iterable, name, 'filters')
+
 # ===================
 # Module entry points
 # ===================
@@ -310,13 +332,13 @@ def location(options):
         mongo_loc  = by_location(mongo_input_list)
         log_locations(mongo_loc)
     elif options.update:
+        mongo_aux_list = mongo_get_all_info(url)
         mongo_output_list = read_csv(options.file, LOCATION_HEADER)
-        mongo_input_list = mongo_get_photometer_info(url)
         log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
         for row in mongo_output_list:
-            mac = get_mac(mongo_input_list, row['name'])
+            mac = get_mac(mongo_aux_list, row['name'])
             log.info("Updating mongoDB with location info for item %s (%s)", row['name'], mac)
-            body = body_location(row)
+            body = body_location(row, mongo_aux_list)
             mongo_update(url, body, mac)
     else:
         log.error("No valid option")
@@ -328,12 +350,12 @@ def photometer(options):
         log.info("read %d items from MongoDB", len(mongo_input_list))
         write_csv(mongo_input_list, PHOTOMETER_HEADER, options.file)
     elif options.update:
-        mongo_input_list = mongo_get_photometer_info(url)
+        mongo_aux_list = mongo_get_all_info(url) 
         mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
         log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
         for row in mongo_output_list:
-            oldmac = get_mac(mongo_input_list, row['name'])
-            body = body_photometer(row)
+            oldmac = get_mac(mongo_aux_list, row['name'])
+            body = body_photometer(row, mongo_aux_list)
             log.info("Updating MongoDB with photometer info for %s (%s)", row['name'], oldmac)
             if(oldmac != row['mac']):
                 log.warn("Changing %s MAC: (%s) -> (%s)", row['name'], oldmac, row['mac'])
