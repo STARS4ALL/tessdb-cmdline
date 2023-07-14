@@ -347,6 +347,9 @@ def location(options):
         mongo_aux_list = mongo_get_all_info(url)
         mongo_output_list = read_csv(options.file, LOCATION_HEADER)
         log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+        if options.names:
+            mongo_output_list = filter_by_names(mongo_output_list, options.names)
+            log.info("filtered up to %d items", len(mongo_output_list))
         for row in mongo_output_list:
             mac = get_mac(mongo_aux_list, row['name'])
             log.info("Updating mongoDB with location info for item %s (%s)", row['name'], mac)
@@ -368,6 +371,9 @@ def photometer(options):
         mongo_aux_list = mongo_get_all_info(url) 
         mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
         log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+        if options.names:
+            mongo_output_list = filter_by_names(mongo_output_list, options.names)
+            log.info("filtered up to %d items", len(mongo_output_list))
         for row in mongo_output_list:
             oldmac = get_mac(mongo_aux_list, row['name'])
             body = body_photometer(row, mongo_aux_list)
@@ -391,6 +397,9 @@ def organization(options):
         mongo_input_list = mongo_get_photometer_info(url)
         mongo_output_list = read_csv(options.file, ORGANIZATION_HEADER)
         log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+        if options.names:
+            mongo_output_list = filter_by_names(mongo_output_list, options.names)
+            log.info("filtered up to %d items", len(mongo_output_list))
         for row in mongo_output_list:
             mac = get_mac(mongo_input_list, row['name'])
             log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
@@ -415,9 +424,12 @@ def contact(options):
         mongo_input_list = mongo_get_photometer_info(url)
         mongo_output_list = read_csv(options.file, CONTACT_HEADER)
         log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+        if options.names:
+            mongo_output_list = filter_by_names(mongo_output_list, options.names)
+            log.info("filtered up to %d items", len(mongo_output_list))
         for row in mongo_output_list:
             mac = get_mac(mongo_input_list, row['name'])
-            log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
+            log.info("Updating mongoDB with contact info for item %s (%s)", row['name'], mac)
             body = body_organization(row)
             mongo_update(url, body, mac)
     else:
@@ -436,9 +448,12 @@ def all(options):
         mongo_input_list = mongo_get_photometer_info(url)
         mongo_output_list = read_csv(options.file, ALL_HEADER)
         log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+        if options.names:
+            mongo_output_list = filter_by_names(mongo_output_list, options.names)
+            log.info("filtered up to %d items", len(mongo_output_list))
         for row in mongo_output_list:
             mac = get_mac(mongo_input_list, row['name'])
-            log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
+            log.info("Updating mongoDB with all info for item %s (%s)", row['name'], mac)
             body = body_organization(row)
             mongo_update(url, body, mac)
     else:
