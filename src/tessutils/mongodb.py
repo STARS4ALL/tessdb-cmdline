@@ -337,6 +337,9 @@ def location(options):
     if options.list:
         mongo_input_list = mongo_get_location_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
+        if options.names:
+            mongo_input_list = filter_by_names(mongo_input_list, options.names)
+            log.info("filtered up to %d items", len(mongo_input_list))
         write_csv(mongo_input_list, LOCATION_HEADER, options.file)
         mongo_loc  = by_location(mongo_input_list)
         log_locations(mongo_loc)
@@ -357,6 +360,9 @@ def photometer(options):
     if options.list:
         mongo_input_list = mongo_get_photometer_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
+        if options.names:
+            mongo_input_list = filter_by_names(mongo_input_list, options.names)
+            log.info("filtered up to %d items", len(mongo_input_list))
         write_csv(mongo_input_list, PHOTOMETER_HEADER, options.file)
     elif options.update:
         mongo_aux_list = mongo_get_all_info(url) 
@@ -377,6 +383,9 @@ def organization(options):
     if options.list:
         mongo_input_list = mongo_get_organization_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
+        if options.names:
+            mongo_input_list = filter_by_names(mongo_input_list, options.names)
+            log.info("filtered up to %d items", len(mongo_input_list))
         write_csv(mongo_input_list, ORGANIZATION_HEADER, options.file)
     elif options.update:
         mongo_input_list = mongo_get_photometer_info(url)
@@ -397,6 +406,9 @@ def contact(options):
         log.warn("MongoDB does not store contact info")
         mongo_input_list = mongo_get_contact_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
+        if options.names:
+            mongo_input_list = filter_by_names(mongo_input_list, options.names)
+            log.info("filtered up to %d items", len(mongo_input_list))
         write_csv(mongo_input_list, CONTACT_HEADER, options.file)
     elif options.update:
         log.warn("MongoDB does not store contact info, it is useless to update data")
@@ -416,6 +428,9 @@ def all(options):
     if options.list:
         mongo_input_list = mongo_get_all_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
+        if options.names:
+            mongo_input_list = filter_by_names(mongo_input_list, options.names)
+            log.info("filtered up to %d items", len(mongo_input_list))
         write_csv(mongo_input_list, ALL_HEADER, options.file)
     elif options.update:
         mongo_input_list = mongo_get_photometer_info(url)
