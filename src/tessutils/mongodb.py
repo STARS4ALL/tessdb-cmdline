@@ -300,10 +300,16 @@ def read_csv(path, header):
         sequence = [row for row in reader]
         return sequence
 
+def filter_by_names(iterable, names):
+    def _filter_by_names(row):
+        return row['name'] in names
+    return list(filter(_filter_by_names, iterable))
+
+def filter_by_name(iterable, name):
+    return filter_by_names(iterable,[name])
+
 def get_item(iterable, key, item):
-    def _filter_by_name(row):
-        return row['name'] == key
-    result = list(filter(_filter_by_name, iterable))
+    result = filter_by_name(iterable, key)
     assert len(result) == 1
     return result[0][item]
 
@@ -318,6 +324,9 @@ def get_zero_point(iterable, name):
 
 def get_filters(iterable, name):
     return get_item(iterable, name, 'filters')
+
+
+
 
 # ===================
 # Module entry points
