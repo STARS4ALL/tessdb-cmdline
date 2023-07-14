@@ -33,11 +33,11 @@ from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
 # ----------------
 
 # CSV File generation rows
-LOCATION_HEADER = ('name', 'mac', 'longitude', 'latitude', 'place', 'town', 'sub_region', 'region','country','timezone')
+LOCATION_HEADER = ('name', 'longitude', 'latitude', 'place', 'town', 'sub_region', 'region','country','timezone')
 PHOTOMETER_HEADER = ('name', 'mac', 'zero_point', 'filters')
-ORGANIZATION_HEADER = ('name', 'mac', 'org_name', 'org_description', 'org_phone', 'org_email', 'org_web_url', 'org_logo_url',)
-CONTACT_HEADER = ('name', 'mac', 'contact_name', 'contact_email', 'contact_phone')
-ALL_HEADER = ('name', 'mac') + PHOTOMETER_HEADER[2:] + LOCATION_HEADER[2:] + ORGANIZATION_HEADER[2:] + CONTACT_HEADER[2:]
+ORGANIZATION_HEADER = ('name', 'org_name', 'org_description', 'org_phone', 'org_email', 'org_web_url', 'org_logo_url',)
+CONTACT_HEADER = ('name', 'contact_name', 'contact_mail', 'contact_phone')
+ALL_HEADER = ('name', 'mac') + PHOTOMETER_HEADER[2:] + LOCATION_HEADER[1:] + ORGANIZATION_HEADER[1:] + CONTACT_HEADER[1:]
 
 # -----------------------
 # Module global variables
@@ -96,7 +96,6 @@ def mongo_get_all(url):
 def mongo_flatten_location(row):
     new_row = dict()
     new_row['name'] = row['name']
-    new_row['mac'] = row.get('mac',None)
     new_row["longitude"] = float(row["info_location"]["longitude"])
     new_row["latitude"] = float(row["info_location"]["latitude"])
     new_row["place"] = row["info_location"]["place"]
@@ -127,7 +126,6 @@ def mongo_flatten_photometer(row):
 def mongo_flatten_organization(row):
     new_row = dict()
     new_row['name'] = row['name']
-    new_row['mac'] = row.get('mac',None)
     organization = row.get("info_org")
     if(organization):
         new_row['org_name'] = row["info_org"].get("name")
@@ -148,15 +146,14 @@ def mongo_flatten_organization(row):
 def mongo_flatten_contact(row):
     new_row = dict()
     new_row['name'] = row['name']
-    new_row['mac'] = row.get('mac',None)
     contact = row.get("info_contact")
     if (contact):
         new_row['contact_name'] = row["info_contact"].get("name")
-        new_row['contact_email'] = row["info_contact"].get("mail")
+        new_row['contact_mail'] = row["info_contact"].get("mail")
         new_row['contact_phone'] = row["info_contact"].get("phone")
     else:
         new_row['contact_name'] = None
-        new_row['contact_email'] = None
+        new_row['contact_mail'] = None
         new_row['contact_phone'] = None
     return new_row
 
@@ -191,7 +188,6 @@ def body_location(row):
     return {
         "tess": {
             "name": row['name'],
-            "mac": row['mac'],
             "info_tess": {
                 "local_timezone": row['timezone'],
             },
@@ -225,7 +221,6 @@ def body_organization(row):
     return {
         "tess": {
             "name": row['name'],
-            "mac": row['mac'],
             "info_org": {
                 "name": row['org_name'],
                 "web_url": row['org_web_url'],
@@ -233,6 +228,18 @@ def body_organization(row):
                 "logo_url": row['org_logo_url'],
                 "email": row['org_email'],
                 "phone": row['org_phone'],
+            }
+        }
+    }
+
+def body_contact(row):
+    return {
+        "tess": {
+            "name": row['name'],
+            "info_contact": {
+                "name": row['contact_name'],
+                "mail": row['contact_mail'],
+                "phone": row['contact_phone'],
             }
         }
     }
@@ -269,44 +276,6 @@ def proposed_location_csv(iterable, path):
             writer.writerow(row)
 
 
-def http_body_info_img(info):
-    token = os.environ.get('STARS4ALL_API_KEY')
-    if not token:
-        raise KeyError("STARS4ALL_API_KEY environment variable is not defined")
-    return {
-        "token": token,
-        "isNew": False,
-        "tess": {
-            "name": info['name'],
-            "mac": "qq:qq:qq:qq:qq:qq",
-            "info_img": {
-                "urls": [],
-            }
-        }
-    }
-
-
-def http_body_info_org(info):
-    token = os.environ.get('STARS4ALL_API_KEY')
-    if not token:
-        raise KeyError("STARS4ALL_API_KEY environment variable is not defined")
-    return {
-        "token": token,
-        "tess": {
-            "name": info['name'],
-            "mac": "qq:qq:qq:qq:qq:qq",
-            "info_org": {
-                "name": info['info_org_name'],
-                "web_url": info['info_org_web_url'],
-                "description": info['info_org_description'],
-                "logo_url": info['info_org_logo_url'],
-                "email": info['info_org_email'],
-                "phone": info['info_org_phone'],
-            }
-        }
-    }
-
-
 def write_csv(sequence, header, path):
     with open(path, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=header, delimiter=';')
@@ -338,16 +307,17 @@ def location(options):
         mongo_input_list = mongo_get_location_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
         write_csv(mongo_input_list, LOCATION_HEADER, options.file)
-
         mongo_loc  = by_location(mongo_input_list)
         log_locations(mongo_loc)
     elif options.update:
         mongo_output_list = read_csv(options.file, LOCATION_HEADER)
+        mongo_input_list = mongo_get_photometer_info(url)
         log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
         for row in mongo_output_list:
-            log.info("Updating mongoDB with location info for item %s (%s)", row['name'], row['mac'])
+            mac = get_mac(mongo_input_list, row['name'])
+            log.info("Updating mongoDB with location info for item %s (%s)", row['name'], mac)
             body = body_location(row)
-            mongo_update(url, body)
+            mongo_update(url, body, mac)
     else:
         log.error("No valid option")
 
@@ -378,14 +348,54 @@ def organization(options):
         log.info("read %d items from MongoDB", len(mongo_input_list))
         write_csv(mongo_input_list, ORGANIZATION_HEADER, options.file)
     elif options.update:
+        mongo_input_list = mongo_get_photometer_info(url)
         mongo_output_list = read_csv(options.file, ORGANIZATION_HEADER)
         log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
         for row in mongo_output_list:
-            log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], row['mac'])
+            mac = get_mac(mongo_input_list, row['name'])
+            log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
             body = body_organization(row)
-            mongo_update(url, body)
+            mongo_update(url, body, mac)
     else:
         log.error("No valid option")
+
+
+def contact(options):
+    url = get_mongo_api_url()
+    if options.list:
+        mongo_input_list = mongo_get_contact_info(url)
+        log.info("read %d items from MongoDB", len(mongo_input_list))
+        write_csv(mongo_input_list, CONTACT_HEADER, options.file)
+    elif options.update:
+        mongo_input_list = mongo_get_photometer_info(url)
+        mongo_output_list = read_csv(options.file, CONTACT_HEADER)
+        log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+        for row in mongo_output_list:
+            mac = get_mac(mongo_input_list, row['name'])
+            log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
+            body = body_organization(row)
+            mongo_update(url, body, mac)
+    else:
+        log.error("No valid option")
+
+def all(options):
+    url = get_mongo_api_url()
+    if options.list:
+        mongo_input_list = mongo_get_all_info(url)
+        log.info("read %d items from MongoDB", len(mongo_input_list))
+        write_csv(mongo_input_list, ALL_HEADER, options.file)
+    elif options.update:
+        mongo_input_list = mongo_get_photometer_info(url)
+        mongo_output_list = read_csv(options.file, ALL_HEADER)
+        log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+        for row in mongo_output_list:
+            mac = get_mac(mongo_input_list, row['name'])
+            log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
+            body = body_organization(row)
+            mongo_update(url, body, mac)
+    else:
+        log.error("No valid option")
+
 
 
 def photcheck(options):
