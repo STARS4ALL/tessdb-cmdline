@@ -32,7 +32,7 @@ from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
 # Module constants
 # ----------------
 
-STARS4ALL_API_KEY = "foobar"
+
 
 # -----------------------
 # Module global variables
