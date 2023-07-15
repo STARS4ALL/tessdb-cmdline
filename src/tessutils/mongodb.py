@@ -39,6 +39,10 @@ ORGANIZATION_HEADER = ('name', 'org_name', 'org_description', 'org_phone', 'org_
 CONTACT_HEADER = ('name', 'contact_name', 'contact_mail', 'contact_phone')
 ALL_HEADER = ('name', 'mac') + PHOTOMETER_HEADER[2:] + LOCATION_HEADER[1:] + ORGANIZATION_HEADER[1:] + CONTACT_HEADER[1:]
 
+NOMINATIM_HEADER = ('name', 'longitude', 'latitude', 'place', 'nominatim_place', 'nominatim_place_type', 'town', 'nominatim_town', 'nominatim_town_type',
+            'sub_region', 'nominatim_sub_region', 'nominatim_sub_region_type', 'region', 'nominatim_region', 'nominatim_region_type', 
+            'country', 'nominatim_country', 'timezone', 'nominatim_timezone', 'nominatim_zipcode',)
+
 # -----------------------
 # Module global variables
 # -----------------------
@@ -258,33 +262,21 @@ def body_contact(row):
 #### =========================================
 
 
-def map_proposal(row):
+def remap_nominatim(row):
     new_row = dict()
-    keys = ["place", "place_type", "town", "town_type", "sub_region", "sub_region_type", "region", "region_type", "country", "timezone", "zipcode"]
+    keys = ("place", "place_type", "town", "town_type", "sub_region", "sub_region_type", "region", "region_type", "country", "timezone", "zipcode")
     for key in keys:
-        new_row[f"proposed_{key}"] = row[key]
+        new_row[f"nominatim_{key}"] = row[key]
     for key in set(row.keys()) - set(keys):
         new_row[key] = row[key]
     return new_row
 
-def merge_info(input_iterable, proposal_iterable):
+def merge_info(input_iterable, nominatim_iterable):
     output = list()
     for i in range(0, len(input_iterable)):
-        row = {**input_iterable[i], **proposal_iterable[i]}
+        row = {**input_iterable[i], **nominatim_iterable[i]}
         output.append(row)
     return output
-
-def proposed_location_csv(iterable, path):
-    with open(path, 'w', newline='') as csvfile:
-        fieldnames = ('name', 'mac', 'longitude', 'latitude', 'place', 'proposed_place', 'proposed_place_type', 'town', 'proposed_town', 'proposed_town_type',
-            'sub_region', 'proposed_sub_region', 'proposed_sub_region_type', 'region', 'proposed_region', 'proposed_region_type', 
-            'country', 'proposed_country', 'timezone', 'proposed_timezone', 'proposed_zipcode',
-            'org_name','org_descr','org_web','org_logo','org_email','contact_name','contact_email','zero_point','filters')
-        writer = csv.DictWriter(csvfile, delimiter=';', fieldnames=fieldnames)
-        writer.writeheader()
-        for row in iterable:
-            writer.writerow(row)
-
 
 def write_csv(sequence, header, path):
     with open(path, 'w', newline='') as csvfile:
@@ -325,9 +317,6 @@ def get_zero_point(iterable, name):
 def get_filters(iterable, name):
     return get_item(iterable, name, 'filters')
 
-
-
-
 # ===================
 # Module entry points
 # ===================
@@ -355,8 +344,19 @@ def location(options):
             log.info("Updating mongoDB with location info for item %s (%s)", row['name'], mac)
             body = body_location(row, mongo_aux_list)
             mongo_update(url, body, mac)
+    elif options.nominatim:
+        mongo_input_list = mongo_get_location_info(url)
+        log.info("read %d items from MongoDB", len(mongo_input_list))
+        if options.names:
+            mongo_input_list = filter_by_names(mongo_input_list, options.names)
+            log.info("filtered up to %d items", len(mongo_input_list))
+        log.info("including Nominatim geolocalization metadata")   
+        nominatim_list = geolocate(mongo_input_list)
+        nominatim_list = list(map(remap_nominatim, nominatim_list))
+        mongo_input_list = merge_info(mongo_input_list, nominatim_list)
+        write_csv(mongo_input_list, NOMINATIM_HEADER, options.file)
     else:
-        log.error("No valid option")
+        log.error("No valid input option to subcommand 'location'")
 
 def photometer(options):
     url = get_mongo_api_url()
@@ -382,7 +382,7 @@ def photometer(options):
                 log.warn("Changing %s MAC: (%s) -> (%s)", row['name'], oldmac, row['mac'])
             mongo_update(url, body, oldmac)
     else:
-        log.error("No valid option")
+        log.error("No valid input option to subcommand 'photometer'")
 
 def organization(options):
     url = get_mongo_api_url()
@@ -406,7 +406,7 @@ def organization(options):
             body = body_organization(row)
             mongo_update(url, body, mac)
     else:
-        log.error("No valid option")
+        log.error("No valid input option to subcommand 'organization'")
 
 
 def contact(options):
@@ -433,7 +433,7 @@ def contact(options):
             body = body_organization(row)
             mongo_update(url, body, mac)
     else:
-        log.error("No valid option")
+        log.error("No valid input option to subcommand 'contact'")
 
 def all(options):
     url = get_mongo_api_url()
@@ -457,7 +457,7 @@ def all(options):
             body = body_organization(row)
             mongo_update(url, body, mac)
     else:
-        log.error("No valid option")
+        log.error("No valid input option to subcommand 'all'")
 
 
 
@@ -468,17 +468,3 @@ def photcheck(options):
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_phot = by_photometer(mongo_input_list)
     log_photometers(mongo_phot)
-
-
-def propose(options):
-    log.info(" ====================== PROPOSE NEW MONGODB LOCATION METADATA ======================")
-    url = get_mongo_api_url()
-    mongo_input_list = mongo_get_all_info(url)
-    log.info("read %d items from MongoDB", len(mongo_input_list))
-    output = geolocate(mongo_input_list)
-    output = list(map(map_proposal,output))
-    output = merge_info(mongo_input_list, output)
-    log.info("%d entries produced", len(output))
-    proposed_location_csv(output, options.output_prefix + ".csv")
-
-

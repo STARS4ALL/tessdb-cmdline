@@ -4,4 +4,4 @@
 #
 # See the LICENSE file for details
 # ----------------------------------------------------------------------
-python -m tess "$@"
+python -m tessutils --console --exceptions mongodb "$@"

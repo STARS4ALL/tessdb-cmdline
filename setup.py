@@ -47,7 +47,8 @@ SCRIPTS = [
     "scripts/tess",
     "scripts/tessdb_pause", 
     "scripts/tessdb_resume",
-    "scripts/tessutils", 
+    "scripts/tessutils",
+    "scripts/mongo-db", 
 ]
 
 DATA_FILES  = []

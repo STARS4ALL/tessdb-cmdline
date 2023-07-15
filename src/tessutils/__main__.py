@@ -134,14 +134,15 @@ def createParser():
     mgloc.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
     mgex1 = mgloc.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB location data')
-    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB location data')
+    mgex1.add_argument('-m', '--nominatim', action='store_true', help='List MongoDB location + Nominatim metadata')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB location metadata')
 
     mgphot = subparser.add_parser('photometer',  help="MongoDB photometer metadata operations")
     mgphot.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
     mgphot.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
     mgex1 = mgphot.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB photometer data')
-    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB photometer data')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB photometer metadata')
     mgphot.add_argument('-m', '--mac', type=str, default=None, required=False, help='(Optional) old MAC, needed only to change MAC')
     
     mgorg = subparser.add_parser('organization',  help="MongoDB organiaztion metadata check")
@@ -162,15 +163,12 @@ def createParser():
     mgall.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
     mgall.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
     mgex1 = mgall.add_mutually_exclusive_group(required=True)
-    mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB all metadata')
-    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB all metadata')
+    mgex1.add_argument('-l', '--list', action='store_true', help='List all MongoDB metadata')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update all MongoDB metadata')
 
     mgphck = subparser.add_parser('photcheck',  help="MongoDB photometers metadata check")
     mgphck.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
-
-    mgloc = subparser.add_parser('propose',  help="Propose new places using Nominatim")
-    mgloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for proposal CSV file')
-   
+ 
 
     # -----------------------------------------
     # Create second level parsers for 'tessdb'
