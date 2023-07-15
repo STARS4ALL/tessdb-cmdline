@@ -53,51 +53,118 @@ log = logging.getLogger('mongo')
 # Module auxiliar functions
 # -------------------------
 
-def mongo_get_names(url):
+def mongo_api_get_names(url):
     '''This request gets name, mac & location info'''
     url = url + "/photometers_list"
     body = {"token": get_mongo_api_key() }
-    response = requests.post(url, json=body).json()
-    return response
+    response = requests.post(url, json=body)
+    response.raise_for_status()
+    return response.json()
 
-def mongo_get_details(url):
+def mongo_api_get_details(url):
     '''This requests gets all infomation except mac'''
     url = url + "/photometers"
-    response = requests.get(url).json()
+    response = requests.get(url)
+    response.raise_for_status()
     return response
 
-def mongo_get_details_single(url, name):
+def mongo_api_get_details_single(url, name):
     '''This requests gets all infomation except mac'''
     url = url + "/photometers/" + name 
     response = requests.get(url).json()
-    return response
+    return response.json()
 
-
-def mongo_create(url, body):
+def mongo_api_create(url, body):
+    '''Create a new entry in MongoDB'''
     body['isNew'] =  True
     body['token'] = get_mongo_api_key()
     name = body['tess']['name']
     mac = body['tess']['mac']
-    print(body)
     url = url + "/photometers/" + name + "/" + mac
     response = requests.post(url, json=body)
     response.raise_for_status()
     return response.json()
 
-def mongo_update(url, body, mac=None):
+def mongo_api_update(url, body, mac=None):
+    '''Update an existing entry in MongoDB'''
     body['isNew'] =  False
     body['token'] = get_mongo_api_key()
     name = body['tess']['name']
     if not mac:
         mac = body['tess']['mac']
     url = url + "/photometers/" + name + "/" + mac
-    response = requests.post(url, json=body).json()
-    return response
+    response = requests.post(url, json=body)
+    response.raise_for_status()
+    return response.json()
+
+def mongo_api_body_location(row, aux_iterable):
+    return {
+        "tess": {
+            "name": row['name'],
+            "info_tess": {
+                "zero_point": get_zero_point(aux_iterable, row['name']), # This is a hack, shouldn't be here
+                "filters": get_filters(aux_iterable, row['name']), # This is a hack, shouldn't be here
+                "local_timezone": row['timezone'],
+            },
+            "info_location": {
+                "longitude": row['longitude'],
+                "latitude": row['latitude'],
+                "place": row['place'],
+                "town": row['town'],
+                "sub_region": row['sub_region'],
+                "region": row['region'],
+                "country": row['country'],
+            },
+        },
+    }
+
+def mongo_api_body_photometer(row, aux_iterable, create=False):
+    return {
+        "tess": {
+            "name": row['name'],
+            "mac": row['mac'],
+            "info_tess": {
+                "zero_point": row['zero_point'],
+                "filters": row['filters'],
+                # This is a hack, shouldn't be here
+                "local_timezone": get_timezone(aux_iterable, row['name']) if not create else 'Etc/UTC'
+            },
+        },
+    }
+
+
+def mongo_api_body_organization(row):
+    return {
+        "tess": {
+            "name": row['name'],
+            "info_org": {
+                "name": row['org_name'],
+                "web_url": row['org_web_url'],
+                "description": row['org_description'],
+                "logo_url": row['org_logo_url'],
+                "email": row['org_email'],
+                "phone": row['org_phone'],
+            }
+        }
+    }
+
+def mongo_api_body_contact(row):
+    return {
+        "tess": {
+            "name": row['name'],
+            "info_contact": {
+                "name": row['contact_name'],
+                "mail": row['contact_mail'],
+                "phone": row['contact_phone'],
+            }
+        }
+    }
 
 
 def mongo_get_all(url):
-    names_list = mongo_get_names(url)
-    details_list = mongo_get_details(url)
+    '''Correlates all entries with the missing mac information using just two HTTP requests'''
+    names_list = mongo_api_get_names(url)
+    details_list = mongo_api_get_details(url)
     assert len(names_list) == len(details_list)
     zipped = zip(names_list, details_list)
     for item in zipped:
@@ -197,73 +264,6 @@ def mongo_get_all_info(url):
     return list(map(mongo_flatten_all, mongo_get_all(url)))
     
 
-def body_location(row, aux_iterable):
-    return {
-        "tess": {
-            "name": row['name'],
-            "info_tess": {
-                "zero_point": get_zero_point(aux_iterable, row['name']), # This is a hack, shouldn't be here
-                "filters": get_filters(aux_iterable, row['name']), # This is a hack, shouldn't be here
-                "local_timezone": row['timezone'],
-            },
-            "info_location": {
-                "longitude": row['longitude'],
-                "latitude": row['latitude'],
-                "place": row['place'],
-                "town": row['town'],
-                "sub_region": row['sub_region'],
-                "region": row['region'],
-                "country": row['country'],
-            },
-        },
-    }
-
-
-def body_photometer(row, aux_iterable, create=False):
-    return {
-        "tess": {
-            "name": row['name'],
-            "mac": row['mac'],
-            "info_tess": {
-                "zero_point": row['zero_point'],
-                "filters": row['filters'],
-                # This is a hack, shouldn't be here
-                "local_timezone": get_timezone(aux_iterable, row['name']) if not create else 'Etc/UTC'
-            },
-        },
-    }
-
-
-def body_organization(row):
-    return {
-        "tess": {
-            "name": row['name'],
-            "info_org": {
-                "name": row['org_name'],
-                "web_url": row['org_web_url'],
-                "description": row['org_description'],
-                "logo_url": row['org_logo_url'],
-                "email": row['org_email'],
-                "phone": row['org_phone'],
-            }
-        }
-    }
-
-def body_contact(row):
-    return {
-        "tess": {
-            "name": row['name'],
-            "info_contact": {
-                "name": row['contact_name'],
-                "mail": row['contact_mail'],
-                "phone": row['contact_phone'],
-            }
-        }
-    }
-
-
-#### =========================================
-
 
 def remap_nominatim(row):
     new_row = dict()
@@ -345,8 +345,8 @@ def location(options):
         for row in mongo_output_list:
             mac = get_mac(mongo_aux_list, row['name'])
             log.info("Updating mongoDB with location info for item %s (%s)", row['name'], mac)
-            body = body_location(row, mongo_aux_list)
-            mongo_update(url, body, mac)
+            body = mongo_api_body_location(row, mongo_aux_list)
+            mongo_api_update(url, body, mac)
     elif options.nominatim:
         mongo_input_list = mongo_get_location_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
@@ -377,9 +377,9 @@ def photometer(options):
             mongo_output_list = filter_by_names(mongo_output_list, options.names)
             log.info("filtered up to %d items", len(mongo_output_list))
         for row in mongo_output_list:
-            body = body_photometer(row, list(), create=True)
+            body = mongo_api_body_photometer(row, list(), create=True)
             log.info("Creating new MongoDB entry with photometer info: %s (%s)", row['name'], row['mac'])
-            mongo_create(url, body)
+            mongo_api_create(url, body)
     elif options.update:
         mongo_aux_list = mongo_get_all_info(url) 
         mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
@@ -389,11 +389,11 @@ def photometer(options):
             log.info("filtered up to %d items", len(mongo_output_list))
         for row in mongo_output_list:
             oldmac = get_mac(mongo_aux_list, row['name'])
-            body = body_photometer(row, mongo_aux_list)
+            body = mongo_api_body_photometer(row, mongo_aux_list)
             log.info("Updating MongoDB with photometer info for %s (%s)", row['name'], oldmac)
             if(oldmac != row['mac']):
                 log.warn("Changing %s MAC: (%s) -> (%s)", row['name'], oldmac, row['mac'])
-            mongo_update(url, body, oldmac)
+            mongo_api_update(url, body, oldmac)
     else:
         log.error("No valid input option to subcommand 'photometer'")
 
@@ -416,8 +416,8 @@ def organization(options):
         for row in mongo_output_list:
             mac = get_mac(mongo_input_list, row['name'])
             log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
-            body = body_organization(row)
-            mongo_update(url, body, mac)
+            body = mongo_api_body_organization(row)
+            mongo_api_update(url, body, mac)
     else:
         log.error("No valid input option to subcommand 'organization'")
 
@@ -443,8 +443,8 @@ def contact(options):
         for row in mongo_output_list:
             mac = get_mac(mongo_input_list, row['name'])
             log.info("Updating mongoDB with contact info for item %s (%s)", row['name'], mac)
-            body = body_organization(row)
-            mongo_update(url, body, mac)
+            body = mongo_api_body_organization(row)
+            mongo_api_update(url, body, mac)
     else:
         log.error("No valid input option to subcommand 'contact'")
 
@@ -467,8 +467,8 @@ def all(options):
         for row in mongo_output_list:
             mac = get_mac(mongo_input_list, row['name'])
             log.info("Updating mongoDB with all info for item %s (%s)", row['name'], mac)
-            body = body_organization(row)
-            mongo_update(url, body, mac)
+            body = mongo_api_body_organization(row)
+            mongo_api_update(url, body, mac)
     else:
         log.error("No valid input option to subcommand 'all'")
 
