@@ -143,6 +143,7 @@ def createParser():
     mgex1 = mgphot.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB photometer data')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB photometer metadata')
+    mgex1.add_argument('-c', '--create', action='store_true', help='Create MongoDB photometer metadata')
     mgphot.add_argument('-m', '--mac', type=str, default=None, required=False, help='(Optional) old MAC, needed only to change MAC')
     
     mgorg = subparser.add_parser('organization',  help="MongoDB organiaztion metadata check")

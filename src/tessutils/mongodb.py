@@ -74,16 +74,18 @@ def mongo_get_details_single(url, name):
 
 
 def mongo_create(url, body):
-    body['isNew'] =  True,
+    body['isNew'] =  True
     body['token'] = get_mongo_api_key()
     name = body['tess']['name']
     mac = body['tess']['mac']
+    print(body)
     url = url + "/photometers/" + name + "/" + mac
-    response = requests.post(url, json=body).json()
-    return response
+    response = requests.post(url, json=body)
+    response.raise_for_status()
+    return response.json()
 
 def mongo_update(url, body, mac=None):
-    body['isNew'] =  False,
+    body['isNew'] =  False
     body['token'] = get_mongo_api_key()
     name = body['tess']['name']
     if not mac:
@@ -217,7 +219,7 @@ def body_location(row, aux_iterable):
     }
 
 
-def body_photometer(row, aux_iterable):
+def body_photometer(row, aux_iterable, create=False):
     return {
         "tess": {
             "name": row['name'],
@@ -225,7 +227,8 @@ def body_photometer(row, aux_iterable):
             "info_tess": {
                 "zero_point": row['zero_point'],
                 "filters": row['filters'],
-                "local_timezone": get_timezone(aux_iterable, row['name']), # This is a hack, shouldn't be here
+                # This is a hack, shouldn't be here
+                "local_timezone": get_timezone(aux_iterable, row['name']) if not create else 'Etc/UTC'
             },
         },
     }
@@ -367,6 +370,16 @@ def photometer(options):
             mongo_input_list = filter_by_names(mongo_input_list, options.names)
             log.info("filtered up to %d items", len(mongo_input_list))
         write_csv(mongo_input_list, PHOTOMETER_HEADER, options.file)
+    elif options.create:
+        mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
+        log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+        if options.names:
+            mongo_output_list = filter_by_names(mongo_output_list, options.names)
+            log.info("filtered up to %d items", len(mongo_output_list))
+        for row in mongo_output_list:
+            body = body_photometer(row, list(), create=True)
+            log.info("Creating new MongoDB entry with photometer info: %s (%s)", row['name'], row['mac'])
+            mongo_create(url, body)
     elif options.update:
         mongo_aux_list = mongo_get_all_info(url) 
         mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
