@@ -122,16 +122,16 @@ def mongo_api_body_location(row, aux_iterable):
     }
 
 def mongo_api_body_photometer(row, aux_iterable, create=False):
+     # This is a hack, shouldn't be here
     local_timezone = get_timezone(aux_iterable, row['name']) if not create else 'Etc/UTC'
     return {
         "tess": {
             "name": row['name'].strip(),
             "mac": row['mac'].upper().strip(),
             "info_tess": {
-                "zero_point": row['zero_point'],
-                "filters": row['filters'],
-                # This is a hack, shouldn't be here
-                "local_timezone": if local_timezone.strip() is not None else None,
+                "zero_point": row['zero_point'].strip() if row['zero_point'] is not None else None,
+                "filters": row['filters'].strip() if row['filters'] is not None else None,
+                "local_timezone": local_timezone.strip() if local_timezone is not None else None,
             },
         },
     }
@@ -144,7 +144,7 @@ def mongo_api_body_organization(row):
             "info_org": {
                 "name": row['org_name'].strip() if row['org_name'] is not None else None,
                 "web_url": row['org_web_url'].strip() if row['org_web_url'] is not None else None,
-                "description": row['org_description'],.strip() if row['org_description'] is not None else None
+                "description": row['org_description'].strip() if row['org_description'] is not None else None,
                 "logo_url": row['org_logo_url'].strip() if row['org_logo_url'] is not None else None,
                 "email": row['org_email'].strip() if row['org_email'] is not None else None,
                 "phone": row['org_phone'].strip() if row['org_phone'] is not None else None,
