@@ -66,12 +66,13 @@ def mongo_api_get_details(url):
     url = url + "/photometers"
     response = requests.get(url)
     response.raise_for_status()
-    return response
+    return response.json()
 
 def mongo_api_get_details_single(url, name):
     '''This requests gets all infomation except mac'''
     url = url + "/photometers/" + name 
-    response = requests.get(url).json()
+    response = requests.get(url)
+    response.raise_for_status()
     return response.json()
 
 def mongo_api_create(url, body):
@@ -98,36 +99,39 @@ def mongo_api_update(url, body, mac=None):
     return response.json()
 
 def mongo_api_body_location(row, aux_iterable):
+    zero_point = get_zero_point(aux_iterable, row['name']) # This is a hack, shouldn't be here
+    filters = get_filters(aux_iterable, row['name']) # This is a hack, shouldn't be here
     return {
         "tess": {
-            "name": row['name'],
+            "name": row['name'].strip(),
             "info_tess": {
-                "zero_point": get_zero_point(aux_iterable, row['name']), # This is a hack, shouldn't be here
-                "filters": get_filters(aux_iterable, row['name']), # This is a hack, shouldn't be here
-                "local_timezone": row['timezone'],
+                "zero_point": zero_point if zero_point is not None else None,
+                "filters": filters.strip() if filters is not None else None, # This is a hack, shouldn't be here
+                "local_timezone": row['timezone'].strip() if row['timezone'] is not None else None,
             },
             "info_location": {
-                "longitude": row['longitude'],
-                "latitude": row['latitude'],
-                "place": row['place'],
-                "town": row['town'],
-                "sub_region": row['sub_region'],
-                "region": row['region'],
-                "country": row['country'],
+                "longitude": float(row['longitude']) if row['longitude'] is not None else None,
+                "latitude": float(row['latitude']) if row['latitude'] is not None else None,
+                "place": row['place'].strip() if row['place'] is not None else None,
+                "town": row['town'].strip() if row['town'] is not None else None,
+                "sub_region": row['sub_region'].strip() if row['sub_region'] is not None else None,
+                "region": row['region'].strip() if row['region'] is not None else None,
+                "country": row['country'].strip() if row['country'] is not None else None,
             },
         },
     }
 
 def mongo_api_body_photometer(row, aux_iterable, create=False):
+    local_timezone = get_timezone(aux_iterable, row['name']) if not create else 'Etc/UTC'
     return {
         "tess": {
-            "name": row['name'],
-            "mac": row['mac'],
+            "name": row['name'].strip(),
+            "mac": row['mac'].upper().strip(),
             "info_tess": {
                 "zero_point": row['zero_point'],
                 "filters": row['filters'],
                 # This is a hack, shouldn't be here
-                "local_timezone": get_timezone(aux_iterable, row['name']) if not create else 'Etc/UTC'
+                "local_timezone": if local_timezone.strip() is not None else None,
             },
         },
     }
@@ -136,14 +140,14 @@ def mongo_api_body_photometer(row, aux_iterable, create=False):
 def mongo_api_body_organization(row):
     return {
         "tess": {
-            "name": row['name'],
+            "name": row['name'].strip(),
             "info_org": {
-                "name": row['org_name'],
-                "web_url": row['org_web_url'],
-                "description": row['org_description'],
-                "logo_url": row['org_logo_url'],
-                "email": row['org_email'],
-                "phone": row['org_phone'],
+                "name": row['org_name'].strip() if row['org_name'] is not None else None,
+                "web_url": row['org_web_url'].strip() if row['org_web_url'] is not None else None,
+                "description": row['org_description'],.strip() if row['org_description'] is not None else None
+                "logo_url": row['org_logo_url'].strip() if row['org_logo_url'] is not None else None,
+                "email": row['org_email'].strip() if row['org_email'] is not None else None,
+                "phone": row['org_phone'].strip() if row['org_phone'] is not None else None,
             }
         }
     }
@@ -151,11 +155,11 @@ def mongo_api_body_organization(row):
 def mongo_api_body_contact(row):
     return {
         "tess": {
-            "name": row['name'],
+            "name": row['name'].strip(),
             "info_contact": {
-                "name": row['contact_name'],
-                "mail": row['contact_mail'],
-                "phone": row['contact_phone'],
+                "name": row['contact_name'].strip() if row['contact_name'] is not None else None,
+                "mail": row['contact_mail'].strip() if row['contact_mail'] is not None else None,
+                "phone": row['contact_phone'].strip() if row['contact_phone'] is not None else None,
             }
         }
     }
@@ -176,15 +180,25 @@ def mongo_get_all(url):
 def mongo_flatten_location(row):
     new_row = dict()
     new_row['name'] = row['name']
-    new_row["longitude"] = float(row["info_location"]["longitude"])
-    new_row["latitude"] = float(row["info_location"]["latitude"])
-    new_row["place"] = row["info_location"]["place"]
-    new_row["town"] = row["info_location"].get("town")
-    new_row["region"] = row["info_location"].get("region")
-    new_row["sub_region"] = row["info_location"].get("sub_region")
-    new_row["country"] = row["info_location"]["country"]
+    info_location = row.get("info_location")
+    if info_location:
+        new_row["longitude"] = float(row["info_location"]["longitude"])
+        new_row["latitude"] = float(row["info_location"]["latitude"])
+        new_row["place"] = row["info_location"]["place"]
+        new_row["town"] = row["info_location"].get("town")
+        new_row["region"] = row["info_location"].get("region")
+        new_row["sub_region"] = row["info_location"].get("sub_region")
+        new_row["country"] = row["info_location"]["country"]
+    else:
+        new_row["longitude"] = None
+        new_row["latitude"] = None
+        new_row["place"] = None
+        new_row["town"] = None
+        new_row["region"] = None
+        new_row["sub_region"] = None
+        new_row["country"] = None
     tess = row.get("info_tess")
-    if(tess):
+    if tess:
         new_row["timezone"] = row["info_tess"].get("local_timezone","Etc/UTC")
     else:
         new_row["timezone"] = "Etc/UTC"
@@ -333,8 +347,6 @@ def location(options):
             mongo_input_list = filter_by_names(mongo_input_list, options.names)
             log.info("filtered up to %d items", len(mongo_input_list))
         write_csv(mongo_input_list, LOCATION_HEADER, options.file)
-        mongo_loc  = by_location(mongo_input_list)
-        log_locations(mongo_loc)
     elif options.update:
         mongo_aux_list = mongo_get_all_info(url)
         mongo_output_list = read_csv(options.file, LOCATION_HEADER)
@@ -360,6 +372,7 @@ def location(options):
         write_csv(mongo_input_list, NOMINATIM_HEADER, options.file)
     else:
         log.error("No valid input option to subcommand 'location'")
+
 
 def photometer(options):
     url = get_mongo_api_url()
@@ -396,6 +409,7 @@ def photometer(options):
             mongo_api_update(url, body, oldmac)
     else:
         log.error("No valid input option to subcommand 'photometer'")
+
 
 def organization(options):
     url = get_mongo_api_url()
@@ -448,6 +462,7 @@ def contact(options):
     else:
         log.error("No valid input option to subcommand 'contact'")
 
+
 def all(options):
     url = get_mongo_api_url()
     if options.list:
@@ -473,11 +488,16 @@ def all(options):
         log.error("No valid input option to subcommand 'all'")
 
 
-
-def photcheck(options):
-    log.info(" ====================== ANALIZING MONGODB PHOTOMETER METADATA ======================")
+def duplicates(options):
+    log.info(" ====================== ANALIZING DUPLICATES IN MONGODB METADATA ======================")
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_all_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
-    mongo_phot = by_photometer(mongo_input_list)
-    log_photometers(mongo_phot)
+    if options.name:
+        mongo_phot = by_photometer(mongo_input_list)
+        log_photometers(mongo_phot)
+    elif options.location:
+        mongo_loc  = by_location(mongo_input_list)
+        log_locations(mongo_loc)
+    else:
+        log.error("No valid input option to subcommand 'duplicate'")

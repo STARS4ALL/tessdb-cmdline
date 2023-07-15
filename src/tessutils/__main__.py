@@ -167,8 +167,11 @@ def createParser():
     mgex1.add_argument('-l', '--list', action='store_true', help='List all MongoDB metadata')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update all MongoDB metadata')
 
-    mgphck = subparser.add_parser('photcheck',  help="MongoDB photometers metadata check")
-    mgphck.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    mgphck = subparser.add_parser('duplicates',  help="MongoDB photometers metadata check")
+    mgex1 = mgphck.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-n', '--name', action='store_true', help='Check for duplicate photometer names')
+    mgex1.add_argument('-l', '--location', action='store_true', help='Check for duplicate photometer coordinates')
+    mgphck.add_argument('-o', '--output-prefix', type=str, default=None, help='Output file prefix for the different files to generate')
  
 
     # -----------------------------------------
