@@ -493,10 +493,13 @@ def check(options):
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_all_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
-    if options.name:
+    if options.names:
         mongo_phot = by_photometer(mongo_input_list)
         log_photometers(mongo_phot)
-    elif options.coord:
+    elif options.coords:
+        mongo_place  = by_place(mongo_input_list)
+        log_places(mongo_place)
+    elif options.places:
         mongo_place  = by_place(mongo_input_list)
         log_places(mongo_place)
     else:

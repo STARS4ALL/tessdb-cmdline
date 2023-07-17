@@ -169,10 +169,10 @@ def createParser():
 
     mgphck = subparser.add_parser('check',  help="Various MongoDB photometers metadata check")
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
-    mgex1.add_argument('-n', '--name', action='store_true', help='Check for duplicate photometer names')
-    mgex1.add_argument('-c', '--coord', action='store_true', help='Check for duplicate photometer coordinates')
-    mgphck.add_argument('-o', '--output-prefix', type=str, default=None, help='Output file prefix for the different files to generate')
- 
+    mgex1.add_argument('-n', '--names', action='store_true', help='Check for duplicate photometer names')
+    mgex1.add_argument('-c', '--coords', action='store_true', help='Check for same coordinates, different places')
+    mgex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
+   
 
     # -----------------------------------------
     # Create second level parsers for 'tessdb'
