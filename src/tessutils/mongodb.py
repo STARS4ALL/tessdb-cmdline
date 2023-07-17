@@ -334,6 +334,84 @@ def get_zero_point(iterable, name):
 def get_filters(iterable, name):
     return get_item(iterable, name, 'filters')
 
+
+def do_update_location(url, path, names, dry_run):
+    mongo_aux_list = mongo_get_all_info(url)
+    mongo_output_list = read_csv(path, LOCATION_HEADER)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), path)
+    if names:
+        mongo_output_list = filter_by_names(mongo_output_list, names)
+        log.info("filtered up to %d items", len(mongo_output_list))
+    for row in mongo_output_list:
+        mac = get_mac(mongo_aux_list, row['name'])
+        log.info("Updating mongoDB with location info for item %s (%s)", row['name'], mac)
+        body = mongo_api_body_location(row, mongo_aux_list)
+        if not dry_run:
+            mongo_api_update(url, body, mac)
+        else:
+            print("="*60)
+            print(json.dumps(body, indent=2))
+            print("="*60)
+   
+def do_update_photometer(url, path, names, dry_run):
+    mongo_aux_list = mongo_get_all_info(url) 
+    mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+    if options.names:
+        mongo_output_list = filter_by_names(mongo_output_list, options.names)
+        log.info("filtered up to %d items", len(mongo_output_list))
+    for row in mongo_output_list:
+        oldmac = get_mac(mongo_aux_list, row['name'])
+        body = mongo_api_body_photometer(row, mongo_aux_list)
+        log.info("Updating MongoDB with photometer info for %s (%s)", row['name'], oldmac)
+        if(oldmac != row['mac']):
+            log.warn("Changing %s MAC: (%s) -> (%s)", row['name'], oldmac, row['mac'])
+        if not dry_run:
+            mongo_api_update(url, body, oldmac)
+        else:
+            print("="*60)
+            print(json.dumps(body, indent=2))
+            print("="*60)
+
+def do_update_organization(url, path, names, dry_run):
+    mongo_input_list = mongo_get_photometer_info(url)
+    mongo_output_list = read_csv(options.file, ORGANIZATION_HEADER)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+    if options.names:
+        mongo_output_list = filter_by_names(mongo_output_list, options.names)
+        log.info("filtered up to %d items", len(mongo_output_list))
+    for row in mongo_output_list:
+        mac = get_mac(mongo_input_list, row['name'])
+        log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
+        body = mongo_api_body_organization(row)
+        if not dry_run:
+            mongo_api_update(url, body, mac)
+        else:
+            print("="*60)
+            print(json.dumps(body, indent=2))
+            print("="*60)
+
+def do_update_contact(url, path, names, dry_run):
+    mongo_input_list = mongo_get_photometer_info(url)
+    mongo_output_list = read_csv(options.file, CONTACT_HEADER)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+    if options.names:
+        mongo_output_list = filter_by_names(mongo_output_list, options.names)
+        log.info("filtered up to %d items", len(mongo_output_list))
+    for row in mongo_output_list:
+        mac = get_mac(mongo_input_list, row['name'])
+        log.info("Updating mongoDB with contact info for item %s (%s)", row['name'], mac)
+        body = mongo_api_body_organization(row)
+        if not dry_run:
+            mongo_api_update(url, body, mac)
+        else:
+            print("="*60)
+            print(json.dumps(body, indent=2))
+            print("="*60)
+
+def do_update_all(url, path, names, dry_run):
+    pass
+
 # ===================
 # Module entry points
 # ===================
@@ -348,17 +426,9 @@ def location(options):
             log.info("filtered up to %d items", len(mongo_input_list))
         write_csv(mongo_input_list, LOCATION_HEADER, options.file)
     elif options.update:
-        mongo_aux_list = mongo_get_all_info(url)
-        mongo_output_list = read_csv(options.file, LOCATION_HEADER)
-        log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
-        if options.names:
-            mongo_output_list = filter_by_names(mongo_output_list, options.names)
-            log.info("filtered up to %d items", len(mongo_output_list))
-        for row in mongo_output_list:
-            mac = get_mac(mongo_aux_list, row['name'])
-            log.info("Updating mongoDB with location info for item %s (%s)", row['name'], mac)
-            body = mongo_api_body_location(row, mongo_aux_list)
-            mongo_api_update(url, body, mac)
+        do_update_location(url, options.file, options.names, dry_run=False)
+    elif options.upd_dry_run:
+        do_update_location(url, options.file, options.names, dry_run=True)
     elif options.nominatim:
         mongo_input_list = mongo_get_location_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
@@ -394,19 +464,9 @@ def photometer(options):
             log.info("Creating new MongoDB entry with photometer info: %s (%s)", row['name'], row['mac'])
             mongo_api_create(url, body)
     elif options.update:
-        mongo_aux_list = mongo_get_all_info(url) 
-        mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
-        log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
-        if options.names:
-            mongo_output_list = filter_by_names(mongo_output_list, options.names)
-            log.info("filtered up to %d items", len(mongo_output_list))
-        for row in mongo_output_list:
-            oldmac = get_mac(mongo_aux_list, row['name'])
-            body = mongo_api_body_photometer(row, mongo_aux_list)
-            log.info("Updating MongoDB with photometer info for %s (%s)", row['name'], oldmac)
-            if(oldmac != row['mac']):
-                log.warn("Changing %s MAC: (%s) -> (%s)", row['name'], oldmac, row['mac'])
-            mongo_api_update(url, body, oldmac)
+        do_update_photometer(url, options.file, options.names, dry_run=False)
+    elif options.upd_dry_run:
+        do_update_photometer(url, options.file, options.names, dry_run=True)
     else:
         log.error("No valid input option to subcommand 'photometer'")
 
@@ -421,17 +481,9 @@ def organization(options):
             log.info("filtered up to %d items", len(mongo_input_list))
         write_csv(mongo_input_list, ORGANIZATION_HEADER, options.file)
     elif options.update:
-        mongo_input_list = mongo_get_photometer_info(url)
-        mongo_output_list = read_csv(options.file, ORGANIZATION_HEADER)
-        log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
-        if options.names:
-            mongo_output_list = filter_by_names(mongo_output_list, options.names)
-            log.info("filtered up to %d items", len(mongo_output_list))
-        for row in mongo_output_list:
-            mac = get_mac(mongo_input_list, row['name'])
-            log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
-            body = mongo_api_body_organization(row)
-            mongo_api_update(url, body, mac)
+        do_update_organization(url, options.file, options.names, dry_run=False)
+    elif options.upd_dry_run:
+        do_update_organization(url, options.file, options.names, dry_run=True)
     else:
         log.error("No valid input option to subcommand 'organization'")
 
@@ -447,18 +499,9 @@ def contact(options):
             log.info("filtered up to %d items", len(mongo_input_list))
         write_csv(mongo_input_list, CONTACT_HEADER, options.file)
     elif options.update:
-        log.warn("MongoDB does not store contact info, it is useless to update data")
-        mongo_input_list = mongo_get_photometer_info(url)
-        mongo_output_list = read_csv(options.file, CONTACT_HEADER)
-        log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
-        if options.names:
-            mongo_output_list = filter_by_names(mongo_output_list, options.names)
-            log.info("filtered up to %d items", len(mongo_output_list))
-        for row in mongo_output_list:
-            mac = get_mac(mongo_input_list, row['name'])
-            log.info("Updating mongoDB with contact info for item %s (%s)", row['name'], mac)
-            body = mongo_api_body_organization(row)
-            mongo_api_update(url, body, mac)
+        do_update_contact(url, options.file, options.names, dry_run=False)
+    elif options.upd_dry_run:
+        do_update_contact(url, options.file, options.names, dry_run=True)
     else:
         log.error("No valid input option to subcommand 'contact'")
 
