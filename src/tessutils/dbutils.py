@@ -159,30 +159,30 @@ def error_long(longitude, latitude, arc_error):
     return _term1 - _term2
 
 
-def check_location_same_coords(place, photometers):
+def check_place_same_coords(place, photometers):
     '''Check for coordinates consistency among phothometers deployed on the same 'place' name'''
     result = False
     longitudes = set(phot['longitude'] for phot in photometers)
     latitudes = set(phot['latitude'] for phot in photometers)
     if len(longitudes) > 1:
         result = True
-        log.warn("Location %s has different %d longitudes. %s", place, len(longitudes), longitudes)
+        log.warn("Place %s has different %d longitudes. %s", place, len(longitudes), longitudes)
     if len(latitudes) > 1:
         result = True
-        log.warn("Location %s has different %d latitudes. %s", place, len(latitudes), latitudes)
+        log.warn("Place %s has different %d latitudes. %s", place, len(latitudes), latitudes)
     return result
 
-def check_location_dupl_phot(place, photometers):
+def check_place_dupl_phot(place, photometers):
     '''Check duplicate entries fro the same place'''
     result = False
     distinct_photometers = set([phot['name'] for phot in photometers])
     if len(distinct_photometers) == 1:
-        log.error("Location %s has %d duplicated photometer entries for %s", place, len(photometers), distinct_photometers)
+        log.error("Place %s has %d duplicated photometer entries for %s", place, len(photometers), distinct_photometers)
         result = True
     return result 
 
 
-def by_location(iterable):
+def by_place(iterable):
     loc = collections.defaultdict(list)
     for row in iterable:
         loc[row['place']].append(row)
@@ -190,34 +190,34 @@ def by_location(iterable):
     return loc
 
 
-def log_locations(locations_iterable):
+def log_places(locations_iterable):
     for place, photometers in locations_iterable.items():
         if len(photometers) > 1:
-            log.info("Location %s has %d photometers: %s", place, len(photometers), [phot['name'] for phot in photometers])
-            check_location_same_coords(place, photometers)
-            check_location_dupl_phot(place, photometers)
+            log.info("Place %s has %d photometers: %s", place, len(photometers), [phot['name'] for phot in photometers])
+            check_place_same_coords(place, photometers)
+            check_place_dupl_phot(place, photometers)
 
 
 def filter_dupl_coordinates(iterable):
     output = list()
-    loc_iterable = by_location(iterable)
+    loc_iterable = by_place(iterable)
     for place, photometers in loc_iterable.items():
-        if len(photometers) > 1 and check_location_same_coords(place, photometers):
+        if len(photometers) > 1 and check_place_same_coords(place, photometers):
             output.extend(photometers)
     return output
 
 
-def check_photometer_dupl_locations(name, locations):
-    distinct_locations = set([loc['place'] for loc in locations])
-    if len(distinct_locations) == 1:
-        log.error("Photometer %s has %d duplicated location entries for %s", name, len(locations), distinct_locations)
+def check_photometer_dupl_places(name, places):
+    distinct_places = set([place['place'] for place in places])
+    if len(distinct_places) == 1:
+        log.error("Photometer %s has %d duplicated places entries for %s", name, len(places), distinct_places)
 
 
 def log_photometers(photometers_iterable):
-    for name, locations in photometers_iterable.items():
-        if len(locations) > 1:
-            log.info("Photometer %s has %d locations: %s", name, len(locations), [loc['place'] for loc in locations])
-            check_photometer_dupl_locations(name, locations)
+    for name, places in photometers_iterable.items():
+        if len(places) > 1:
+            log.info("Photometer %s has %d places: %s", name, len(places), [place['place'] for place in places])
+            check_photometer_dupl_places(name, places)
 
 
 def by_photometer(iterable):
@@ -235,6 +235,6 @@ def by_coordinates(iterable):
     return coords
 
 def log_coordinates(coords_iterable):
-    for coords, locations in coords_iterable.items():
-        if len(locations) > 1:
-            log.info("Coordinates %s has %d locations: %s and photometers: %s", coords, len(locations), [loc['place'] for loc in locations], [loc['name'] for loc in locations])
+    for coords, places in coords_iterable.items():
+        if len(places) > 1:
+            log.info("Coordinates %s has %d places: %s and photometers: %s", coords, len(places), [pla['place'] for pla in places], [pla['name'] for pla in places])

@@ -21,7 +21,7 @@ import logging
 # -------------
 
 from .utils import open_database
-from .dbutils import by_location, by_photometer, log_locations, log_photometers
+from .dbutils import by_place, by_photometer, log_places, log_photometers
 
 
 # -----------------------
@@ -87,8 +87,8 @@ def locations(options):
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_loc  = by_location(tessdb_input_list)
-    log_locations(tessdb_loc)
+    tessdb_loc  = by_place(tessdb_input_list)
+    log_places(tessdb_loc)
   
 
 def photometers(options):

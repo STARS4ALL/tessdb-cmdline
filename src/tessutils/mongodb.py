@@ -24,7 +24,7 @@ import requests
 # local imports
 # -------------
 
-from .dbutils import by_location, by_photometer, by_coordinates, log_locations, log_photometers, log_coordinates
+from .dbutils import by_place, by_photometer, by_coordinates, log_places, log_photometers, log_coordinates
 from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
 
 
@@ -488,7 +488,7 @@ def all(options):
         log.error("No valid input option to subcommand 'all'")
 
 
-def duplicates(options):
+def check(options):
     log.info(" ====================== ANALIZING DUPLICATES IN MONGODB METADATA ======================")
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_all_info(url)
@@ -496,8 +496,8 @@ def duplicates(options):
     if options.name:
         mongo_phot = by_photometer(mongo_input_list)
         log_photometers(mongo_phot)
-    elif options.location:
-        mongo_loc  = by_location(mongo_input_list)
-        log_locations(mongo_loc)
+    elif options.coord:
+        mongo_place  = by_place(mongo_input_list)
+        log_places(mongo_place)
     else:
         log.error("No valid input option to subcommand 'duplicate'")

@@ -26,7 +26,7 @@ import collections
 # -------------
 
 from .utils import open_database
-from .dbutils import by_location, by_photometer, log_locations, log_photometers, distance
+from .dbutils import by_place, by_photometer, log_places, log_photometers, distance
 from .mongodb import photometers_from_mongo
 from .tessdb import photometers_from_tessdb
 # ----------------
@@ -95,18 +95,18 @@ def locations(options):
     connection = open_database(options.dbase)
     mongo_input_list = photometers_from_mongo(options.url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
-    mongo_loc  = by_location(mongo_input_list)
+    mongo_place  = by_place(mongo_input_list)
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_loc = by_location(tessdb_input_list)
+    tessdb_loc = by_place(tessdb_input_list)
     if options.mongo:
-        locations = in_mongo_not_in_tessdb(mongo_loc, tessdb_loc)
+        locations = in_mongo_not_in_tessdb(mongo_place, tessdb_loc)
         log.info("%d locations exclusive MongoDB locations",len(locations))
     if options.tess:
-        locations = in_tessdb_not_in_mongo(mongo_loc, tessdb_loc)
+        locations = in_tessdb_not_in_mongo(mongo_place, tessdb_loc)
         log.info("%d locations exclusive TessDB locations",len(locations))
     if options.common:
-        locations = common_items(mongo_loc, tessdb_loc)
+        locations = common_items(mongo_place, tessdb_loc)
         log.info("%d locations in common between MongoDB and TessDB",len(locations))
         for location in locations:
             log.debug("Location %s", location)
