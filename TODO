@@ -1,6 +1,5 @@
-1) probar actualizar MongoDB con lo minimo
-2) Porbar a actualizar las MAC qqqqqqq (usar stars5002/AA:BB:CC:DD:EE:FF y pru34/FF:EE:DD:CC:BB:AA)
-
+1) mongo-db check --place | --coords | --mac
+2) Refactoring: location -> place
 3) Hacer un cross-check de nombres y MACs entre MongoDB y tessdb
 
 SELECT name, mac_address, valid_since, valid_until, valid_state
@@ -14,7 +13,7 @@ WHERE name LIKE 'stars%'
 GROUP BY name
 ORDER BY cast(substr(name,6) as int) ASC;
 
-
+== ANTIGUO
 Retocar la utilidad de tess para mostar min(fecha), max(fecha) con reading counts y demás
 en luger de la fecha metida por linea de comandos.
 tess instrument coalesce --name <name> | --mac <mac> --test
