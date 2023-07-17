@@ -136,6 +136,7 @@ def createParser():
     mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB location data')
     mgex1.add_argument('-m', '--nominatim', action='store_true', help='List MongoDB location + Nominatim metadata')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB location metadata')
+    mgex1.add_argument('-d', '--upd-dry-run', action='store_true', help='(Dry Run) Update MongoDB location metadata')
 
     mgphot = subparser.add_parser('photometer',  help="MongoDB photometer metadata operations")
     mgphot.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
@@ -144,6 +145,8 @@ def createParser():
     mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB photometer data')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB photometer metadata')
     mgex1.add_argument('-c', '--create', action='store_true', help='Create MongoDB photometer metadata')
+    mgex1.add_argument('-x', '--cre-dry-run', action='store_true', help='(Dry Run) Create MongoDB photometer metadata')
+    mgex1.add_argument('-d', '--upd-dry-run', action='store_true', help='(Dry Run) Update MongoDB photometer metadata')
     mgphot.add_argument('-m', '--mac', type=str, default=None, required=False, help='(Optional) old MAC, needed only to change MAC')
     
     mgorg = subparser.add_parser('organization',  help="MongoDB organiaztion metadata check")
@@ -152,6 +155,7 @@ def createParser():
     mgex1 = mgorg.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB organization metadata')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB organization metadata')
+    mgex1.add_argument('-d', '--upd-dry-run', action='store_true', help='(Dry Run) Update MongoDB organization metadata')
 
     mgcon = subparser.add_parser('contact',  help="MongoDB contact metadata check")
     mgcon.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
@@ -159,6 +163,7 @@ def createParser():
     mgex1 = mgcon.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB contact metadata')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB contact metadata')
+    mgex1.add_argument('-d', '--upd-dry-run', action='store_true', help='(Dry Run) Update MongoDB contact metadata')
 
     mgall = subparser.add_parser('all',  help="MongoDB all metadata check")
     mgall.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
@@ -166,6 +171,7 @@ def createParser():
     mgex1 = mgall.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List all MongoDB metadata')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update all MongoDB metadata')
+    mgex1.add_argument('-d', '--upd-dry-run', action='store_true', help='(Dry Run) Update MongoDB all metadata')
 
     mgphck = subparser.add_parser('check',  help="Various MongoDB photometers metadata check")
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
