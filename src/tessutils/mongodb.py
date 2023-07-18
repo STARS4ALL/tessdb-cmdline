@@ -445,7 +445,7 @@ def do_update_organization(url, path, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url)
     mongo_output_list = read_csv(path, ORGANIZATION_HEADER)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
-    if options.names:
+    if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
         log.info("filtered up to %d items", len(mongo_output_list))
     for row in mongo_output_list:
@@ -459,13 +459,13 @@ def do_update_contact(url, path, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url)
     mongo_output_list = read_csv(path, CONTACT_HEADER)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
-    if options.names:
+    if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
         log.info("filtered up to %d items", len(mongo_output_list))
     for row in mongo_output_list:
         mac = get_mac(mongo_input_list, row['name'])
         log.info("Updating mongoDB with contact info for item %s (%s)", row['name'], mac)
-        body = mongo_api_body_organization(row)
+        body = mongo_api_body_contact(row)
         mongo_api_update(url, body, mac, simulated)
         
 
