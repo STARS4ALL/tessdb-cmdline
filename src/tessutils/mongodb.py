@@ -34,7 +34,7 @@ from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
 
 # CSV File generation rows
 LOCATION_HEADER = ('name', 'longitude', 'latitude', 'place', 'town', 'sub_region', 'region','country','timezone')
-PHOTOMETER_HEADER = ('name', 'mac', 'zero_point', 'filters')
+PHOTOMETER_HEADER = ('name', 'mac', 'zero_point', 'filters','period')
 ORGANIZATION_HEADER = ('name', 'org_name', 'org_description', 'org_phone', 'org_email', 'org_web_url', 'org_logo_url',)
 CONTACT_HEADER = ('name', 'contact_name', 'contact_mail', 'contact_phone')
 ALL_HEADER = ('name', 'mac') + PHOTOMETER_HEADER[2:] + LOCATION_HEADER[1:] + ORGANIZATION_HEADER[1:] + CONTACT_HEADER[1:]
@@ -42,6 +42,11 @@ ALL_HEADER = ('name', 'mac') + PHOTOMETER_HEADER[2:] + LOCATION_HEADER[1:] + ORG
 NOMINATIM_HEADER = ('name', 'longitude', 'latitude', 'place', 'nominatim_place', 'nominatim_place_type', 'town', 'nominatim_town', 'nominatim_town_type',
             'sub_region', 'nominatim_sub_region', 'nominatim_sub_region_type', 'region', 'nominatim_region', 'nominatim_region_type', 
             'country', 'nominatim_country', 'timezone', 'nominatim_timezone', 'nominatim_zipcode',)
+
+DEFAULT_LOCATION = {"longitude":0.0, "latitude":0.0, "place":None, "town": None, "sub_region": None, "region": None, "country": None}
+DEFAULT_IMG = {'urls': []}
+DEFAULT_ORG = {}
+DEFAULT_CONTACT = {}
 
 # -----------------------
 # Module global variables
@@ -75,18 +80,31 @@ def mongo_api_get_details_single(url, name):
     response.raise_for_status()
     return response.json()
 
-def mongo_api_create(url, body):
+def mongo_api_create(url, body, simulated):
     '''Create a new entry in MongoDB'''
     body['isNew'] =  True
     body['token'] = get_mongo_api_key()
     name = body['tess']['name']
     mac = body['tess']['mac']
     url = url + "/photometers/" + name + "/" + mac
-    response = requests.post(url, json=body)
-    response.raise_for_status()
-    return response.json()
+    if not simulated:
+        response = requests.post(url, json=body)
+        response.raise_for_status()
+        return response.json()
+    else:
+        req = requests.Request('POST',url,data=json.dumps(body, indent=2))
+        prepared = req.prepare()
+        prepared.headers['Content-Type'] = "application/json"
+        print('{}\n{}\r\n{}\r\n\r\n{}\n{}'.format(
+            "="*66,
+            prepared.method + ' ' + prepared.url,
+            '\r\n'.join('{}: {}'.format(k, v) for k, v in prepared.headers.items()),
+            prepared.body,
+            "="*66,
+        ))
 
-def mongo_api_update(url, body, mac=None):
+
+def mongo_api_update(url, body, mac, simulated=None):
     '''Update an existing entry in MongoDB'''
     body['isNew'] =  False
     body['token'] = get_mongo_api_key()
@@ -94,47 +112,72 @@ def mongo_api_update(url, body, mac=None):
     if not mac:
         mac = body['tess']['mac']
     url = url + "/photometers/" + name + "/" + mac
-    response = requests.post(url, json=body)
-    response.raise_for_status()
-    return response.json()
+    if not simulated:
+        response = requests.post(url, json=body)
+        response.raise_for_status()
+        return response.json()
+    else:
+        req = requests.Request('POST',url,data=json.dumps(body, indent=2))
+        prepared = req.prepare()
+        prepared.headers['Content-Type'] = "application/json"
+        print('{}\n{}\r\n{}\r\n\r\n{}\n{}'.format(
+            "="*66,
+            prepared.method + ' ' + prepared.url,
+            '\r\n'.join('{}: {}'.format(k, v) for k, v in prepared.headers.items()),
+            prepared.body,
+            "="*66,
+        ))
+
+
 
 def mongo_api_body_location(row, aux_iterable):
     zero_point = get_zero_point(aux_iterable, row['name']) # This is a hack, shouldn't be here
     filters = get_filters(aux_iterable, row['name']) # This is a hack, shouldn't be here
+    period = get_period(aux_iterable, row['name']) # This is a hack, shouldn't be here
     return {
         "tess": {
             "name": row['name'].strip(),
             "info_tess": {
-                "zero_point": zero_point if zero_point is not None else None,
-                "filters": filters.strip() if filters is not None else None, # This is a hack, shouldn't be here
-                "local_timezone": row['timezone'].strip() if row['timezone'] is not None else None,
+                "zero_point": zero_point,
+                "filters": filters,
+                "period" : period,
+                "local_timezone": row['timezone'].strip() if row['timezone'] != '' else None,
             },
             "info_location": {
-                "longitude": float(row['longitude']) if row['longitude'] is not None else None,
-                "latitude": float(row['latitude']) if row['latitude'] is not None else None,
-                "place": row['place'].strip() if row['place'] is not None else None,
-                "town": row['town'].strip() if row['town'] is not None else None,
-                "sub_region": row['sub_region'].strip() if row['sub_region'] is not None else None,
-                "region": row['region'].strip() if row['region'] is not None else None,
-                "country": row['country'].strip() if row['country'] is not None else None,
+                "longitude": float(row['longitude']) if row['longitude'] != '' else None,
+                "latitude": float(row['latitude']) if row['latitude']  != '' else None,
+                "place": row['place'].strip() if row['place']  != '' else None,
+                "town": row['town'].strip() if row['town']  != '' else None,
+                "sub_region": row['sub_region'].strip() if row['sub_region']  != '' else None,
+                "region": row['region'].strip() if row['region'] != '' else None,
+                "country": row['country'].strip() if row['country']  != '' else None,
             },
         },
     }
 
 def mongo_api_body_photometer(row, aux_iterable, create=False):
-     # This is a hack, shouldn't be here
-    local_timezone = get_timezone(aux_iterable, row['name']) if not create else 'Etc/UTC'
-    return {
+    local_timezone = get_timezone(aux_iterable, row['name']).strip() if not create else 'Etc/UTC'  # This is a hack, shouldn't be here
+    zero_point = float(row['zero_point']) if row['zero_point'] != '' else None
+    filters = row['filters'].strip() if row['filters'] != '' else None
+    period = int(row['period']) if row['period'] != '' else None
+    body = {
         "tess": {
             "name": row['name'].strip(),
             "mac": row['mac'].upper().strip(),
             "info_tess": {
-                "zero_point": row['zero_point'].strip() if row['zero_point'] is not None else None,
-                "filters": row['filters'].strip() if row['filters'] is not None else None,
-                "local_timezone": local_timezone.strip() if local_timezone is not None else None,
+                "zero_point": zero_point,
+                "filters": filters,
+                "local_timezone": local_timezone,
+                "period": period,
             },
         },
     }
+    if create:
+        body['tess']['info_location'] = DEFAULT_LOCATION
+        body['tess']['info_org'] = DEFAULT_ORG
+        body['tess']['info_img'] = DEFAULT_IMG 
+        body['tess']['info_contact'] = DEFAULT_CONTACT
+    return body
 
 
 def mongo_api_body_organization(row):
@@ -142,12 +185,12 @@ def mongo_api_body_organization(row):
         "tess": {
             "name": row['name'].strip(),
             "info_org": {
-                "name": row['org_name'].strip() if row['org_name'] is not None else None,
-                "web_url": row['org_web_url'].strip() if row['org_web_url'] is not None else None,
-                "description": row['org_description'].strip() if row['org_description'] is not None else None,
-                "logo_url": row['org_logo_url'].strip() if row['org_logo_url'] is not None else None,
-                "email": row['org_email'].strip() if row['org_email'] is not None else None,
-                "phone": row['org_phone'].strip() if row['org_phone'] is not None else None,
+                "name": row['org_name'].strip() if row['org_name'] != '' else None,
+                "web_url": row['org_web_url'].strip() if row['org_web_url'] != '' else None,
+                "description": row['org_description'].strip() if row['org_description'] != '' else None,
+                "logo_url": row['org_logo_url'].strip() if row['org_logo_url']  != '' else None,
+                "email": row['org_email'].strip() if row['org_email'] != '' else None,
+                "phone": row['org_phone'].strip() if row['org_phone'] != '' else None,
             }
         }
     }
@@ -157,9 +200,9 @@ def mongo_api_body_contact(row):
         "tess": {
             "name": row['name'].strip(),
             "info_contact": {
-                "name": row['contact_name'].strip() if row['contact_name'] is not None else None,
-                "mail": row['contact_mail'].strip() if row['contact_mail'] is not None else None,
-                "phone": row['contact_phone'].strip() if row['contact_phone'] is not None else None,
+                "name": row['contact_name'].strip() if row['contact_name'] != '' else None,
+                "mail": row['contact_mail'].strip() if row['contact_mail'] != '' else None,
+                "phone": row['contact_phone'].strip() if row['contact_phone'] != '' else None,
             }
         }
     }
@@ -212,9 +255,12 @@ def mongo_flatten_photometer(row):
     if(tess):
         new_row["zero_point"] = row["info_tess"].get("zero_point",None)
         new_row["filters"] = row["info_tess"].get("filters",None)
+        period = row["info_tess"].get("period",None)
+        new_row["period"] = int(period) if period is not None else None
     else:
         new_row["filters"] = None
         new_row["zero_point"] = None
+        new_row["period"] = None
     return new_row
 
 def mongo_flatten_organization(row):
@@ -329,13 +375,31 @@ def get_timezone(iterable, name):
     return get_item(iterable, name, 'timezone')
 
 def get_zero_point(iterable, name):
-    return get_item(iterable, name, 'zero_point')
+    zp = get_item(iterable, name, 'zero_point')
+    zp = float(zp) if zp is not None else None
+    return zp
 
 def get_filters(iterable, name):
-    return get_item(iterable, name, 'filters')
+    filters = get_item(iterable, name, 'filters')
+    filters = filters.strip() if filters is not None else None
+    return filters
+
+def get_period(iterable, name):
+    period = get_item(iterable, name, 'period')
+    period = int(period) if period is not None else None
+    return period
 
 
-def do_update_location(url, path, names, dry_run):
+def do_list(url, path, names, header, mongo_get_func):
+    mongo_input_list = mongo_get_func(url)
+    log.info("read %d items from MongoDB", len(mongo_input_list))
+    if names:
+        mongo_input_list = filter_by_names(mongo_input_list, names)
+        log.info("filtered up to %d items", len(mongo_input_list))
+    write_csv(mongo_input_list, header, path)
+
+
+def do_update_location(url, path, names, simulated):
     mongo_aux_list = mongo_get_all_info(url)
     mongo_output_list = read_csv(path, LOCATION_HEADER)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
@@ -346,19 +410,15 @@ def do_update_location(url, path, names, dry_run):
         mac = get_mac(mongo_aux_list, row['name'])
         log.info("Updating mongoDB with location info for item %s (%s)", row['name'], mac)
         body = mongo_api_body_location(row, mongo_aux_list)
-        if not dry_run:
-            mongo_api_update(url, body, mac)
-        else:
-            print("="*60)
-            print(json.dumps(body, indent=2))
-            print("="*60)
+        mongo_api_update(url, body, mac, simulated)
+           
    
-def do_update_photometer(url, path, names, dry_run):
+def do_update_photometer(url, path, names, simulated):
     mongo_aux_list = mongo_get_all_info(url) 
-    mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
-    log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
-    if options.names:
-        mongo_output_list = filter_by_names(mongo_output_list, options.names)
+    mongo_output_list = read_csv(path, PHOTOMETER_HEADER)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), path)
+    if names:
+        mongo_output_list = filter_by_names(mongo_output_list, names)
         log.info("filtered up to %d items", len(mongo_output_list))
     for row in mongo_output_list:
         oldmac = get_mac(mongo_aux_list, row['name'])
@@ -366,50 +426,50 @@ def do_update_photometer(url, path, names, dry_run):
         log.info("Updating MongoDB with photometer info for %s (%s)", row['name'], oldmac)
         if(oldmac != row['mac']):
             log.warn("Changing %s MAC: (%s) -> (%s)", row['name'], oldmac, row['mac'])
-        if not dry_run:
-            mongo_api_update(url, body, oldmac)
-        else:
-            print("="*60)
-            print(json.dumps(body, indent=2))
-            print("="*60)
+        mongo_api_update(url, body, oldmac, simulated)
 
-def do_update_organization(url, path, names, dry_run):
-    mongo_input_list = mongo_get_photometer_info(url)
-    mongo_output_list = read_csv(options.file, ORGANIZATION_HEADER)
+
+def do_create_photometer(url, path, names, simulated):
+    mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
     log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+    if names:
+        mongo_output_list = filter_by_names(mongo_output_list, names)
+        log.info("filtered up to %d items", len(mongo_output_list))
+    for row in mongo_output_list:
+        body = mongo_api_body_photometer(row, list(), create=True)
+        log.info("Creating new MongoDB entry with photometer info: %s (%s)", row['name'], row['mac'])
+        mongo_api_create(url, body, simulated)
+       
+
+def do_update_organization(url, path, names, simulated):
+    mongo_input_list = mongo_get_photometer_info(url)
+    mongo_output_list = read_csv(path, ORGANIZATION_HEADER)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if options.names:
-        mongo_output_list = filter_by_names(mongo_output_list, options.names)
+        mongo_output_list = filter_by_names(mongo_output_list, names)
         log.info("filtered up to %d items", len(mongo_output_list))
     for row in mongo_output_list:
         mac = get_mac(mongo_input_list, row['name'])
         log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
         body = mongo_api_body_organization(row)
-        if not dry_run:
-            mongo_api_update(url, body, mac)
-        else:
-            print("="*60)
-            print(json.dumps(body, indent=2))
-            print("="*60)
+        mongo_api_update(url, body, mac, simulated)
 
-def do_update_contact(url, path, names, dry_run):
+
+def do_update_contact(url, path, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url)
-    mongo_output_list = read_csv(options.file, CONTACT_HEADER)
-    log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+    mongo_output_list = read_csv(path, CONTACT_HEADER)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if options.names:
-        mongo_output_list = filter_by_names(mongo_output_list, options.names)
+        mongo_output_list = filter_by_names(mongo_output_list, names)
         log.info("filtered up to %d items", len(mongo_output_list))
     for row in mongo_output_list:
         mac = get_mac(mongo_input_list, row['name'])
         log.info("Updating mongoDB with contact info for item %s (%s)", row['name'], mac)
         body = mongo_api_body_organization(row)
-        if not dry_run:
-            mongo_api_update(url, body, mac)
-        else:
-            print("="*60)
-            print(json.dumps(body, indent=2))
-            print("="*60)
+        mongo_api_update(url, body, mac, simulated)
+        
 
-def do_update_all(url, path, names, dry_run):
+def do_update_all(url, path, names, simulated):
     pass
 
 # ===================
@@ -419,16 +479,11 @@ def do_update_all(url, path, names, dry_run):
 def location(options):
     url = get_mongo_api_url()
     if options.list:
-        mongo_input_list = mongo_get_location_info(url)
-        log.info("read %d items from MongoDB", len(mongo_input_list))
-        if options.names:
-            mongo_input_list = filter_by_names(mongo_input_list, options.names)
-            log.info("filtered up to %d items", len(mongo_input_list))
-        write_csv(mongo_input_list, LOCATION_HEADER, options.file)
+        do_list(url, options.file, options.names, LOCATION_HEADER, mongo_get_location_info)
     elif options.update:
-        do_update_location(url, options.file, options.names, dry_run=False)
-    elif options.upd_dry_run:
-        do_update_location(url, options.file, options.names, dry_run=True)
+        do_update_location(url, options.file, options.names, simulated=False)
+    elif options.sim_update:
+        do_update_location(url, options.file, options.names, simulated=True)
     elif options.nominatim:
         mongo_input_list = mongo_get_location_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
@@ -447,26 +502,15 @@ def location(options):
 def photometer(options):
     url = get_mongo_api_url()
     if options.list:
-        mongo_input_list = mongo_get_photometer_info(url)
-        log.info("read %d items from MongoDB", len(mongo_input_list))
-        if options.names:
-            mongo_input_list = filter_by_names(mongo_input_list, options.names)
-            log.info("filtered up to %d items", len(mongo_input_list))
-        write_csv(mongo_input_list, PHOTOMETER_HEADER, options.file)
+        do_list(url, options.file, options.names, PHOTOMETER_HEADER, mongo_get_photometer_info)
     elif options.create:
-        mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
-        log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
-        if options.names:
-            mongo_output_list = filter_by_names(mongo_output_list, options.names)
-            log.info("filtered up to %d items", len(mongo_output_list))
-        for row in mongo_output_list:
-            body = mongo_api_body_photometer(row, list(), create=True)
-            log.info("Creating new MongoDB entry with photometer info: %s (%s)", row['name'], row['mac'])
-            mongo_api_create(url, body)
+        do_create_photometer(url, options.file, options.names, simulated=False)
+    elif options.sim_create:
+        do_create_photometer(url, options.file, options.names, simulated=True)
     elif options.update:
-        do_update_photometer(url, options.file, options.names, dry_run=False)
-    elif options.upd_dry_run:
-        do_update_photometer(url, options.file, options.names, dry_run=True)
+        do_update_photometer(url, options.file, options.names, simulated=False)
+    elif options.sim_update:
+        do_update_photometer(url, options.file, options.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'photometer'")
 
@@ -474,16 +518,11 @@ def photometer(options):
 def organization(options):
     url = get_mongo_api_url()
     if options.list:
-        mongo_input_list = mongo_get_organization_info(url)
-        log.info("read %d items from MongoDB", len(mongo_input_list))
-        if options.names:
-            mongo_input_list = filter_by_names(mongo_input_list, options.names)
-            log.info("filtered up to %d items", len(mongo_input_list))
-        write_csv(mongo_input_list, ORGANIZATION_HEADER, options.file)
+        do_list(url, options.file, options.names, ORGANIZATION_HEADER, mongo_get_organization_info)
     elif options.update:
-        do_update_organization(url, options.file, options.names, dry_run=False)
-    elif options.upd_dry_run:
-        do_update_organization(url, options.file, options.names, dry_run=True)
+        do_update_organization(url, options.file, options.names, simulated=False)
+    elif options.sim_update:
+        do_update_organization(url, options.file, options.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'organization'")
 
@@ -491,17 +530,11 @@ def organization(options):
 def contact(options):
     url = get_mongo_api_url()
     if options.list:
-        log.warn("MongoDB does not store contact info")
-        mongo_input_list = mongo_get_contact_info(url)
-        log.info("read %d items from MongoDB", len(mongo_input_list))
-        if options.names:
-            mongo_input_list = filter_by_names(mongo_input_list, options.names)
-            log.info("filtered up to %d items", len(mongo_input_list))
-        write_csv(mongo_input_list, CONTACT_HEADER, options.file)
+        do_list(url, options.file, options.names, CONTACT_HEADER, mongo_get_contact_info)
     elif options.update:
-        do_update_contact(url, options.file, options.names, dry_run=False)
-    elif options.upd_dry_run:
-        do_update_contact(url, options.file, options.names, dry_run=True)
+        do_update_contact(url, options.file, options.names, simulated=False)
+    elif options.sim_update:
+        do_update_contact(url, options.file, options.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'contact'")
 
@@ -509,12 +542,7 @@ def contact(options):
 def all(options):
     url = get_mongo_api_url()
     if options.list:
-        mongo_input_list = mongo_get_all_info(url)
-        log.info("read %d items from MongoDB", len(mongo_input_list))
-        if options.names:
-            mongo_input_list = filter_by_names(mongo_input_list, options.names)
-            log.info("filtered up to %d items", len(mongo_input_list))
-        write_csv(mongo_input_list, ALL_HEADER, options.file)
+        do_list(url, options.file, options.names, ALL_HEADER, mongo_get_all_info)
     elif options.update:
         mongo_input_list = mongo_get_photometer_info(url)
         mongo_output_list = read_csv(options.file, ALL_HEADER)
