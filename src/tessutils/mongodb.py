@@ -207,6 +207,16 @@ def mongo_api_body_contact(row):
         }
     }
 
+def mongo_api_body_all(row, aux_iterable, create=False):
+    body = mongo_api_body_location(row, aux_iterable)
+    body1 = body["tess"]
+    body2 = mongo_api_body_photometer(row, aux_iterable, create)["tess"]
+    body3 = mongo_api_body_organization(row)["tess"]
+    body4 = mongo_api_body_contact(row)["tess"]
+    combined = {**body1, **body2, **body3, **body4}
+    body['tess'] = combined
+    return body
+
 
 def mongo_get_all(url):
     '''Correlates all entries with the missing mac information using just two HTTP requests'''
@@ -470,7 +480,18 @@ def do_update_contact(url, path, names, simulated):
         
 
 def do_update_all(url, path, names, simulated):
-    pass
+    mongo_aux_list = mongo_get_all_info(url)
+    mongo_input_list = mongo_get_photometer_info(url) 
+    mongo_output_list = read_csv(path, ALL_HEADER)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), path)
+    if names:
+        mongo_output_list = filter_by_names(mongo_output_list, names)
+        log.info("filtered up to %d items", len(mongo_output_list))
+    for row in mongo_output_list:
+        mac = get_mac(mongo_input_list, row['name'])
+        log.info("Updating mongoDB with all info for item %s (%s)", row['name'], mac)
+        body = mongo_api_body_all(row, mongo_aux_list)
+        mongo_api_update(url, body, mac, simulated)
 
 # ===================
 # Module entry points
@@ -544,17 +565,9 @@ def all(options):
     if options.list:
         do_list(url, options.file, options.names, ALL_HEADER, mongo_get_all_info)
     elif options.update:
-        mongo_input_list = mongo_get_photometer_info(url)
-        mongo_output_list = read_csv(options.file, ALL_HEADER)
-        log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
-        if options.names:
-            mongo_output_list = filter_by_names(mongo_output_list, options.names)
-            log.info("filtered up to %d items", len(mongo_output_list))
-        for row in mongo_output_list:
-            mac = get_mac(mongo_input_list, row['name'])
-            log.info("Updating mongoDB with all info for item %s (%s)", row['name'], mac)
-            body = mongo_api_body_organization(row)
-            mongo_api_update(url, body, mac)
+        do_update_all(url, options.file, options.names, simulated=False)
+    elif options.sim_update:
+        do_update_all(url, options.file, options.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'all'")
 
