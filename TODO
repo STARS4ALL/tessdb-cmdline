@@ -1,8 +1,11 @@
-0) Opcion dry-run solo vuelca el JSON por pantalla
-1) Parece ser que las info no usadas se ponen como info_xxx: {}
-2) mongo-db check --place | --coords | --mac
 
-3) Hacer un cross-check de nombres y MACs entre MongoDB y tessdb
+1) mongo-db check --name | --near | --mac
+
+--name: dos filas con name repetidos -> sacar datos de name, coord, place, mac 
+--near: dos entradas cercanas en coordenadas -> sacar datos de name, coord, place, mac (permitimos mismo place)
+--mac: dos MAC repetidas pero con distinto nombre
+
+2) Hacer un cross-check de nombres y MACs entre MongoDB y tessdb
 
 SELECT name, mac_address, valid_since, valid_until, valid_state
 FROM name_to_mac_t

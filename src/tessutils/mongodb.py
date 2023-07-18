@@ -207,14 +207,61 @@ def mongo_api_body_contact(row):
         }
     }
 
-def mongo_api_body_all(row, aux_iterable, create=False):
-    body = mongo_api_body_location(row, aux_iterable)
+
+def mongo_api_body_all(row):
+    body = {
+        "tess": {
+            "name": row['name'].strip(),
+            "mac": row['mac'].upper().strip(),
+            "info_tess": {
+                "zero_point": float(row['zero_point']) if row['zero_point'] != '' else None,
+                "filters": row['filters'].strip() if row['filters'] != '' else None,
+                "period" : int(row['period']) if row['period'] != '' else None,
+                "local_timezone": row['timezone'].strip() if row['timezone'] != '' else None,
+            },
+            "info_location": {
+                "longitude": float(row['longitude']) if row['longitude'] != '' else None,
+                "latitude": float(row['latitude']) if row['latitude']  != '' else None,
+                "place": row['place'].strip() if row['place'] != '' else None,
+                "town": row['town'].strip() if row['town']  != '' else None,
+                "sub_region": row['sub_region'].strip() if row['sub_region']  != '' else None,
+                "region": row['region'].strip() if row['region'] != '' else None,
+                "country": row['country'].strip() if row['country']  != '' else None,
+            },
+        },
+    }
     body1 = body["tess"]
-    body2 = mongo_api_body_photometer(row, aux_iterable, create)["tess"]
-    body3 = mongo_api_body_organization(row)["tess"]
-    body4 = mongo_api_body_contact(row)["tess"]
-    combined = {**body1, **body2, **body3, **body4}
+    body2 = mongo_api_body_organization(row)["tess"]
+    body3 = mongo_api_body_contact(row)["tess"]
+    combined = {**body1, **body2, **body3}
     body['tess'] = combined
+    return body
+
+
+
+
+def mongo_api_body_photometer(row, aux_iterable, create=False):
+    local_timezone = get_timezone(aux_iterable, row['name']).strip() if not create else 'Etc/UTC'  # This is a hack, shouldn't be here
+    zero_point = float(row['zero_point']) if row['zero_point'] != '' else None
+    filters = row['filters'].strip() if row['filters'] != '' else None
+    period = int(row['period']) if row['period'] != '' else None
+    body = {
+        "tess": {
+            "name": row['name'].strip(),
+            "mac": row['mac'].upper().strip(),
+            "info_tess": {
+                "zero_point": zero_point,
+                "filters": filters,
+                "local_timezone": local_timezone,
+                "period": period,
+            },
+        },
+    }
+    if create:
+        body['tess']['info_location'] = DEFAULT_LOCATION
+        body['tess']['info_org'] = DEFAULT_ORG
+        body['tess']['info_img'] = DEFAULT_IMG 
+        body['tess']['info_contact'] = DEFAULT_CONTACT
     return body
 
 
@@ -480,7 +527,6 @@ def do_update_contact(url, path, names, simulated):
         
 
 def do_update_all(url, path, names, simulated):
-    mongo_aux_list = mongo_get_all_info(url)
     mongo_input_list = mongo_get_photometer_info(url) 
     mongo_output_list = read_csv(path, ALL_HEADER)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
@@ -490,8 +536,20 @@ def do_update_all(url, path, names, simulated):
     for row in mongo_output_list:
         mac = get_mac(mongo_input_list, row['name'])
         log.info("Updating mongoDB with all info for item %s (%s)", row['name'], mac)
-        body = mongo_api_body_all(row, mongo_aux_list)
+        body = mongo_api_body_all(row)
         mongo_api_update(url, body, mac, simulated)
+
+def do_create_all(url, path, names, simulated):
+    mongo_input_list = mongo_get_photometer_info(url) 
+    mongo_output_list = read_csv(path, ALL_HEADER)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), path)
+    if names:
+        mongo_output_list = filter_by_names(mongo_output_list, names)
+        log.info("filtered up to %d items", len(mongo_output_list))
+    for row in mongo_output_list:
+        log.info("Creating new MongoDB entry with photometer info: %s (%s)", row['name'], row['mac'])
+        body = mongo_api_body_all(row)
+        mongo_api_create(url, body, simulated)
 
 # ===================
 # Module entry points
@@ -568,6 +626,10 @@ def all(options):
         do_update_all(url, options.file, options.names, simulated=False)
     elif options.sim_update:
         do_update_all(url, options.file, options.names, simulated=True)
+    elif options.create:
+        do_create_all(url, options.file, options.names, simulated=False)
+    elif options.sim_create:
+        do_create_all(url, options.file, options.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'all'")
 

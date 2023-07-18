@@ -171,8 +171,10 @@ def createParser():
     mgex1 = mgall.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List all MongoDB metadata')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update all MongoDB metadata')
+    mgex1.add_argument('-c', '--create', action='store_true', help='Create MongoDB photometer metadata')
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB all metadata')
-
+    mgex1.add_argument('-x', '--sim-create', action='store_true', help='(simulated) Create MongoDB photometer metadata')
+    
     mgphck = subparser.add_parser('check',  help="Various MongoDB photometers metadata check")
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-n', '--names', action='store_true', help='Check for duplicate photometer names')
