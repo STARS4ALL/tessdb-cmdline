@@ -4,4 +4,4 @@
 #
 # See the LICENSE file for details
 # ----------------------------------------------------------------------
-python -m tessutils "$@"
+python -m tessutils --console --exceptions "$@"
