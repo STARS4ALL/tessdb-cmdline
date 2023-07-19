@@ -24,7 +24,7 @@ import requests
 # local imports
 # -------------
 
-from .dbutils import by_place, by_photometer, by_coordinates, log_places, log_photometers, log_coordinates
+from .dbutils import by_place, by_name, by_mac, by_coordinates, log_places, log_names, log_macs, log_coordinates
 from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
 
 
@@ -640,13 +640,16 @@ def check(options):
     mongo_input_list = mongo_get_all_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     if options.names:
-        mongo_phot = by_photometer(mongo_input_list)
-        log_photometers(mongo_phot)
-    elif options.coords:
-        mongo_place  = by_place(mongo_input_list)
-        log_places(mongo_place)
+        mongo_names = by_name(mongo_input_list)
+        log_names(mongo_names)
+    elif options.macs:
+        mongo_macs = by_mac(mongo_input_list)
+        log_macs(mongo_macs)
     elif options.places:
-        mongo_place  = by_place(mongo_input_list)
-        log_places(mongo_place)
+        mongo_places  = by_place(mongo_input_list)
+        log_places(mongo_places)
+    elif options.coords:
+        mongo_coords  = by_coordinates(mongo_input_list)
+        log_coordinates(mongo_coords, options.distance)
     else:
-        log.error("No valid input option to subcommand 'duplicate'")
+        log.error("No valid input option to subcommand 'check'")

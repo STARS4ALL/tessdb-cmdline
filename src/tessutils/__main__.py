@@ -149,7 +149,7 @@ def createParser():
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB photometer metadata')
     mgphot.add_argument('-m', '--mac', type=str, default=None, required=False, help='(Optional) old MAC, needed only to change MAC')
     
-    mgorg = subparser.add_parser('organization',  help="MongoDB organiaztion metadata check")
+    mgorg = subparser.add_parser('organization',  help="MongoDB organiaztion metadata operations")
     mgorg.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
     mgorg.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
     mgex1 = mgorg.add_mutually_exclusive_group(required=True)
@@ -157,7 +157,7 @@ def createParser():
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB organization metadata')
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB organization metadata')
 
-    mgcon = subparser.add_parser('contact',  help="MongoDB contact metadata check")
+    mgcon = subparser.add_parser('contact',  help="MongoDB contact metadata operations")
     mgcon.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
     mgcon.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
     mgex1 = mgcon.add_mutually_exclusive_group(required=True)
@@ -165,7 +165,7 @@ def createParser():
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB contact metadata')
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB contact metadata')
 
-    mgall = subparser.add_parser('all',  help="MongoDB all metadata check")
+    mgall = subparser.add_parser('all',  help="MongoDB all metadata operations")
     mgall.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
     mgall.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
     mgex1 = mgall.add_mutually_exclusive_group(required=True)
@@ -175,12 +175,14 @@ def createParser():
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB all metadata')
     mgex1.add_argument('-x', '--sim-create', action='store_true', help='(simulated) Create MongoDB photometer metadata')
     
-    mgphck = subparser.add_parser('check',  help="Various MongoDB photometers metadata check")
+    mgphck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-n', '--names', action='store_true', help='Check for duplicate photometer names')
-    mgex1.add_argument('-c', '--coords', action='store_true', help='Check for same coordinates, different places')
+    mgex1.add_argument('-m', '--macs', action='store_true', help='Check for duplicate MACs')
     mgex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
-   
+    mgex1.add_argument('-c', '--coords', action='store_true', help='Check duplicate nearby places')
+    mgphck.add_argument('-d', '--distance', type=float, default=0, help='Max. distance [meters] to check for nearby places')
+
 
     # -----------------------------------------
     # Create second level parsers for 'tessdb'

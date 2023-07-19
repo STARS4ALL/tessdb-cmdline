@@ -26,7 +26,7 @@ import collections
 # -------------
 
 from .utils import open_database
-from .dbutils import by_place, by_photometer, log_places, log_photometers, distance
+from .dbutils import by_place, by_name, log_places, log_names, distance
 from .mongodb import photometers_from_mongo
 from .tessdb import photometers_from_tessdb
 # ----------------
@@ -118,10 +118,10 @@ def photometers(options):
     connection = open_database(options.dbase)
     mongo_input_list = photometers_from_mongo(options.url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
-    mongo_phot = by_photometer(mongo_input_list)
+    mongo_phot = by_name(mongo_input_list)
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_phot = by_photometer(tessdb_input_list)
+    tessdb_phot = by_name(tessdb_input_list)
     if options.mongo:
         photometers = in_mongo_not_in_tessdb(mongo_phot, tessdb_phot)
         log.info("%d photometers exclusive MongoDB locations",len(photometers))
