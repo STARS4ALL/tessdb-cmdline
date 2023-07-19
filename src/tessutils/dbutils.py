@@ -173,6 +173,12 @@ def by_place(iterable):
 
 def log_places(places_iterable):
     for place, rows in places_iterable.items():
+        if place is None:
+            log.warn("No place defined for '%s'",rows[0]['name'])
+        elif len(place.lstrip()) != len(place):
+            log.warn("Place '%s' has leading spaces", place)
+        elif len(place.rstrip()) != len(place):
+            log.warn("Place '%s' has trailing spaces", place)
         if len(rows) > 1:
             log.debug("Place %s has %d photometers: %s", place, len(rows), [row['name'] for row in rows])
             check_place_same_coords(place, rows)
