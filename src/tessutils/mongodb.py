@@ -453,7 +453,7 @@ def filter_by_name(iterable, name):
 def get_item(iterable, key, item):
     result = filter_by_name(iterable, key)
     if len(result) > 1:
-        raise DuplicatesError("getting by name '%s' returned %d items" % (key, len(result)) )
+        raise DuplicatesError("getting by key '%s' returned %d items" % (key, len(result)) )
     return result[0][item]
 
 def get_mac(iterable, name):
