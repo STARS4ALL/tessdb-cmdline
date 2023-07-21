@@ -28,6 +28,33 @@ from .dbutils import by_place, by_name, by_mac, by_coordinates, log_places, log_
 from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
 
 
+class ListLengthMismatchError(Exception):
+    '''List length mismatch error between lists'''
+    def __str__(self):
+        s = self.__doc__
+        if self.args:
+            s = "{0}: {1!s}".format(s, self.args[0])
+        s = '{0}.'.format(s)
+        return s
+
+class NamesMismatchError(Exception):
+    '''Names mismatch error between items'''
+    def __str__(self):
+        s = self.__doc__
+        if self.args:
+            s = "{0}: {1!s}".format(s, self.args[0])
+        s = '{0}.'.format(s)
+        return s
+
+class DuplicatesError(Exception):
+    '''Duplicates Error'''
+    def __str__(self):
+        s = self.__doc__
+        if self.args:
+            s = "{0}: {1!s}".format(s, self.args[0])
+        s = '{0}.'.format(s)
+        return s
+
 # ----------------
 # Module constants
 # ----------------
@@ -269,9 +296,12 @@ def mongo_get_all(url):
     '''Correlates all entries with the missing mac information using just two HTTP requests'''
     names_list = mongo_api_get_names(url)
     details_list = mongo_api_get_details(url)
-    assert len(names_list) == len(details_list)
+    if len(names_list) != len(details_list):
+        raise ListLengthMismatchError("length names_list (len=%d), length details_list (len=%d)" % (len(names_list), len(details_list)))
     zipped = zip(names_list, details_list)
     for item in zipped:
+        if item[0]['name'] != item[1]['name']:
+            raise NamesMismatchError()
         assert item[0]['name'] == item[1]['name']
         item[1]['mac'] = item[0].get('mac')
     return details_list
@@ -422,7 +452,8 @@ def filter_by_name(iterable, name):
 
 def get_item(iterable, key, item):
     result = filter_by_name(iterable, key)
-    assert len(result) == 1
+    if len(result) > 1:
+        raise DuplicatesError("getting by name '%s' returned %d items" % (key, len(result)) )
     return result[0][item]
 
 def get_mac(iterable, name):
