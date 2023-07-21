@@ -398,17 +398,17 @@ def merge_info(input_iterable, nominatim_iterable):
         output.append(row)
     return output
 
-def write_csv(sequence, header, path):
+def write_csv(sequence, header, path, delimiter=';'):
     with open(path, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=header, delimiter=';')
+        writer = csv.DictWriter(csvfile, fieldnames=header, delimiter=delimiter)
         writer.writeheader()
         for row in sequence:
             writer.writerow(row)
     log.info("generated CSV file: %s", path)
 
-def read_csv(path, header):
+def read_csv(path, delimiter=';'):
     with open(path, newline='') as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=';')
+        reader = csv.DictReader(csvfile, delimiter=delimiter)
         sequence = [row for row in reader]
         return sequence
 
@@ -456,9 +456,9 @@ def do_list(url, path, names, header, mongo_get_func):
     write_csv(mongo_input_list, header, path)
 
 
-def do_update_location(url, path, names, simulated):
+def do_update_location(url, path, delimiter, names, simulated):
     mongo_aux_list = mongo_get_all_info(url)
-    mongo_output_list = read_csv(path, LOCATION_HEADER)
+    mongo_output_list = read_csv(path, delimiter)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -470,9 +470,9 @@ def do_update_location(url, path, names, simulated):
         mongo_api_update(url, body, mac, simulated)
            
    
-def do_update_photometer(url, path, names, simulated):
+def do_update_photometer(url, path, delimiter, names, simulated):
     mongo_aux_list = mongo_get_all_info(url) 
-    mongo_output_list = read_csv(path, PHOTOMETER_HEADER)
+    mongo_output_list = read_csv(path, delimiter)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -486,8 +486,8 @@ def do_update_photometer(url, path, names, simulated):
         mongo_api_update(url, body, oldmac, simulated)
 
 
-def do_create_photometer(url, path, names, simulated):
-    mongo_output_list = read_csv(options.file, PHOTOMETER_HEADER)
+def do_create_photometer(url, path, delimiter, names, simulated):
+    mongo_output_list = read_csv(options.file, delimiter)
     log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -498,9 +498,9 @@ def do_create_photometer(url, path, names, simulated):
         mongo_api_create(url, body, simulated)
        
 
-def do_update_organization(url, path, names, simulated):
+def do_update_organization(url, path, delimiter, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url)
-    mongo_output_list = read_csv(path, ORGANIZATION_HEADER)
+    mongo_output_list = read_csv(path, delimiter)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -512,9 +512,9 @@ def do_update_organization(url, path, names, simulated):
         mongo_api_update(url, body, mac, simulated)
 
 
-def do_update_contact(url, path, names, simulated):
+def do_update_contact(url, path, delimiter, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url)
-    mongo_output_list = read_csv(path, CONTACT_HEADER)
+    mongo_output_list = read_csv(path, delimiter)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -526,9 +526,9 @@ def do_update_contact(url, path, names, simulated):
         mongo_api_update(url, body, mac, simulated)
         
 
-def do_update_all(url, path, names, simulated):
+def do_update_all(url, path, delimiter, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url) 
-    mongo_output_list = read_csv(path, ALL_HEADER)
+    mongo_output_list = read_csv(path, delimiter)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -539,9 +539,9 @@ def do_update_all(url, path, names, simulated):
         body = mongo_api_body_all(row)
         mongo_api_update(url, body, mac, simulated)
 
-def do_create_all(url, path, names, simulated):
+def do_create_all(url, path, delimiter, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url) 
-    mongo_output_list = read_csv(path, ALL_HEADER)
+    mongo_output_list = read_csv(path, delimiter)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -560,9 +560,9 @@ def location(options):
     if options.list:
         do_list(url, options.file, options.names, LOCATION_HEADER, mongo_get_location_info)
     elif options.update:
-        do_update_location(url, options.file, options.names, simulated=False)
+        do_update_location(url, options.file, options.delimiter, options.names, simulated=False)
     elif options.sim_update:
-        do_update_location(url, options.file, options.names, simulated=True)
+        do_update_location(url, options.file, options.delimiter, options.names, simulated=True)
     elif options.nominatim:
         mongo_input_list = mongo_get_location_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
@@ -583,13 +583,13 @@ def photometer(options):
     if options.list:
         do_list(url, options.file, options.names, PHOTOMETER_HEADER, mongo_get_photometer_info)
     elif options.create:
-        do_create_photometer(url, options.file, options.names, simulated=False)
+        do_create_photometer(url, options.file, options.delimiter, options.names, simulated=False)
     elif options.sim_create:
-        do_create_photometer(url, options.file, options.names, simulated=True)
+        do_create_photometer(url, options.file, options.delimiter, options.names, simulated=True)
     elif options.update:
-        do_update_photometer(url, options.file, options.names, simulated=False)
+        do_update_photometer(url, options.file, options.delimiter, options.names, simulated=False)
     elif options.sim_update:
-        do_update_photometer(url, options.file, options.names, simulated=True)
+        do_update_photometer(url, options.file, options.delimiter, options.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'photometer'")
 
@@ -599,9 +599,9 @@ def organization(options):
     if options.list:
         do_list(url, options.file, options.names, ORGANIZATION_HEADER, mongo_get_organization_info)
     elif options.update:
-        do_update_organization(url, options.file, options.names, simulated=False)
+        do_update_organization(url, options.file, options.delimiter, options.names, simulated=False)
     elif options.sim_update:
-        do_update_organization(url, options.file, options.names, simulated=True)
+        do_update_organization(url, options.file, options.delimiter, options.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'organization'")
 
@@ -611,9 +611,9 @@ def contact(options):
     if options.list:
         do_list(url, options.file, options.names, CONTACT_HEADER, mongo_get_contact_info)
     elif options.update:
-        do_update_contact(url, options.file, options.names, simulated=False)
+        do_update_contact(url, options.file, options.delimiter, options.names, simulated=False)
     elif options.sim_update:
-        do_update_contact(url, options.file, options.names, simulated=True)
+        do_update_contact(url, options.file, options.delimiter, options.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'contact'")
 
@@ -623,13 +623,13 @@ def all(options):
     if options.list:
         do_list(url, options.file, options.names, ALL_HEADER, mongo_get_all_info)
     elif options.update:
-        do_update_all(url, options.file, options.names, simulated=False)
+        do_update_all(url, options.file, options.delimiter, options.names, simulated=False)
     elif options.sim_update:
-        do_update_all(url, options.file, options.names, simulated=True)
+        do_update_all(url, options.file, options.delimiter, options.names, simulated=True)
     elif options.create:
-        do_create_all(url, options.file, options.names, simulated=False)
+        do_create_all(url, options.file, options.delimiter, options.names, simulated=False)
     elif options.sim_create:
-        do_create_all(url, options.file, options.names, simulated=True)
+        do_create_all(url, options.file, options.delimiter, options.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'all'")
 
