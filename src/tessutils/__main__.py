@@ -185,8 +185,8 @@ def createParser():
     mgex1.add_argument('-n', '--names', action='store_true', help='Check for duplicate photometer names')
     mgex1.add_argument('-m', '--macs', action='store_true', help='Check for duplicate MACs')
     mgex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
-    mgex1.add_argument('-c', '--coords', action='store_true', help='Check duplicate nearby places')
-    mgphck.add_argument('-d', '--distance', type=float, default=0, help='Max. distance [meters] to check for nearby places')
+    mgex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
+    mgex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
 
 
     # -----------------------------------------

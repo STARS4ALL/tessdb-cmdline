@@ -24,7 +24,7 @@ import requests
 # local imports
 # -------------
 
-from .dbutils import by_place, by_name, by_mac, by_coordinates, log_places, log_names, log_macs, log_coordinates
+from .dbutils import by_place, by_name, by_mac, by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
 from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
 
 
@@ -671,16 +671,24 @@ def check(options):
     mongo_input_list = mongo_get_all_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     if options.names:
+        log.info("Check for duplicate photometer names")
         mongo_names = by_name(mongo_input_list)
         log_names(mongo_names)
     elif options.macs:
+        log.info("Check for duplicate photometer MAC addresses")
         mongo_macs = by_mac(mongo_input_list)
         log_macs(mongo_macs)
     elif options.places:
+        log.info("Check for same place, different coordinates")
         mongo_places  = by_place(mongo_input_list)
         log_places(mongo_places)
     elif options.coords:
+        log.info("Check for same coordinates, different places")
         mongo_coords  = by_coordinates(mongo_input_list)
-        log_coordinates(mongo_coords, options.distance)
+        log_coordinates(mongo_coords)
+    elif options.nearby:
+        log.info("Check for nearby places in radius %0.0f meters", options.nearby)
+        mongo_coords  = by_coordinates(mongo_input_list)
+        log_coordinates_nearby(mongo_coords, options.nearby)
     else:
         log.error("No valid input option to subcommand 'check'")
