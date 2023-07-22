@@ -22,3 +22,96 @@ ORDER BY cast(substr(name,6) as int) ASC;
 Retocar la utilidad de tess para mostar min(fecha), max(fecha) con reading counts y demás
 en luger de la fecha metida por linea de comandos.
 tess instrument coalesce --name <name> | --mac <mac> --test
+
+SUSTITUIR TABLA
+CREATE TABLE "location_t"
+            (
+            location_id             INTEGER PRIMARY KEY AUTOINCREMENT,  
+            site                    TEXT,
+            longitude               REAL,
+            latitude                REAL,
+            elevation               REAL,
+            zipcode                 TEXT,
+            location                TEXT,
+            province                TEXT,
+            state                   TEXT,
+            country                 TEXT,
+            timezone                TEXT DEFAULT 'Etc/UTC',
+            contact_name            TEXT,
+            contact_email           TEXT,
+            organization            TEXT
+            )
+POR ESTA OTRA
+
+CREATE TABLE location_t
+(
+    location_id             INTEGER,  
+    place                   TEXT,
+    longitude               REAL NOT NULL,
+    latitude                REAL NOT NULL,
+    masl                    REAL, -- meters above sea level
+    zipcode                 TEXT,
+    town                    TEXT, -- it can be a village, town, city, or municipality
+    sub_region              TEXT, -- its type can be 'state_district','province'
+    region                  TEXT, -- state
+    country                 TEXT,
+    timezone                TEXT DEFAULT 'Etc/UTC',
+    contact_name            TEXT, -- still used but to be deprecated
+    contact_email           TEXT, -- still used but to be deprecated
+    organization            TEXT, -- stiil used but to be deprecated by organization_t
+
+    UNIQUE(longitude, latitude),
+    PRIMARY KEY(location_id) AUTOINCREMENT
+)
+
+Los campos que vayan a ser deprecados no deberian tener operaciones de create/update en la tess utility
+Tabla de observer_t que tenga una referencia a la tabla organization_t
+En la tabla de hechos se almacenan tanto las referencias al observador como a la organizacion
+¿Observador persona fisica y/o juridica (organization diectamente)?
+
+CREATE TABLE IF NOT EXISTS observer_t
+(
+    observer_id     INTEGER,
+    name            TEXT NOT NULL,    -- Observer name (used for IDA dataset publication)
+    surname         TEXT NOT NULL,    -- Observer surname (used IDA dataset publication)
+    title           TEXT,             -- Dr., Professor, etc. (used IDA dataset publication)
+    organization_id INTEGER,          -- Observer's affiliation (i.e. Universidad Complutense de Madrid)
+    valid_since     TEXT NOT NULL,    -- 'YYYY-MM-DD HH:MM:SS'
+    valid_until     TEXT NOT NULL,    -- 'YYYY-MM-DD HH:MM:SS'
+    valid_state     TEXT NOT NULL,    -- Either 'Current' or 'Expired'
+   
+    UNIQUE(name, surname, valid_since) -- This determines all the rest
+    FOREIGN KEY(organization_id)     REFERENCES organization_t(organization_id),
+    PRIMARY KEY(observer_id)
+);
+
+CREATE TABLE IF NOT EXISTS organization_t
+(
+    organization_id     INTEGER,
+    name            TEXT NOT NULL,    -- Organization name
+    acronym         TEXT,             -- Organization acronym (i.e. AAM, UCM)
+    description     TEXT,             -- Organization description
+    email           TEXT,
+    phone           TEXT,
+    logo_url,       TEXT,             -- Organization logo URL
+    web_url,        TEXT,             -- Organization web URL
+
+    UNIQUE(name),
+    PRIMARY KEY(organization_id)
+);
+
+CREATE VIEW IF NOT EXISTS observer_v
+AS SELECT
+    o.name,
+    o.surname,
+    o.title,
+    g.name AS affiliation,
+    g.acronym,
+    g.description AS org_description
+    g.email AS org_email,
+    g.phone AS org_phone,
+    g.logo_url AS org_logo_url
+    g.web_url AS org_web_url
+FROM observer_v AS o
+JOIN organization_t AS g USING(organization_id)
+WHERE o.valid_state == "Current";

@@ -12,6 +12,7 @@
 import os
 import math
 import logging
+import itertools
 import collections
 
 # -------------------
@@ -207,7 +208,7 @@ def by_coordinates(iterable):
     log.info("From %d MongoDB entries, we have extracted %d different coordinates",len(iterable), len(coords.keys()))
     return coords
 
-import itertools
+
 
 def _f(coords):
     return coords[0] is not None and coords[1] is not None
@@ -232,8 +233,7 @@ def log_coordinates(coords_iterable, limit):
 
 def distance(coords_A, coords_B):
     '''
-    Compute approximate geographical distance (arc) [meters] 
-    between two points on Earth
+    Compute approximate geographical distance (arc) [meters] between two points on Earth
     Accurate for small distances only
     '''
     longitude_A = coords_A[0]
