@@ -244,23 +244,3 @@ def distance(coords_A, coords_B):
     delta_lat = math.radians(latitude_A - latitude_B)
     mean_lat = math.radians((latitude_A + latitude_B)/2)
     return round(EARTH_RADIUS*math.sqrt(delta_lat**2 + (math.cos(mean_lat)*delta_long)**2),0)
-
-
-def error_lat(latitude, arc_error):
-    '''
-    returns latitude estimated angle error in for an estimated arc error in meters.
-    latitude given in radians
-    '''
-    return arc_error /  EARTH_RADIUS
-
-
-def error_long(longitude, latitude, arc_error):
-    '''
-    returns longitude estimated angle error for an estimated arc error in meters
-    longitude given in radians
-    '''
-    _error_lat = error_lat(latitude, arc_error)
-    _term_1 = arc_error / (EARTH_RADIUS * math.cos(latitude))
-    _term2 = longitude * math.tan(latitude)*_error_lat
-    return _term1 - _term2
-
