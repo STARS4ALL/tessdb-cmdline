@@ -41,6 +41,7 @@ CREATE TABLE "location_t"
             contact_email           TEXT,
             organization            TEXT
             )
+
 POR ESTA OTRA
 
 CREATE TABLE location_t
@@ -66,52 +67,35 @@ CREATE TABLE location_t
 
 Los campos que vayan a ser deprecados no deberian tener operaciones de create/update en la tess utility
 Tabla de observer_t que tenga una referencia a la tabla organization_t
-En la tabla de hechos se almacenan tanto las referencias al observador como a la organizacion
-¿Observador persona fisica y/o juridica (organization diectamente)?
+En la tabla de hechos se almacenan tanto las referencias al observador  
+
+o bien
+
+Esta tabla mixin maneja observadores que son o bien personas físicas (que pueden o no pertenecer a una organización)
+o personas jurídicas (organizaciones)
+Los atributos person_valid_* manejan el histórico de pertenencia de una persona a una organización
 
 CREATE TABLE IF NOT EXISTS observer_t
 (
-    observer_id     INTEGER,
-    name            TEXT NOT NULL,    -- Observer name (used for IDA dataset publication)
-    surname         TEXT NOT NULL,    -- Observer surname (used IDA dataset publication)
-    title           TEXT,             -- Dr., Professor, etc. (used IDA dataset publication)
-    organization_id INTEGER,          -- Observer's affiliation (i.e. Universidad Complutense de Madrid)
-    valid_since     TEXT NOT NULL,    -- 'YYYY-MM-DD HH:MM:SS'
-    valid_until     TEXT NOT NULL,    -- 'YYYY-MM-DD HH:MM:SS'
-    valid_state     TEXT NOT NULL,    -- Either 'Current' or 'Expired'
-   
-    UNIQUE(name, surname, valid_since) -- This determines all the rest
-    FOREIGN KEY(organization_id)     REFERENCES organization_t(organization_id),
+    observer_id         INTEGER,
+    obs_type            TEXT NOT NULL, -- Either 'person' or 'organization'
+    -----------------------------------------------------------------------
+    person_name         TEXT,      -- 
+    person_surname      TEXT,      --
+    person_title        TEXT,      -- 'Dr.' , 'Professor', etc. if applicable.
+    -- These three manages history of a person within an organization
+    person_valid_since  TIMESTAMP, -- 'YYYY-MM-DD HH:MM:SS'
+    person_valid_until  TIMESTAMP, -- 'YYYY-MM-DD HH:MM:SS'
+    person_valid_state  TEXT,      -- Either 'Current' or 'Expired' 
+    ------------------------------------------------------------------------
+    org_name            TEXT,      -- Organization name
+    org_acronym         TEXT,      -- Organization acronym (i.e. AAM, UCM)
+    org_description     TEXT,      -- Organization description
+    org_email           TEXT,
+    org_phone           TEXT,
+    org_logo_url,       TEXT,      -- Organization logo URL
+    org_web_url,        TEXT,      -- Organization web URL
+    ------------------------------------------------------------------------
     PRIMARY KEY(observer_id)
 );
 
-CREATE TABLE IF NOT EXISTS organization_t
-(
-    organization_id     INTEGER,
-    name            TEXT NOT NULL,    -- Organization name
-    acronym         TEXT,             -- Organization acronym (i.e. AAM, UCM)
-    description     TEXT,             -- Organization description
-    email           TEXT,
-    phone           TEXT,
-    logo_url,       TEXT,             -- Organization logo URL
-    web_url,        TEXT,             -- Organization web URL
-
-    UNIQUE(name),
-    PRIMARY KEY(organization_id)
-);
-
-CREATE VIEW IF NOT EXISTS observer_v
-AS SELECT
-    o.name,
-    o.surname,
-    o.title,
-    g.name AS affiliation,
-    g.acronym,
-    g.description AS org_description
-    g.email AS org_email,
-    g.phone AS org_phone,
-    g.logo_url AS org_logo_url
-    g.web_url AS org_web_url
-FROM observer_v AS o
-JOIN organization_t AS g USING(organization_id)
-WHERE o.valid_state == "Current";

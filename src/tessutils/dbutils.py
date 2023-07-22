@@ -220,6 +220,8 @@ def log_coordinates(coords_iterable, limit):
             log.error("entry %s with no coordinates: %s", rows[0]['name'], coords)
         if len(rows) > 1 and all(row['name'] == rows[0]['name'] for row in rows):
             log.error("Coordinates %s has %d photometers: %s", coords, len(rows), [row['name'] for row in rows])
+        if len(rows) > 1 and not all(row['place'] == rows[0]['place'] for row in rows):
+            log.error("Coordinates %s has different place names: %s", coords, [row['place'] for row in rows])
     coords_seq = tuple(coords_iterable.keys())
     coords_seq = tuple(filter(lambda x: x[0] is not None and x[1] is not None, coords_seq))
     coord_pairs = tuple(itertools.combinations(coords_seq, 2))
