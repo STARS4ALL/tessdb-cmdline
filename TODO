@@ -1,9 +1,7 @@
+1) DUPLICATES
 
-1) mongo-db check --name | --near | --mac
+stars352, stars405, stars478, stars640, stars721, stars746, stars749
 
---name: dos filas con name repetidos -> sacar datos de name, coord, place, mac 
---near: dos entradas cercanas en coordenadas -> sacar datos de name, coord, place, mac (permitimos mismo place) --disnatce=0
---mac: dos MAC repetidas pero con distinto nombre
 
 2) Hacer un cross-check de nombres y MACs entre MongoDB y tessdb
 
