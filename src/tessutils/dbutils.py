@@ -191,10 +191,12 @@ def check_place_same_coords(place, rows):
     latitudes = set(phot['latitude'] for phot in rows)
     if len(longitudes) > 1:
         result = True
-        log.warn("Place %s has different %d longitudes. %s", place, len(longitudes), longitudes)
+        log.warn("Place %s has different %d longitudes. %s -> %s", place, len(longitudes), 
+            [phot['longitude'] for phot in rows], [phot['name'] for phot in rows])
     if len(latitudes) > 1:
         result = True
-        log.warn("Place %s has different %d latitudes. %s", place, len(latitudes), latitudes)
+        log.warn("Place %s has different %d latitudes. %s -> %s", place, len(latitudes), 
+            [phot['latitude'] for phot in rows], [phot['name'] for phot in rows])
     return result
 
 # ------------------------
@@ -217,7 +219,7 @@ def log_coordinates(coords_iterable):
         if len(rows) > 1 and all(row['name'] == rows[0]['name'] for row in rows):
             log.error("Coordinates %s has %d duplicated photometers: %s", coords, len(rows), [row['name'] for row in rows])
         if len(rows) > 1 and not all(row['place'] == rows[0]['place'] for row in rows):
-            log.error("Coordinates %s has different place names: %s", coords, [row['place'] for row in rows])
+            log.error("Coordinates %s has different place names: %s for %s", coords, [row['place'] for row in rows], [row['name'] for row in rows])
 
 
 def log_coordinates_nearby(coords_iterable, limit):
@@ -228,9 +230,11 @@ def log_coordinates_nearby(coords_iterable, limit):
     for pair in coord_pairs:
         d = distance(pair[0], pair[1])
         if d <= limit:
-            name_a = coords_iterable[pair[0]][0]['place']
-            name_b = coords_iterable[pair[1]][0]['place']
-            log.warn("Place 1: '%s' %s vs Place 2: '%s' %s [%d meters]", name_a, pair[0], name_b, pair[1], d)
+            place_a = coords_iterable[pair[0]][0]['place']
+            place_b = coords_iterable[pair[1]][0]['place']
+            name_a = coords_iterable[pair[0]][0]['name']
+            name_b = coords_iterable[pair[1]][0]['name']
+            log.warn("Place 1 (%s): '%s' %s vs Place 2 (%s): '%s' %s [%d meters]", name_a, place_a, pair[0], name_b, place_b, pair[1], d)
 
 
 

@@ -16,6 +16,46 @@ WHERE name LIKE 'stars%'
 GROUP BY name
 ORDER BY cast(substr(name,6) as int) ASC;
 
+
+CREATE TEMP TABLE IF NOT EXISTS names_t (name TEXT);
+INSERT INTO names_t (name) VALUES ('stars1');
+INSERT INTO names_t (name) VALUES ('stars2');
+INSERT INTO names_t (name) VALUES ('stars8');
+INSERT INTO names_t (name) VALUES ('stars65');
+INSERT INTO names_t (name) VALUES ('stars88');
+INSERT INTO names_t (name) VALUES ('stars223');
+INSERT INTO names_t (name) VALUES ('stars275');
+INSERT INTO names_t (name) VALUES ('stars301');
+INSERT INTO names_t (name) VALUES ('stars307');
+INSERT INTO names_t (name) VALUES ('stars315');
+INSERT INTO names_t (name) VALUES ('stars341');
+INSERT INTO names_t (name) VALUES ('stars351');
+COMMIT;
+
+
+SELECT name, mac_address, valid_since, valid_until, valid_state
+FROM name_to_mac_t
+WHERE name IN (SELECT * from names_t)
+ORDER BY cast(substr(name,6) as int) ASC, valid_since ASC;
+
+SELECT t.name, t.mac_address, t.valid_since, t.valid_until, t.valid_state, p.zero_point, p.filter
+FROM name_to_mac_t AS t
+JOIN tess_t as p USING (mac_address)
+WHERE t.name IN (SELECT * from names_t)
+ORDER BY cast(substr(t.name,6) as int) ASC, t.valid_since ASC;
+
+SELECT t.name, t.mac_address, 
+t.valid_since AS ren_valid_since, t.valid_until AS ren_valid_until, t.valid_state AS ren_valid_state, 
+p.zero_point, p.filter, 
+p.valid_since AS zp_valid_since,  p.valid_until AS zp_valid_until,  p.valid_state AS zp_valid_state
+FROM name_to_mac_t AS t
+JOIN tess_t as p USING (mac_address)
+WHERE p.valid_state = 'Current' 
+AND t.name IN (SELECT * from names_t)
+ORDER BY cast(substr(t.name,6) as int) ASC, t.valid_since ASC;
+
+
+
 == ANTIGUO
 Retocar la utilidad de tess para mostar min(fecha), max(fecha) con reading counts y demás
 en luger de la fecha metida por linea de comandos.
