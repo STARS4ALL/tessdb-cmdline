@@ -67,7 +67,7 @@ Los campos que vayan a ser deprecados no deberian tener operaciones de create/up
 Tabla de observer_t que tenga una referencia a la tabla organization_t
 En la tabla de hechos se almacenan tanto las referencias al observador  
 
-o bien
+O BIEN
 
 Esta tabla mixin maneja observadores que son o bien personas físicas (que pueden o no pertenecer a una organización)
 o personas jurídicas (organizaciones)
