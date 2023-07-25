@@ -119,7 +119,8 @@ def createParser():
     # ------------------------------------------
 
     subparser = parser_location.add_subparsers(dest='subcommand')
-    locg = subparser.add_parser('generate',  help="Generate location creation script")
+    
+    locg = subparser.add_parser('generate',  help="Generate tessdb location creation script")
     locg.add_argument('-d', '--dbase', type=validfile, default=DEFAULT_DBASE, help='SQLite database full file path')
     locg.add_argument('-i', '--input-file', type=validfile, required=True, help='Input CSV file')
     locg.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
@@ -129,6 +130,7 @@ def createParser():
     # -----------------------------------------
 
     subparser = parser_mongodb.add_subparsers(dest='subcommand')
+
     mgloc = subparser.add_parser('location',  help="MongoDB location metadata operations")
     mgloc.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
     mgloc.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
@@ -189,6 +191,7 @@ def createParser():
     # -----------------------------------------
 
     subparser = parser_tessdb.add_subparsers(dest='subcommand')
+
     tdloc = subparser.add_parser('locations',  help="TessDB locations metadata check")
     tdloc.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
     tdloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
@@ -202,6 +205,11 @@ def createParser():
     # -----------------------------------------
 
     subparser = parser_crossdb.add_subparsers(dest='subcommand')
+    
+    xdbmac = subparser.add_parser('macs',  help="Cross DB MAC metadata check")
+    xdbmac.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
+    xdbmac.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
     xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
     xdbloc.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
     xdbloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')

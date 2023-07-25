@@ -89,6 +89,13 @@ def similar_locations_csv(iterable, path):
 # Module entry points
 # ===================
 
+def macs(options):
+    log.info(" ====================== ANALIZING CROSS DB MAC METADATA ======================")
+    url = get_mongo_api_url()
+    connection = open_database(options.dbase)
+    mongo_input_list = mongo_get_all_info(url)
+    log.info("read %d items from MongoDB", len(mongo_input_list))
+
 
 def locations(options):
     log.info(" ====================== ANALIZING CROSS DB LOCATION METADATA ======================")
