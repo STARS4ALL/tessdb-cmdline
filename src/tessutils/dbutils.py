@@ -12,6 +12,7 @@
 import os
 import math
 import logging
+import itertools
 import collections
 
 # -------------------
@@ -190,10 +191,12 @@ def check_place_same_coords(place, rows):
     latitudes = set(phot['latitude'] for phot in rows)
     if len(longitudes) > 1:
         result = True
-        log.warn("Place %s has different %d longitudes. %s", place, len(longitudes), longitudes)
+        log.warn("Place %s has different %d longitudes. %s -> %s", place, len(longitudes), 
+            [phot['longitude'] for phot in rows], [phot['name'] for phot in rows])
     if len(latitudes) > 1:
         result = True
-        log.warn("Place %s has different %d latitudes. %s", place, len(latitudes), latitudes)
+        log.warn("Place %s has different %d latitudes. %s -> %s", place, len(latitudes), 
+            [phot['latitude'] for phot in rows], [phot['name'] for phot in rows])
     return result
 
 # ------------------------
@@ -207,33 +210,37 @@ def by_coordinates(iterable):
     log.info("From %d MongoDB entries, we have extracted %d different coordinates",len(iterable), len(coords.keys()))
     return coords
 
-import itertools
 
-def _f(coords):
-    return coords[0] is not None and coords[1] is not None
-
-def log_coordinates(coords_iterable, limit):
+def log_coordinates(coords_iterable):
     '''Check for coordinates consistency among phothometers deployed on the same 'place' name'''
     for coords, rows in coords_iterable.items():
         if None in coords:
             log.error("entry %s with no coordinates: %s", rows[0]['name'], coords)
         if len(rows) > 1 and all(row['name'] == rows[0]['name'] for row in rows):
-            log.error("Coordinates %s has %d photometers: %s", coords, len(rows), [row['name'] for row in rows])
+            log.error("Coordinates %s has %d duplicated photometers: %s", coords, len(rows), [row['name'] for row in rows])
+        if len(rows) > 1 and not all(row['place'] == rows[0]['place'] for row in rows):
+            log.error("Coordinates %s has different place names: %s for %s", coords, [row['place'] for row in rows], [row['name'] for row in rows])
+
+
+def log_coordinates_nearby(coords_iterable, limit):
+    '''Check for possibly duplicates nearby coordinates/places'''
     coords_seq = tuple(coords_iterable.keys())
     coords_seq = tuple(filter(lambda x: x[0] is not None and x[1] is not None, coords_seq))
     coord_pairs = tuple(itertools.combinations(coords_seq, 2))
     for pair in coord_pairs:
         d = distance(pair[0], pair[1])
         if d <= limit:
-            name_a = coords_iterable[pair[0]][0]['place']
-            name_b = coords_iterable[pair[1]][0]['place']
-            log.warn("Place 1: '%s' %s vs Place 2: '%s' %s [%d meters]", name_a, pair[0], name_b, pair[1], d)
+            place_a = coords_iterable[pair[0]][0]['place']
+            place_b = coords_iterable[pair[1]][0]['place']
+            name_a = coords_iterable[pair[0]][0]['name']
+            name_b = coords_iterable[pair[1]][0]['name']
+            log.warn("Place 1 (%s): '%s' %s vs Place 2 (%s): '%s' %s [%d meters]", name_a, place_a, pair[0], name_b, place_b, pair[1], d)
+
 
 
 def distance(coords_A, coords_B):
     '''
-    Compute approximate geographical distance (arc) [meters] 
-    between two points on Earth
+    Compute approximate geographical distance (arc) [meters] between two points on Earth
     Accurate for small distances only
     '''
     longitude_A = coords_A[0]
@@ -244,23 +251,3 @@ def distance(coords_A, coords_B):
     delta_lat = math.radians(latitude_A - latitude_B)
     mean_lat = math.radians((latitude_A + latitude_B)/2)
     return round(EARTH_RADIUS*math.sqrt(delta_lat**2 + (math.cos(mean_lat)*delta_long)**2),0)
-
-
-def error_lat(latitude, arc_error):
-    '''
-    returns latitude estimated angle error in for an estimated arc error in meters.
-    latitude given in radians
-    '''
-    return arc_error /  EARTH_RADIUS
-
-
-def error_long(longitude, latitude, arc_error):
-    '''
-    returns longitude estimated angle error for an estimated arc error in meters
-    longitude given in radians
-    '''
-    _error_lat = error_lat(latitude, arc_error)
-    _term_1 = arc_error / (EARTH_RADIUS * math.cos(latitude))
-    _term2 = longitude * math.tan(latitude)*_error_lat
-    return _term1 - _term2
-

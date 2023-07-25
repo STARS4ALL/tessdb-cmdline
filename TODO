@@ -1,9 +1,7 @@
+1) DUPLICATES
 
-1) mongo-db check --name | --near | --mac
+stars352, stars405, stars478, stars640, stars721, stars746, stars749
 
---name: dos filas con name repetidos -> sacar datos de name, coord, place, mac 
---near: dos entradas cercanas en coordenadas -> sacar datos de name, coord, place, mac (permitimos mismo place) --disnatce=0
---mac: dos MAC repetidas pero con distinto nombre
 
 2) Hacer un cross-check de nombres y MACs entre MongoDB y tessdb
 
@@ -18,7 +16,134 @@ WHERE name LIKE 'stars%'
 GROUP BY name
 ORDER BY cast(substr(name,6) as int) ASC;
 
+
+CREATE TEMP TABLE IF NOT EXISTS names_t (name TEXT);
+INSERT INTO names_t (name) VALUES ('stars1');
+INSERT INTO names_t (name) VALUES ('stars2');
+INSERT INTO names_t (name) VALUES ('stars8');
+INSERT INTO names_t (name) VALUES ('stars65');
+INSERT INTO names_t (name) VALUES ('stars88');
+INSERT INTO names_t (name) VALUES ('stars223');
+INSERT INTO names_t (name) VALUES ('stars275');
+INSERT INTO names_t (name) VALUES ('stars301');
+INSERT INTO names_t (name) VALUES ('stars307');
+INSERT INTO names_t (name) VALUES ('stars315');
+INSERT INTO names_t (name) VALUES ('stars341');
+INSERT INTO names_t (name) VALUES ('stars351');
+COMMIT;
+
+
+SELECT name, mac_address, valid_since, valid_until, valid_state
+FROM name_to_mac_t
+WHERE name IN (SELECT * from names_t)
+ORDER BY cast(substr(name,6) as int) ASC, valid_since ASC;
+
+SELECT t.name, t.mac_address, t.valid_since, t.valid_until, t.valid_state, p.zero_point, p.filter
+FROM name_to_mac_t AS t
+JOIN tess_t as p USING (mac_address)
+WHERE t.name IN (SELECT * from names_t)
+ORDER BY cast(substr(t.name,6) as int) ASC, t.valid_since ASC, p.valid_since ASC;
+
+
+SELECT t.name, t.mac_address, 
+t.valid_since AS ren_valid_since, t.valid_until AS ren_valid_until, t.valid_state AS ren_valid_state, 
+p.zero_point, p.filter, 
+p.valid_since AS zp_valid_since,  p.valid_until AS zp_valid_until,  p.valid_state AS zp_valid_state
+FROM name_to_mac_t AS t
+JOIN tess_t as p USING (mac_address)
+WHERE t.name = 'stars1'
+ORDER BY cast(substr(t.name,6) as int) ASC, t.valid_since ASC, p.valid_since ASC;
+
+
+SELECT t.mac_address, t.name, 
+t.valid_since AS ren_valid_since, t.valid_until AS ren_valid_until, t.valid_state AS ren_valid_state, 
+p.zero_point, p.filter, 
+p.valid_since AS zp_valid_since,  p.valid_until AS zp_valid_until,  p.valid_state AS zp_valid_state
+FROM name_to_mac_t AS t
+JOIN tess_t as p USING (mac_address)
+WHERE t.mac_address = '18:FE:34:D3:48:CD'
+ORDER BY cast(substr(t.name,6) as int) ASC, t.valid_since ASC, p.valid_since ASC;
+
+
+
 == ANTIGUO
 Retocar la utilidad de tess para mostar min(fecha), max(fecha) con reading counts y demás
 en luger de la fecha metida por linea de comandos.
 tess instrument coalesce --name <name> | --mac <mac> --test
+
+SUSTITUIR TABLA
+CREATE TABLE "location_t"
+            (
+            location_id             INTEGER PRIMARY KEY AUTOINCREMENT,  
+            site                    TEXT,
+            longitude               REAL,
+            latitude                REAL,
+            elevation               REAL,
+            zipcode                 TEXT,
+            location                TEXT,
+            province                TEXT,
+            state                   TEXT,
+            country                 TEXT,
+            timezone                TEXT DEFAULT 'Etc/UTC',
+            contact_name            TEXT,
+            contact_email           TEXT,
+            organization            TEXT
+            )
+
+POR ESTA OTRA
+
+CREATE TABLE location_t
+(
+    location_id             INTEGER,  
+    place                   TEXT,
+    longitude               REAL NOT NULL,
+    latitude                REAL NOT NULL,
+    masl                    REAL, -- meters above sea level
+    zipcode                 TEXT,
+    town                    TEXT, -- it can be a village, town, city, or municipality
+    sub_region              TEXT, -- its type can be 'state_district','province'
+    region                  TEXT, -- state
+    country                 TEXT,
+    timezone                TEXT DEFAULT 'Etc/UTC',
+    contact_name            TEXT, -- still used but to be deprecated
+    contact_email           TEXT, -- still used but to be deprecated
+    organization            TEXT, -- stiil used but to be deprecated by organization_t
+
+    UNIQUE(longitude, latitude),
+    PRIMARY KEY(location_id) AUTOINCREMENT
+)
+
+Los campos que vayan a ser deprecados no deberian tener operaciones de create/update en la tess utility
+Tabla de observer_t que tenga una referencia a la tabla organization_t
+En la tabla de hechos se almacenan tanto las referencias al observador  
+
+O BIEN
+
+Esta tabla mixin maneja observadores que son o bien personas físicas (que pueden o no pertenecer a una organización)
+o personas jurídicas (organizaciones)
+Los atributos person_valid_* manejan el histórico de pertenencia de una persona a una organización
+
+CREATE TABLE IF NOT EXISTS observer_t
+(
+    observer_id         INTEGER,
+    obs_type            TEXT NOT NULL, -- Either 'person' or 'organization'
+    -----------------------------------------------------------------------
+    person_name         TEXT,      -- 
+    person_surname      TEXT,      --
+    person_title        TEXT,      -- 'Dr.' , 'Professor', etc. if applicable.
+    -- These three manages history of a person within an organization
+    person_valid_since  TIMESTAMP, -- 'YYYY-MM-DD HH:MM:SS'
+    person_valid_until  TIMESTAMP, -- 'YYYY-MM-DD HH:MM:SS'
+    person_valid_state  TEXT,      -- Either 'Current' or 'Expired' 
+    ------------------------------------------------------------------------
+    org_name            TEXT,      -- Organization name
+    org_acronym         TEXT,      -- Organization acronym (i.e. AAM, UCM)
+    org_description     TEXT,      -- Organization description
+    org_email           TEXT,
+    org_phone           TEXT,
+    org_logo_url,       TEXT,      -- Organization logo URL
+    org_web_url,        TEXT,      -- Organization web URL
+    ------------------------------------------------------------------------
+    PRIMARY KEY(observer_id)
+);
+
