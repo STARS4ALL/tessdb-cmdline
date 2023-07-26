@@ -136,7 +136,11 @@ def mongo_api_update(url, body, mac, simulated=None):
     body['token'] = get_mongo_api_key()
     name = body['tess']['name']
     if not mac:
-        raise ValueError(f"Missing MAC for photometer {name}")
+        raise ValueError("Missing MAC for photometer {name}")
+
+    # Ñapa de para las MAC mal formadas de los TESS-W
+    mac = ':'.join(f"{int(x,16):02x}" for x in mac.split(':')).upper()
+
     url = f"{url}/photometers/{name}/{mac}"
     if not simulated:
         response = requests.post(url, json=body)
@@ -498,7 +502,8 @@ def do_update_location(url, path, delimiter, names, simulated):
         body = mongo_api_body_location(row, mongo_aux_list)
         try:
             mongo_api_update(url, body, mac, simulated)
-        except ValueError:
+        except ValueError as e:
+            log.error(e)
             log.warn("Ignoring update location info for item %s (%s)", row['name'], mac)
         except requests.exceptions.HTTPError as e:
             log.error(f"{e} BODY = {e.response.text}")
