@@ -137,8 +137,8 @@ def mongo_api_update(url, body, mac, simulated=None):
     body['token'] = get_mongo_api_key()
     name = body['tess']['name']
     if not mac:
-        mac = body['tess']['mac']
-    url = url + "/photometers/" + name + "/" + mac
+        raise ValueError(f"Missing MAC for photometer {name}")
+    url = f"{url}/photometers/{name}/{mac}"
     if not simulated:
         response = requests.post(url, json=body)
         response.raise_for_status()
@@ -498,7 +498,10 @@ def do_update_location(url, path, delimiter, names, simulated):
         mac = get_mac(mongo_aux_list, row['name'])
         log.info("Updating mongoDB with location info for item %s (%s)", row['name'], mac)
         body = mongo_api_body_location(row, mongo_aux_list)
-        mongo_api_update(url, body, mac, simulated)
+        try:
+            mongo_api_update(url, body, mac, simulated)
+        except ValueError:
+            log.warn("Ignoring update location info for item %s (%s)", row['name'], mac)
            
    
 def do_update_photometer(url, path, delimiter, names, simulated):
@@ -512,9 +515,12 @@ def do_update_photometer(url, path, delimiter, names, simulated):
         oldmac = get_mac(mongo_aux_list, row['name'])
         body = mongo_api_body_photometer(row, mongo_aux_list)
         log.info("Updating MongoDB with photometer info for %s (%s)", row['name'], oldmac)
-        if(oldmac != row['mac']):
-            log.warn("Changing %s MAC: (%s) -> (%s)", row['name'], oldmac, row['mac'])
-        mongo_api_update(url, body, oldmac, simulated)
+        try:
+            mongo_api_update(url, body, oldmac, simulated)
+            if(oldmac != row['mac']):
+                log.info("Changing %s MAC: (%s) -> (%s)", row['name'], oldmac, row['mac'])
+        except ValueError:
+            log.warn("Ignoring update photometer info for item %s (%s)", row['name'], oldmac)
 
 
 def do_create_photometer(url, path, delimiter, names, simulated):
@@ -540,7 +546,10 @@ def do_update_organization(url, path, delimiter, names, simulated):
         mac = get_mac(mongo_input_list, row['name'])
         log.info("Updating mongoDB with organization info for item %s (%s)", row['name'], mac)
         body = mongo_api_body_organization(row)
-        mongo_api_update(url, body, mac, simulated)
+        try:
+            mongo_api_update(url, body, mac, simulated)
+        except ValueError:
+            log.warn("Ignoring update organization info for item %s (%s)", row['name'], mac)
 
 
 def do_update_contact(url, path, delimiter, names, simulated):
@@ -554,7 +563,10 @@ def do_update_contact(url, path, delimiter, names, simulated):
         mac = get_mac(mongo_input_list, row['name'])
         log.info("Updating mongoDB with contact info for item %s (%s)", row['name'], mac)
         body = mongo_api_body_contact(row)
-        mongo_api_update(url, body, mac, simulated)
+        try:
+            mongo_api_update(url, body, mac, simulated)
+        except ValueError:
+            log.warn("Ignoring update contact info for item %s (%s)", row['name'], mac)
         
 
 def do_update_all(url, path, delimiter, names, simulated):
@@ -568,7 +580,10 @@ def do_update_all(url, path, delimiter, names, simulated):
         mac = get_mac(mongo_input_list, row['name'])
         log.info("Updating mongoDB with all info for item %s (%s)", row['name'], mac)
         body = mongo_api_body_all(row)
-        mongo_api_update(url, body, mac, simulated)
+        try:
+            mongo_api_update(url, body, mac, simulated)
+        except ValueError:
+            log.warn("Ignoring update all info for item %s (%s)", row['name'], mac)
 
 def do_create_all(url, path, delimiter, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url) 
