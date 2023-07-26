@@ -64,6 +64,14 @@ JOIN tess_t as p USING (mac_address)
 WHERE t.mac_address = '18:FE:34:D3:48:CD'
 ORDER BY cast(substr(t.name,6) as int) ASC, t.valid_since ASC, p.valid_since ASC;
 
+SELECT name, valid_status FROM name_to_mac_t GROUP BY name HAVING COUNT(*) > 1;
+
+
+SELECT name, mac_address, valid_state
+FROM name_to_mac_t
+WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name )
+AND valid_since IN (SELECT MAX(valid_since) FROM name_to_mac_t GROUP BY name)
+ORDER BY cast(substr(name,6) as int) ASC, valid_since ASC;
 
 
 == ANTIGUO

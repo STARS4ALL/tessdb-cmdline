@@ -117,7 +117,6 @@ def mongo_api_create(url, body, simulated):
     if not simulated:
         response = requests.post(url, json=body)
         response.raise_for_status()
-        return response.json()
     else:
         req = requests.Request('POST',url,data=json.dumps(body, indent=2))
         prepared = req.prepare()
@@ -142,7 +141,6 @@ def mongo_api_update(url, body, mac, simulated=None):
     if not simulated:
         response = requests.post(url, json=body)
         response.raise_for_status()
-        return response.json()
     else:
         req = requests.Request('POST',url,data=json.dumps(body, indent=2))
         prepared = req.prepare()
@@ -502,6 +500,8 @@ def do_update_location(url, path, delimiter, names, simulated):
             mongo_api_update(url, body, mac, simulated)
         except ValueError:
             log.warn("Ignoring update location info for item %s (%s)", row['name'], mac)
+        except requests.exceptions.HTTPError as e:
+            log.error(f"{e} BODY = {e.response.text}")
            
    
 def do_update_photometer(url, path, delimiter, names, simulated):
@@ -521,6 +521,8 @@ def do_update_photometer(url, path, delimiter, names, simulated):
                 log.info("Changing %s MAC: (%s) -> (%s)", row['name'], oldmac, row['mac'])
         except ValueError:
             log.warn("Ignoring update photometer info for item %s (%s)", row['name'], oldmac)
+        except requests.exceptions.HTTPError as e:
+            log.error(f"{e} BODY = {e.response.text}")
 
 
 def do_create_photometer(url, path, delimiter, names, simulated):
@@ -532,7 +534,10 @@ def do_create_photometer(url, path, delimiter, names, simulated):
     for row in mongo_output_list:
         body = mongo_api_body_photometer(row, list(), create=True)
         log.info("Creating new MongoDB entry with photometer info: %s (%s)", row['name'], row['mac'])
-        mongo_api_create(url, body, simulated)
+        try:
+            mongo_api_create(url, body, simulated)
+        except requests.exceptions.HTTPError as e:
+            log.error(f"{e} BODY = {e.response.text}")
        
 
 def do_update_organization(url, path, delimiter, names, simulated):
@@ -550,6 +555,8 @@ def do_update_organization(url, path, delimiter, names, simulated):
             mongo_api_update(url, body, mac, simulated)
         except ValueError:
             log.warn("Ignoring update organization info for item %s (%s)", row['name'], mac)
+        except requests.exceptions.HTTPError as e:
+            log.error(f"{e} BODY = {e.response.text}")
 
 
 def do_update_contact(url, path, delimiter, names, simulated):
@@ -567,6 +574,8 @@ def do_update_contact(url, path, delimiter, names, simulated):
             mongo_api_update(url, body, mac, simulated)
         except ValueError:
             log.warn("Ignoring update contact info for item %s (%s)", row['name'], mac)
+        except requests.exceptions.HTTPError as e:
+            log.error(f"{e} BODY = {e.response.text}")
         
 
 def do_update_all(url, path, delimiter, names, simulated):
@@ -584,6 +593,8 @@ def do_update_all(url, path, delimiter, names, simulated):
             mongo_api_update(url, body, mac, simulated)
         except ValueError:
             log.warn("Ignoring update all info for item %s (%s)", row['name'], mac)
+        except requests.exceptions.HTTPError as e:
+            log.error(f"{e} BODY = {e.response.text}")
 
 def do_create_all(url, path, delimiter, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url) 
@@ -595,7 +606,12 @@ def do_create_all(url, path, delimiter, names, simulated):
     for row in mongo_output_list:
         log.info("Creating new MongoDB entry with photometer info: %s (%s)", row['name'], row['mac'])
         body = mongo_api_body_all(row)
-        mongo_api_create(url, body, simulated)
+        try:
+            mongo_api_create(url, body, simulated)
+        except ValueError:
+            log.warn("Ignoring create all info for item %s (%s)", row['name'], row['mac'])
+        except requests.exceptions.HTTPError as e:
+            log.error(f"{e} BODY = {e.response.text}")
 
 # ===================
 # Module entry points
