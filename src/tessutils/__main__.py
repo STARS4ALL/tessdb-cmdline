@@ -190,6 +190,7 @@ def createParser():
     mgex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
     mgex1.add_argument('-u', '--utc', action='store_true', help='Check for Etc/UTC* timezone')
     mgex1.add_argument('-i', '--filter', action='store_true', help='Check for "UV/IR-cut" string in filters')
+    mgex1.add_argument('-z', '--zero-point', action='store_true', help='Check for defined zero points')
 
 
     # -----------------------------------------

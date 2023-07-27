@@ -653,7 +653,7 @@ def do_check_etc_utc(mongo_input_list):
         tz = item['timezone'].upper()
         if tz.startswith('ETC') or tz.startswith('UTC'):
             names.append(item['name'])
-            log.warn("%s have a default timezone %s probably not matching its coordinates: (Lon. %s, Lat. %s)", 
+            log.warn("%s has a default timezone %s probably not matching its coordinates: (Lon. %s, Lat. %s)", 
                 item['name'], item['timezone'], item['longitude'], item['latitude'])
     if not names:
         log.info("All timezones ok")
@@ -665,15 +665,31 @@ def do_check_filter(mongo_input_list):
     for item in mongo_input_list:
         if item['filters'] is None:
             names.append(item['name'])
-            log.warn("%s have no filter label", item['name'])
+            log.warn("%s has no filter label", item['name'])
         elif item['filters'].upper() == 'UV/IR-CUT':
             names.append(item['name'])
-            log.warn("%s have an old filter label %s", item['name'], item['filters'])
+            log.warn("%s has an old filter label %s", item['name'], item['filters'])
     if not names:
         log.info("All filter strings ok")
     else:
         log.info("Correct these: %s", ' '.join(names))
 
+def do_check_zp(mongo_input_list):
+    names = list()
+    for item in mongo_input_list:
+        if item['zero_point'] is None:
+            names.append(item['name'])
+            log.warn("%s has no zero point", item['name'])
+        else:
+            try:
+                float(item['zero_point'])
+            except:
+                names.append(item['name'])
+                log.warn("%s hasn't a numerc zero point %s", item['name'], item['zero_point'])
+    if not names:
+        log.info("All items have a zero point assigned")
+    else:
+        log.info("Correct these: %s", ' '.join(names))
 
 # ===================
 # Module entry points
@@ -792,5 +808,8 @@ def check(options):
     elif options.utc:
         log.info("Check for 'ETC/UTC*' timezone")
         do_check_etc_utc(mongo_input_list)
+    elif options.zero_point:
+        log.info("Check for defined zero points")
+        do_check_zp(mongo_input_list)
     else:
         log.error("No valid input option to subcommand 'check'")
