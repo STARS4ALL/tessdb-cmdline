@@ -647,6 +647,34 @@ def do_check_mac_format(mongo_input_list):
     if no_warnings:
         log.info("All MAC addresses in MongoDB are properly formatted")
 
+def do_check_etc_utc(mongo_input_list):
+    names = list()
+    for item in mongo_input_list:
+        tz = item['timezone'].upper()
+        if tz.startswith('ETC') or tz.startswith('UTC'):
+            names.append(item['name'])
+            log.warn("%s have a default timezone %s probably not matching its coordinates: (Lon. %s, Lat. %s)", 
+                item['name'], item['timezone'], item['longitude'], item['latitude'])
+    if not names:
+        log.info("All timezones ok")
+    else:
+        log.info("Correct these: %s", ' '.join(names))
+
+def do_check_filter(mongo_input_list):
+    names = list()
+    for item in mongo_input_list:
+        if item['filters'] is None:
+            names.append(item['name'])
+            log.warn("%s have no filter label", item['name'])
+        elif item['filters'].upper() == 'UV/IR-CUT':
+            names.append(item['name'])
+            log.warn("%s have an old filter label %s", item['name'], item['filters'])
+    if not names:
+        log.info("All filter strings ok")
+    else:
+        log.info("Correct these: %s", ' '.join(names))
+
+
 # ===================
 # Module entry points
 # ===================
@@ -758,5 +786,11 @@ def check(options):
         log.info("Check for nearby places in radius %0.0f meters", options.nearby)
         mongo_coords  = by_coordinates(mongo_input_list)
         log_coordinates_nearby(mongo_coords, options.nearby)
+    elif options.filter:
+        log.info("Check for 'UV/IR-cut default filter")
+        do_check_filter(mongo_input_list)
+    elif options.utc:
+        log.info("Check for 'ETC/UTC*' timezone")
+        do_check_etc_utc(mongo_input_list)
     else:
         log.error("No valid input option to subcommand 'check'")
