@@ -24,9 +24,9 @@ import requests
 # local imports
 # -------------
 
+from .utils import formatted_mac, is_tess_mac, is_mac
 from .dbutils import by_place, by_name, by_mac, by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
 from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
-
 
 class ListLengthMismatchError(Exception):
     '''List length mismatch error between lists'''
@@ -137,10 +137,6 @@ def mongo_api_update(url, body, mac, simulated=None):
     name = body['tess']['name']
     if not mac:
         raise ValueError("Missing MAC for photometer {name}")
-
-    # Ñapa de para las MAC mal formadas de los TESS-W
-    mac = ':'.join(f"{int(x,16):02x}" for x in mac.split(':')).upper()
-
     url = f"{url}/photometers/{name}/{mac}"
     if not simulated:
         response = requests.post(url, json=body)
@@ -423,6 +419,16 @@ def remap_nominatim(row):
         new_row[key] = row[key]
     return new_row
 
+def remap_mac(imput_iterable):
+    '''When reading MACS from CSV files'''
+    def _map_mac(item):
+        new_mac = formatted_mac(item['mac'])
+        log.debug("remapping MAC: %-17s -> %-17s", item['mac'], new_mac)
+        item['mac'] = new_mac
+        return item
+    return list(map(_map_mac, imput_iterable))
+
+
 def merge_info(input_iterable, nominatim_iterable):
     output = list()
     for i in range(0, len(input_iterable)):
@@ -506,12 +512,13 @@ def do_update_location(url, path, delimiter, names, simulated):
             log.error(e)
             log.warn("Ignoring update location info for item %s (%s)", row['name'], mac)
         except requests.exceptions.HTTPError as e:
-            log.error(f"{e} BODY = {e.response.text}")
+            log.error(f"{e}, RESP. BODY = {e.response.text}")
            
    
 def do_update_photometer(url, path, delimiter, names, simulated):
     mongo_aux_list = mongo_get_all_info(url) 
     mongo_output_list = read_csv(path, delimiter)
+    mongo_output_list = remap_mac(mongo_output_list)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -527,11 +534,12 @@ def do_update_photometer(url, path, delimiter, names, simulated):
         except ValueError:
             log.warn("Ignoring update photometer info for item %s (%s)", row['name'], oldmac)
         except requests.exceptions.HTTPError as e:
-            log.error(f"{e} BODY = {e.response.text}")
+            log.error(f"{e}, RESP. BODY = {e.response.text}")
 
 
 def do_create_photometer(url, path, delimiter, names, simulated):
     mongo_output_list = read_csv(options.file, delimiter)
+    mongo_output_list = remap_mac(mongo_output_list)
     log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -542,7 +550,7 @@ def do_create_photometer(url, path, delimiter, names, simulated):
         try:
             mongo_api_create(url, body, simulated)
         except requests.exceptions.HTTPError as e:
-            log.error(f"{e} BODY = {e.response.text}")
+            log.error(f"{e}, RESP. BODY = {e.response.text}")
        
 
 def do_update_organization(url, path, delimiter, names, simulated):
@@ -561,7 +569,7 @@ def do_update_organization(url, path, delimiter, names, simulated):
         except ValueError:
             log.warn("Ignoring update organization info for item %s (%s)", row['name'], mac)
         except requests.exceptions.HTTPError as e:
-            log.error(f"{e} BODY = {e.response.text}")
+            log.error(f"{e}, RESP. BODY = {e.response.text}")
 
 
 def do_update_contact(url, path, delimiter, names, simulated):
@@ -580,12 +588,13 @@ def do_update_contact(url, path, delimiter, names, simulated):
         except ValueError:
             log.warn("Ignoring update contact info for item %s (%s)", row['name'], mac)
         except requests.exceptions.HTTPError as e:
-            log.error(f"{e} BODY = {e.response.text}")
+            log.error(f"{e}, RESP. BODY = {e.response.text}")
         
 
 def do_update_all(url, path, delimiter, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url) 
     mongo_output_list = read_csv(path, delimiter)
+    mongo_output_list = remap_mac(mongo_output_list)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -599,11 +608,12 @@ def do_update_all(url, path, delimiter, names, simulated):
         except ValueError:
             log.warn("Ignoring update all info for item %s (%s)", row['name'], mac)
         except requests.exceptions.HTTPError as e:
-            log.error(f"{e} BODY = {e.response.text}")
+            log.error(f"{e}, RESP. BODY = {e.response.text}")
 
 def do_create_all(url, path, delimiter, names, simulated):
     mongo_input_list = mongo_get_photometer_info(url) 
     mongo_output_list = read_csv(path, delimiter)
+    mongo_output_list = remap_mac(mongo_output_list)
     log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
@@ -616,7 +626,26 @@ def do_create_all(url, path, delimiter, names, simulated):
         except ValueError:
             log.warn("Ignoring create all info for item %s (%s)", row['name'], row['mac'])
         except requests.exceptions.HTTPError as e:
-            log.error(f"{e} BODY = {e.response.text}")
+            log.error(f"{e}, RESP. BODY => {e.response.text}")
+
+def do_check_mac_format(mongo_input_list):
+    no_warnings = True
+    for item in mongo_input_list:
+        if is_mac(item['mac']):
+            if any(x.islower() for x in item['mac'].split(':')):
+                no_warnings = False
+                log.warn("%s MAC contains lower case letters: %s",  item['name'], item['mac'])
+            continue
+        elif is_tess_mac(item['mac']):
+            no_warnings = False
+            log.warn("%s does not have a properly formatted MAC: %s -> %s", item['name'], item['mac'], formatted_mac(item['mac']))
+            if any(x.islower() for x in item['mac'].split(':')):
+                log.warn("%s MAC contains lower case letters: %s",  item['name'], item['mac'])
+        else:
+            no_warnings = False
+            log.error("%s does not even have not a proper MAC: %s", item['name'], item['mac'])
+    if no_warnings:
+        log.info("All MAC addresses in MongoDB are properly formatted")
 
 # ===================
 # Module entry points
@@ -714,6 +743,9 @@ def check(options):
         log.info("Check for duplicate photometer MAC addresses")
         mongo_macs = by_mac(mongo_input_list)
         log_macs(mongo_macs)
+    elif options.mac_format:
+        log.info("Check for properly formatted MAC addresses")
+        do_check_mac_format(mongo_input_list)
     elif options.places:
         log.info("Check for same place, different coordinates")
         mongo_places  = by_place(mongo_input_list)

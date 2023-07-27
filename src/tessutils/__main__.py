@@ -184,6 +184,7 @@ def createParser():
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-n', '--names', action='store_true', help='Check for duplicate photometer names')
     mgex1.add_argument('-m', '--macs', action='store_true', help='Check for duplicate MACs')
+    mgex1.add_argument('-f', '--mac-format', action='store_true', help='Check for properly formatted MACs')
     mgex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
     mgex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
     mgex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
