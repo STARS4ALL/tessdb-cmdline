@@ -123,10 +123,12 @@ def log_detailed_impact(connection, coords_iterable):
         if len(rows) == 1:
             continue
         for row in rows:
-            count = referenced_photometers(connection, row['name'])
-            log.info("[%d] (%s) %d references in tess_t", row['name'], row['place'], count)
-            count = referenced_readings(connection, row['name'])
-            log.info("[%d] (%s) %d references in tess_readings_t", row['name'], row['place'], count)
+            count1 = referenced_photometers(connection, row['name'])
+            log.info("[%d] (%s) %d references in tess_t", row['name'], row['place'], count1)
+            count2 = referenced_readings(connection, row['name'])
+            log.info("[%d] (%s) %d references in tess_readings_t", row['name'], row['place'], count2)
+            if count1 == 0 and count2 == 0:
+                log.info("DELETE FROM location_t WHERE location_id = %d", row['name'])
 
 
 
