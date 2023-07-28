@@ -21,7 +21,7 @@ import logging
 # -------------
 
 from .utils import open_database, formatted_mac
-from .dbutils import get_tessdb_connection_string, by_coordinates, log_coordinates, by_place, log_places, log_names
+from .dbutils import get_tessdb_connection_string, by_coordinates, log_coordinates, log_coordinates_nearby, by_place, log_places, log_names
 
 
 # -----------------------
@@ -100,18 +100,16 @@ def check(options):
     connection = open_database(database)
     if options.places:
         log.info("Check for same place, different coordinates")
-        tessdb_places  = places_from_tessdb(connection)
-        tessdb_places  = by_place(tessdb_places)
+        tessdb_places  = by_place(places_from_tessdb(connection))
         log_places(tessdb_places)
     elif options.coords:
         log.info("Check for same coordinates, different places")
-        tessdb_coords  = places_from_tessdb(connection)
-        tessdb_coords  = by_coordinates(tessdb_coords)
+        tessdb_coords  = by_coordinates(places_from_tessdb(connection))
         log_coordinates(tessdb_coords)
     elif options.nearby:
         log.info("Check for nearby places in radius %0.0f meters", options.nearby)
-        mongo_coords  = by_coordinates(mongo_input_list)
-        log_coordinates_nearby(mongo_coords, options.nearby)
+        tessdb_coords  = by_coordinates(places_from_tessdb(connection))
+        log_coordinates_nearby(tessdb_coords, options.nearby)
    
     else:
         log.error("No valid input option to subcommand 'check'")

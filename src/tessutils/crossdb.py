@@ -139,7 +139,9 @@ def photometers(options):
 def coordinates(options):
     log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")
     url = get_mongo_api_url()
-    connection = open_database(options.dbase)
+    database = get_tessdb_connection_string()
+    log.info("connecting to SQLite database %s", database)
+    connection = open_database(database)
     mongo_input_map = by_coordinates(mongo_get_location_info(url))
     log.info("read %d items from MongoDB", len(mongo_input_list))
     tessdb_input_map = by_coordinates(places_from_tessdb(connection))
