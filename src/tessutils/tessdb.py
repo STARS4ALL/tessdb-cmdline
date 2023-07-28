@@ -153,6 +153,7 @@ def check(options):
         log.info("Check for same coordinates, duplicated places")
         tessdb_coords  = by_coordinates(places_from_tessdb(connection))
         log_duplicated_coords(connection, tessdb_coords)
+        log_detailed_impact(connection, tessdb_coords)
     elif options.nearby:
         log.info("Check for nearby places in radius %0.0f meters", options.nearby)
         tessdb_coords  = by_coordinates(places_from_tessdb(connection))
