@@ -49,6 +49,7 @@ SCRIPTS = [
     "scripts/tessdb_resume",
     "scripts/tessutils",
     "scripts/mongo-db", 
+    "scripts/tess-db", 
     "scripts/cross-db", 
 ]
 

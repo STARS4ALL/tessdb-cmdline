@@ -56,6 +56,12 @@ def get_mongo_api_key():
     return token
 
 
+def get_tessdb_connection_string():
+    url = os.environ.get("TESSDB_CONNECTION")
+    if not url:
+        raise KeyError("'TESSDB_CONNECTION' environment variable not set")
+    return url
+
 
 
 def _make_remap_location(geolocator, tzfinder):

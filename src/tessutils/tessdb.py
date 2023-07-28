@@ -21,7 +21,7 @@ import logging
 # -------------
 
 from .utils import open_database, formatted_mac
-from .dbutils import by_place, by_name, log_places, log_names
+from .dbutils import get_tessdb_connection_string, by_coordinates, log_coordinates, by_place, log_places, log_names
 
 
 # -----------------------
@@ -82,16 +82,40 @@ def places_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT longitude, latitude, site, location, province, state, country, timezone
+        SELECT longitude, latitude, site, location, province, state, country, timezone, NULL
         FROM location_t 
         ''')
-    result = [dict(zip(['longitude','latitude','place','town','sub_region','region','country','timezone'],row)) for row in cursor]
+    result = [dict(zip(['longitude','latitude','place','town','sub_region','region','country','timezone','name'],row)) for row in cursor]
     return result
 
 
 # ===================
 # Module entry points
 # ===================
+
+def check(options):
+    log.info(" ====================== ANALIZING DUPLICATES IN TESSDB METADATA ======================")
+    database = get_tessdb_connection_string()
+    log.info("connecting to SQLite database %s", database)
+    connection = open_database(database)
+    if options.places:
+        log.info("Check for same place, different coordinates")
+        tessdb_places  = places_from_tessdb(connection)
+        tessdb_places  = by_place(tessdb_places)
+        log_places(tessdb_places)
+    elif options.coords:
+        log.info("Check for same coordinates, different places")
+        tessdb_coords  = places_from_tessdb(connection)
+        tessdb_coords  = by_coordinates(tessdb_coords)
+        log_coordinates(tessdb_coords)
+    elif options.nearby:
+        log.info("Check for nearby places in radius %0.0f meters", options.nearby)
+        mongo_coords  = by_coordinates(mongo_input_list)
+        log_coordinates_nearby(mongo_coords, options.nearby)
+   
+    else:
+        log.error("No valid input option to subcommand 'check'")
+
 
 def locations(options):
     connection = open_database(options.dbase)

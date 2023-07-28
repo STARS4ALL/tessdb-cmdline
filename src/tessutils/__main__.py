@@ -198,13 +198,19 @@ def createParser():
     # -----------------------------------------
 
     subparser = parser_tessdb.add_subparsers(dest='subcommand')
-    tdloc = subparser.add_parser('locations',  help="TessDB locations metadata check")
-    tdloc.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
+    tdloc = subparser.add_parser('location',  help="TessDB locations metadata check")
     tdloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
-    tdphot = subparser.add_parser('photometers',  help="TessDB photometers metadata check")
-    tdphot.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
+    tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata check")
     tdphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
+
+    tdcheck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
+    tdex1 = tdcheck.add_mutually_exclusive_group(required=True)
+    tdex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
+    tdex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
+    tdex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
+
 
     # -----------------------------------------
     # Create second level parsers for 'crossdb'
@@ -212,7 +218,6 @@ def createParser():
 
     subparser = parser_crossdb.add_subparsers(dest='subcommand')
     xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
-    xdbloc.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
     xdbloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
     grp = xdbloc.add_mutually_exclusive_group(required=True)
     grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')
