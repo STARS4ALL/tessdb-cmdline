@@ -141,7 +141,7 @@ def by_name(iterable):
     names = collections.defaultdict(list)
     for row in iterable:
         names[row['name']].append(row)
-    log.info("From %d MongoDB entries, we have extracted %d different photometer names",len(iterable), len(names.keys()))
+    log.info("From %d entries, we have extracted %d different photometer names",len(iterable), len(names.keys()))
     return names
 
 # ----------------------
@@ -152,7 +152,7 @@ def by_mac(iterable):
     macs = collections.defaultdict(list)
     for row in iterable:
         macs[row['mac']].append(row)
-    log.info("From %d MongoDB entries, we have extracted %d different photometer MACs",len(iterable), len(macs.keys()))
+    log.info("From %d entries, we have extracted %d different photometer MACs",len(iterable), len(macs.keys()))
     return macs
 
 def log_macs(macs_iterable):
@@ -168,7 +168,7 @@ def by_place(iterable):
     places = collections.defaultdict(list)
     for row in iterable:
         places[row['place']].append(row)
-    log.info("From %d MongoDB entries, we have extracted %d different places",len(iterable), len(places.keys()))
+    log.info("From %d entries, we have extracted %d different places",len(iterable), len(places.keys()))
     return places
 
 
@@ -207,7 +207,7 @@ def by_coordinates(iterable):
     coords = collections.defaultdict(list)
     for row in iterable:
         coords[(row['longitude'],row['latitude'])].append(row)
-    log.info("From %d MongoDB entries, we have extracted %d different coordinates",len(iterable), len(coords.keys()))
+    log.info("From %d entries, we have extracted %d different coordinates",len(iterable), len(coords.keys()))
     return coords
 
 
@@ -241,6 +241,7 @@ def log_coordinates_nearby(coords_iterable, limit):
 def distance(coords_A, coords_B):
     '''
     Compute approximate geographical distance (arc) [meters] between two points on Earth
+    Coods_A and Coords_B are tuples (longitude, latitude)
     Accurate for small distances only
     '''
     longitude_A = coords_A[0]

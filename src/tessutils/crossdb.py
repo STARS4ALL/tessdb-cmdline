@@ -26,9 +26,10 @@ import collections
 # -------------
 
 from .utils import open_database
-from .dbutils import by_place, by_name, log_places, log_names, distance
-from .mongodb import photometers_from_mongo
-from .tessdb import photometers_from_tessdb
+from .dbutils import by_place, by_name, log_places, log_names, distance, get_mongo_api_url
+from .mongodb import mongo_get_location_info
+from .tessdb import photometers_from_tessdb, places_from_tessdb
+
 # ----------------
 # Module constants
 # ----------------
@@ -68,9 +69,9 @@ def tessdb_exclusive_locations(mongo_iterable, tessdb_iterable):
     log.info("%d locations exclusive TessDB locations",len(locations))
 
 
-def make_nearby_filter(row2, lower, upper):
-    def distance_filter(row1):
-        return (lower <= distance(row1, row2) <= upper)
+def make_nearby_filter(tuple2, lower, upper):
+    def distance_filter(tuple1):
+        return (lower <= distance(tuple1, tuple2) <= upper)
     return distance_filter
 
 
@@ -136,16 +137,17 @@ def photometers(options):
    
 
 def coordinates(options):
-    log.info(" ====================== ANALIZING CROSS DB PHOTOMETER METADATA ======================")
+    log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")
+    url = get_mongo_api_url()
     connection = open_database(options.dbase)
-    mongo_input_list = photometers_from_mongo(options.url)
+    mongo_input_map = by_coordinates(mongo_get_location_info(url))
     log.info("read %d items from MongoDB", len(mongo_input_list))
-    tessdb_input_list = photometers_from_tessdb(connection)
+    tessdb_input_map = by_coordinates(places_from_tessdb(connection))
     log.info("read %d items from TessDB", len(tessdb_input_list))
     output = list()
-    for mongo_item in mongo_input_list:
-        nearby_filter = make_nearby_filter(mongo_item, options.lower, options.upper)
-        nearby_list = list(filter(nearby_filter, tessdb_input_list))
+    for mongo_coords, mongo_item in mongo_input_map.items():
+        nearby_filter = make_nearby_filter(mongo_coords, options.lower, options.upper)
+        nearby_list = list(filter(nearby_filter, tessdb_input_map.keys()))
         if (len(nearby_list)):
             mongo_item['source'] = 'mongoDB'
             output.append(mongo_item)

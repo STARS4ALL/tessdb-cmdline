@@ -20,7 +20,7 @@ import logging
 # local imports
 # -------------
 
-from .utils import open_database
+from .utils import open_database, formatted_mac
 from .dbutils import by_place, by_name, log_places, log_names
 
 
@@ -51,7 +51,7 @@ def _photometers_from_tessdb(connection):
 def tessdb_remap_info(row):
     new_row = dict()
     new_row['name'] = row[0]
-    new_row['mac'] = row[1].upper()
+    new_row['mac'] = formatted_mac(row[1])
     try:
         new_row['longitude'] = float(row[4])
     except ValueError:
@@ -77,6 +77,17 @@ def tessdb_remap_info(row):
 
 def photometers_from_tessdb(connection):
     return list(map(tessdb_remap_info, _photometers_from_tessdb(connection)))
+
+def places_from_tessdb(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT longitude, latitude, site, location, province, state, country, timezone
+        FROM location_t 
+        ''')
+    result = [dict(zip(['longitude','latitude','place','town','sub_region','region','country','timezone'],row)) for row in cursor]
+    return result
+
 
 # ===================
 # Module entry points
