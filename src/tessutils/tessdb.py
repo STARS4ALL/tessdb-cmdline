@@ -82,7 +82,7 @@ def places_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT longitude, latitude, site, location, province, state, country, timezone, NULL
+        SELECT longitude, latitude, site, location, province, state, country, timezone, location_id
         FROM location_t 
         ''')
     result = [dict(zip(['longitude','latitude','place','town','sub_region','region','country','timezone','name'],row)) for row in cursor]
