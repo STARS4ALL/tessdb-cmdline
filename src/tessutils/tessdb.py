@@ -88,6 +88,47 @@ def places_from_tessdb(connection):
     result = [dict(zip(['longitude','latitude','place','town','sub_region','region','country','timezone','name'],row)) for row in cursor]
     return result
 
+def referenced_photometers(connection, location_id):
+     row = {'location_id': location_id}
+     cursor = connection.cursor()
+     cursor.execute(
+        '''
+        SELECT COUNT(*) FROM tess_t WHERE location_id = :location_id
+        ''', row)
+     count = cursor.fetchone()[0]
+     return count
+
+def referenced_readings(connection, location_id):
+     row = {'location_id': location_id}
+     cursor = connection.cursor()
+     cursor.execute(
+        '''
+        SELECT COUNT(*) FROM tess_readings_t WHERE location_id = :location_id
+        ''', row)
+     count = cursor.fetchone()[0]
+     return count
+
+def log_duplicated_coords(connection, coords_iterable):
+     for coords, rows in coords_iterable.items():
+        if None in coords:
+            log.error("entry %s with no coordinates: %s", rows[0]['name'], coords)
+        if len(rows) > 1 and all(row['place'] == rows[0]['place'] for row in rows):
+            log.error("Coordinates %s has different place names: %s for %s", coords, [row['place'] for row in rows], [row['name'] for row in rows])
+
+
+def log_detailed_impact(connection, coords_iterable):
+    for coords, rows in coords_iterable.items():
+        if None in coords:
+            continue
+        if len(rows) == 1:
+            continue
+        for row in rows:
+            count = referenced_photometers(connection, row['name'])
+            log.info("[%d] (%s) %d references in tess_t", row['name'], row['place'], count)
+            count = referenced_readings(connection, row['name'])
+            log.info("[%d] (%s) %d references in tess_readings_t", row['name'], row['place'], count)
+
+
 
 # ===================
 # Module entry points
@@ -106,11 +147,14 @@ def check(options):
         log.info("Check for same coordinates, different places")
         tessdb_coords  = by_coordinates(places_from_tessdb(connection))
         log_coordinates(tessdb_coords)
+    elif options.dupl:
+        log.info("Check for same coordinates, duplicated places")
+        tessdb_coords  = by_coordinates(places_from_tessdb(connection))
+        log_duplicated_coords(connection, tessdb_coords)
     elif options.nearby:
         log.info("Check for nearby places in radius %0.0f meters", options.nearby)
         tessdb_coords  = by_coordinates(places_from_tessdb(connection))
         log_coordinates_nearby(tessdb_coords, options.nearby)
-   
     else:
         log.error("No valid input option to subcommand 'check'")
 

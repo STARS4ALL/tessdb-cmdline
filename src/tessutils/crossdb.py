@@ -26,7 +26,7 @@ import collections
 # -------------
 
 from .utils import open_database
-from .dbutils import by_place, by_name, log_places, log_names, distance, get_mongo_api_url
+from .dbutils import by_place, by_name, by_coordinates, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
 from .mongodb import mongo_get_location_info
 from .tessdb import photometers_from_tessdb, places_from_tessdb
 
@@ -71,7 +71,8 @@ def tessdb_exclusive_locations(mongo_iterable, tessdb_iterable):
 
 def make_nearby_filter(tuple2, lower, upper):
     def distance_filter(tuple1):
-        return (lower <= distance(tuple1, tuple2) <= upper)
+        dist = distance(tuple1, tuple2)
+        return (lower <= dist <= upper) if dist is not None else False
     return distance_filter
 
 
@@ -142,10 +143,10 @@ def coordinates(options):
     database = get_tessdb_connection_string()
     log.info("connecting to SQLite database %s", database)
     connection = open_database(database)
+    log.info("reading items from MongoDB")
     mongo_input_map = by_coordinates(mongo_get_location_info(url))
-    log.info("read %d items from MongoDB", len(mongo_input_list))
+    log.info("reading items from TessDB")
     tessdb_input_map = by_coordinates(places_from_tessdb(connection))
-    log.info("read %d items from TessDB", len(tessdb_input_list))
     output = list()
     for mongo_coords, mongo_item in mongo_input_map.items():
         nearby_filter = make_nearby_filter(mongo_coords, options.lower, options.upper)
@@ -163,5 +164,30 @@ def coordinates(options):
                 [ (r['place'], r['longitude'], r['latitude']) for r in nearby_list]
             )
     similar_locations_csv(output, options.output_prefix + '.csv')
+
+
+def coordinates(options):
+    log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")
+    url = get_mongo_api_url()
+    database = get_tessdb_connection_string()
+    log.info("connecting to SQLite database %s", database)
+    connection = open_database(database)
+    log.info("reading items from MongoDB")
+    mongo_input_map = by_coordinates(mongo_get_location_info(url))
+    log.info("reading items from TessDB")
+    tessdb_input_map = by_coordinates(places_from_tessdb(connection))
+    output = list()
+    for i, (mongo_coords, mongo_items) in enumerate(mongo_input_map.items()):
+        nearby_filter = make_nearby_filter(mongo_coords, options.lower, options.upper)
+        nearby_list = list(filter(nearby_filter, tessdb_input_map))
+        nearby_map = dict(zip(nearby_list, [tessdb_input_map[k] for k in nearby_list]))
+        for j, (tessdb_coords, tessdb_items) in enumerate(nearby_map.items()):
+            log.info("===================")
+            log.info("len(MONGO ITEM[%d]) = %d, len(TESSDB ITEM[%d] = %d)",i,len(mongo_items),j,len(tessdb_items))
+            for mongo_row in mongo_items:
+                for tessdb_row in tessdb_items:
+                    log.info("DIST: %d, MONGO ITEM: %s TESSDB ITEM: %s", distance(mongo_coords, tessdb_coords), mongo_row, tessdb_row)
+
+
 
        

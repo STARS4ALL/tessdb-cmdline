@@ -214,6 +214,7 @@ def by_coordinates(iterable):
     for row in iterable:
         coords[(row['longitude'],row['latitude'])].append(row)
     log.info("From %d entries, we have extracted %d different coordinates",len(iterable), len(coords.keys()))
+
     return coords
 
 
@@ -254,7 +255,11 @@ def distance(coords_A, coords_B):
     longitude_B = coords_B[0]
     latitude_A = coords_A[1]
     latitude_B = coords_B[1]
-    delta_long = math.radians(longitude_A - longitude_B)
-    delta_lat = math.radians(latitude_A - latitude_B)
-    mean_lat = math.radians((latitude_A + latitude_B)/2)
-    return round(EARTH_RADIUS*math.sqrt(delta_lat**2 + (math.cos(mean_lat)*delta_long)**2),0)
+    try:
+        delta_long = math.radians(longitude_A - longitude_B)
+        delta_lat = math.radians(latitude_A - latitude_B)
+        mean_lat = math.radians((latitude_A + latitude_B)/2)
+        result = round(EARTH_RADIUS*math.sqrt(delta_lat**2 + (math.cos(mean_lat)*delta_long)**2),0)
+    except TypeError:
+        result = None
+    return result

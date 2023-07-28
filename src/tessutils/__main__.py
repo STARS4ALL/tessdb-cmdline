@@ -209,6 +209,7 @@ def createParser():
     tdex1 = tdcheck.add_mutually_exclusive_group(required=True)
     tdex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
     tdex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
+    tdex1.add_argument('-d', '--dupl', action='store_true', help='Check same coordinates, duplicated places')
     tdex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
 
 
@@ -225,7 +226,6 @@ def createParser():
     grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
 
     xdbphot = subparser.add_parser('photometers',  help="Cross DB photometers metadata check")
-    xdbphot.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
     xdbphot.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
     xdbphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
     grp = xdbphot.add_mutually_exclusive_group(required=True)
@@ -234,7 +234,6 @@ def createParser():
     grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
 
     xdbcoord = subparser.add_parser('coordinates',  help="Cross DB photometers metadata check")
-    xdbcoord.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
     xdbcoord.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
     xdbcoord.add_argument('--lower', type=float, default=0.0, help='Lower limit in meters')
     xdbcoord.add_argument('--upper', type=float, default=1000.0, help='Upper limit in meters')

@@ -1,7 +1,31 @@
-1) DUPLICATES
 
-stars352, stars405, stars478, stars640, stars721, stars746, stars749
+ME HE QUEDADO HACIENDO UN CROSS CHECK DE PLACES ENTRE MONGO Y TESSDB
+EL QUE HAYA DUPLICADOS DE TESSDB COMPLICA BASTANTE LA COSA
+ME SALEN DUPLICADOS DE TESSDB EN CROSSDB QUE NO ME SALEN CUANDO HAGO LA COMPROBACION DE TESSDB SOLO
 
+=============================
+2023-07-28 14:23:37,070 [ERROR] Coordinates (None, None) has different place names: ['LICA', 'Out of Service', 'Unknown'] for [-3, -2, -1]
+2023-07-28 14:23:37,071 [ERROR] Coordinates (149.1567, -31.2737) has different place names: ['Windana', 'Castlereagh river', 'Timor Road'] for [97, 158, 159]
+
+NOS QUEDAMOS CON EL 97
+EL 158 NO TIENE REFERENCIAS ASI QUE SE PUEDE BORRAR
+
+
+2023-07-28 14:23:37,071 [ERROR] Coordinates (9.160547, 50.137403) has different place names: ['Horbach', 'Hans-Nüchter-Sternwarte', 'Hans-Nüchter-Sternwarte'] for [137, 237, 331]
+
+NOS QUEDAMOS CON EL 137
+237 tiene 1 refernecia en tess_t
+LOS DEMAS NO TIENEN REFERENCIAS ASI QUE SE PUEDEN BORRAR
+
+2023-07-28 14:23:37,071 [ERROR] Coordinates (-70.955818, -29.9843) has different place names: ['Vicuña', 'D-273', 'D-273'] for [186, 227, 321]
+
+NOS QUEDAMOS CON EL 186
+LOS DEMAS NO TIENEN REFERENCIAS ASI QUE SE PUEDEN BORRAR
+
+2023-07-28 14:23:37,071 [ERROR] Coordinates (-71.20479, -29.9255) has different place names: ['La Serena', 'Los girasoles 5427', 'Los girasoles 5427'] for [187, 246, 340]
+
+NOS QUEDAMOS CON EL 187
+LOS DEMAS NO TIENEN REFERENCIAS ASI QUE SE PUEDEN BORRAR
 
 2) Hacer un cross-check de nombres y MACs entre MongoDB y tessdb
 
