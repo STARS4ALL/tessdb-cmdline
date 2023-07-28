@@ -1,31 +1,20 @@
 
 ME HE QUEDADO HACIENDO UN CROSS CHECK DE PLACES ENTRE MONGO Y TESSDB
-EL QUE HAYA DUPLICADOS DE TESSDB COMPLICA BASTANTE LA COSA
-ME SALEN DUPLICADOS DE TESSDB EN CROSSDB QUE NO ME SALEN CUANDO HAGO LA COMPROBACION DE TESSDB SOLO
+ME SALEN ALGUN DUPLICADOS DE TESSDB EN CROSSDB QUE NO ME SALEN CUANDO HAGO LA COMPROBACION DE TESSDB SOLO
+PARA RESOLVER EL PROBLEMA DE LOS DUPLICADOS EN TESSDB HAY QUE CREAR UN INDICE PORQUE SI  NO VA MUY LENTA LA COSA
+LUEGO HABRA QUE BORRAR EL INDICE Y COMPACTAR LA BD CON sqlite3 /path/to/db/mydb.sqlite3 "VACUUM;"
 
-=============================
-2023-07-28 14:23:37,070 [ERROR] Coordinates (None, None) has different place names: ['LICA', 'Out of Service', 'Unknown'] for [-3, -2, -1]
-2023-07-28 14:23:37,071 [ERROR] Coordinates (149.1567, -31.2737) has different place names: ['Windana', 'Castlereagh river', 'Timor Road'] for [97, 158, 159]
+CREATE INDEX idx_location_id ON tess_readings_t(location_id);
 
-NOS QUEDAMOS CON EL 97
-EL 158 NO TIENE REFERENCIAS ASI QUE SE PUEDE BORRAR
+UPDATE tess_readings_t SET location_id = 97 WHERE location_id = 159;
+UPDATE tess_t SET location_id = 97 WHERE location_id = 159;
+DELETE from location_t WHERE location_id = 159;
+
+UPDATE tess_t SET location_id = 137 WHERE location_id = 237;
+DELETE from location_t WHERE location_id = 237;
 
 
-2023-07-28 14:23:37,071 [ERROR] Coordinates (9.160547, 50.137403) has different place names: ['Horbach', 'Hans-Nüchter-Sternwarte', 'Hans-Nüchter-Sternwarte'] for [137, 237, 331]
-
-NOS QUEDAMOS CON EL 137
-237 tiene 1 refernecia en tess_t
-LOS DEMAS NO TIENEN REFERENCIAS ASI QUE SE PUEDEN BORRAR
-
-2023-07-28 14:23:37,071 [ERROR] Coordinates (-70.955818, -29.9843) has different place names: ['Vicuña', 'D-273', 'D-273'] for [186, 227, 321]
-
-NOS QUEDAMOS CON EL 186
-LOS DEMAS NO TIENEN REFERENCIAS ASI QUE SE PUEDEN BORRAR
-
-2023-07-28 14:23:37,071 [ERROR] Coordinates (-71.20479, -29.9255) has different place names: ['La Serena', 'Los girasoles 5427', 'Los girasoles 5427'] for [187, 246, 340]
-
-NOS QUEDAMOS CON EL 187
-LOS DEMAS NO TIENEN REFERENCIAS ASI QUE SE PUEDEN BORRAR
+=============================================
 
 2) Hacer un cross-check de nombres y MACs entre MongoDB y tessdb
 

@@ -113,7 +113,7 @@ def log_duplicated_coords(connection, coords_iterable):
         if None in coords:
             log.error("entry %s with no coordinates: %s", rows[0]['name'], coords)
         if len(rows) > 1 and all(row['place'] == rows[0]['place'] for row in rows):
-            log.error("Coordinates %s has different place names: %s for %s", coords, [row['place'] for row in rows], [row['name'] for row in rows])
+            log.error("Coordinates %s has duplicated place names: %s for %s", coords, [row['place'] for row in rows], [row['name'] for row in rows])
 
 
 def log_detailed_impact(connection, coords_iterable):
@@ -124,11 +124,18 @@ def log_detailed_impact(connection, coords_iterable):
             continue
         for row in rows:
             count1 = referenced_photometers(connection, row['name'])
-            log.info("[%d] (%s) %d references in tess_t", row['name'], row['place'], count1)
             count2 = referenced_readings(connection, row['name'])
-            log.info("[%d] (%s) %d references in tess_readings_t", row['name'], row['place'], count2)
             if count1 == 0 and count2 == 0:
-                log.info("DELETE FROM location_t WHERE location_id = %d", row['name'])
+                print("DELETE FROM location_t WHERE location_id = %d;" % row['name']);
+            elif count1 != 0 and count2 != 0:
+                log.info("[%d] (%s) Ojito con esta location que tiene %d referencias en tess_t y %d en tess_readings_t",
+                    row['name'], row['place'], count1, count2)
+            elif count1 != 0 :
+                log.info("[%d] (%s) Ojito con esta location que tiene %d referencias en tess_t",
+                    row['name'], row['place'], count1)
+            elif count2 != 0 :
+                log.info("[%d] (%s) Ojito con esta location que tiene %d referencias en tess_readings_t",
+                    row['name'], row['place'], count2)
 
 
 
@@ -153,7 +160,7 @@ def check(options):
         log.info("Check for same coordinates, duplicated places")
         tessdb_coords  = by_coordinates(places_from_tessdb(connection))
         log_duplicated_coords(connection, tessdb_coords)
-        log_detailed_impact(connection, tessdb_coords)
+        #log_detailed_impact(connection, tessdb_coords)
     elif options.nearby:
         log.info("Check for nearby places in radius %0.0f meters", options.nearby)
         tessdb_coords  = by_coordinates(places_from_tessdb(connection))

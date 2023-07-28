@@ -166,6 +166,18 @@ def coordinates(options):
     similar_locations_csv(output, options.output_prefix + '.csv')
 
 
+X_HEADER = ('mongo_coords', 'tessdb_coords', 'distance', 'mongo_name','tessdb_name', 
+    'mongo_place','tessdb_place', 'mongo_town','tessdb_town', 'mongo_sub_region', 'tessdb_sub_region',
+    'mongo_region', 'tessdb_region', 'mongo_country', 'tessdb_country', 'mongo_timezone', 'tessdb_timezone')
+
+def write_csv(sequence, header, path, delimiter=';'):
+    with open(path, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=header, delimiter=delimiter)
+        writer.writeheader()
+        for row in sequence:
+            writer.writerow(row)
+    log.info("generated CSV file: %s", path)
+
 def coordinates(options):
     log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")
     url = get_mongo_api_url()
@@ -187,6 +199,29 @@ def coordinates(options):
             for mongo_row in mongo_items:
                 for tessdb_row in tessdb_items:
                     log.info("DIST: %d, MONGO ITEM: %s TESSDB ITEM: %s", distance(mongo_coords, tessdb_coords), mongo_row, tessdb_row)
+                    output.append(
+                        {
+                        'mongo_coords': str(mongo_coords),
+                        'tessdb_coords': str(tessdb_coords),
+                        'distance':  distance(mongo_coords, tessdb_coords),
+                        'mongo_name':  mongo_row['name'],
+                        'tessdb_name': tessdb_row['name'],
+                        'mongo_place':  mongo_row['place'],
+                        'tessdb_place': tessdb_row['place'],
+                        'mongo_town': mongo_row['town'],
+                        'tessdb_town': tessdb_row['town'],
+                        'mongo_sub_region': mongo_row['sub_region'],
+                        'tessdb_sub_region': tessdb_row['sub_region'],
+                        'mongo_region': mongo_row['region'],
+                        'tessdb_region': tessdb_row['region'],
+                        'mongo_country': mongo_row['country'],
+                        'tessdb_country': tessdb_row['country'],
+                        'mongo_timezone': mongo_row['timezone'],
+                        'tessdb_timezone': tessdb_row['timezone']
+                        }
+                    )
+
+    write_csv(output, X_HEADER, options.file)       
 
 
 

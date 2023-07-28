@@ -234,7 +234,7 @@ def createParser():
     grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
 
     xdbcoord = subparser.add_parser('coordinates',  help="Cross DB photometers metadata check")
-    xdbcoord.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    xdbcoord.add_argument('-f', '--file', type=str, required=True, help='CSV file to generate differences')
     xdbcoord.add_argument('--lower', type=float, default=0.0, help='Lower limit in meters')
     xdbcoord.add_argument('--upper', type=float, default=1000.0, help='Upper limit in meters')
 
