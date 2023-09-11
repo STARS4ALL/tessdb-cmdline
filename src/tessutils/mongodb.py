@@ -25,7 +25,7 @@ import requests
 # -------------
 
 from .dbutils import by_place, by_name, by_mac, by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
-from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
+from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate, common_A_B_items, in_A_not_in_B
 
 
 class ListLengthMismatchError(Exception):
@@ -582,6 +582,43 @@ def do_create_all(url, path, delimiter, names, simulated):
         body = mongo_api_body_all(row)
         mongo_api_create(url, body, simulated)
 
+
+# ----------------------------------
+
+
+def log_diff(diff_iterable):
+    for item in diff_iterable:
+        log.info("%s", item)
+
+def log_diff_from(mongo_iterable, mongo_iterable, file, input_file, delimiter): 
+    csv_iterable = read_csv(input_file, delimiter)
+    csv_iterable = by_name(csv_iterable)
+    mongo_iterable = by_name(mongo_iterable)
+   
+    in_csv_file_not_in_mongo = in_A_not_in_B(csv_iterable, mongo_iterable)
+    log.info("#"*80)
+    log.info("In CSV file, not in MongoDB => %d entries",len(in_csv_file_not_in_mongo ))
+    log_diff(in_csv_file_not_in_mongo)
+    log.info("#"*80)
+
+    in_mongo_not_in_csv_file = in_A_not_in_B(mongo_iterable, csv_iterable)
+    log.info("In MongoDB, not in CSV file, => %d entries ", len(in_mongo_not_in_csv_file))
+    log_diff(in_mongo_not_in_csv_file)
+    log.info("#"*80)
+
+    
+    in_both_keys = common_A_B_items(mongo_iterable_keys, csv_by_name_keys)
+    log.info("Common in MongoDB and in CSV file, => %d entries", len(in_both_iterables) )
+    common_merged = list()
+    for key in sorted(in_both_keys):
+        common_merged.append(mongo_iterable[key])
+        common_merged.append(mongo_iterable[key])
+
+
+
+
+# ----------------------------------
+
 # ===================
 # Module entry points
 # ===================
@@ -690,5 +727,8 @@ def check(options):
         log.info("Check for nearby places in radius %0.0f meters", options.nearby)
         mongo_coords  = by_coordinates(mongo_input_list)
         log_coordinates_nearby(mongo_coords, options.nearby)
+    elif options.diff_file:
+        log.info("Check differences between MongoDB and a backup CSV file",)
+        log_diff_from(mongo_input_list, options.diff_file, options.file, options.delimiter)
     else:
         log.error("No valid input option to subcommand 'check'")

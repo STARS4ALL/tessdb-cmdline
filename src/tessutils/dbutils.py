@@ -43,6 +43,14 @@ log = logging.getLogger('dbutils')
 # Module auxiliar functions
 # -------------------------
 
+
+def common_A_B_items(iterable_A, iterable_B):
+    return set(iterable_A.keys()).intersection(set(iterable_B.keys()))
+
+def in_A_not_in_B(iterable_A, iterable_B):
+    return set(iterable_A.keys()) - set(iterable_B.keys())
+
+
 def get_mongo_api_url():
     url = os.environ.get("STARS4ALL_API")
     if not url:

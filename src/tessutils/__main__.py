@@ -140,6 +140,7 @@ def createParser():
     mgex1.add_argument('-m', '--nominatim', action='store_true', help='List MongoDB location + Nominatim metadata')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB location metadata')
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB location metadata')
+  
 
     mgphot = subparser.add_parser('photometer',  help="MongoDB photometer metadata operations")
     mgphot.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
@@ -183,12 +184,16 @@ def createParser():
     mgex1.add_argument('-x', '--sim-create', action='store_true', help='(simulated) Create MongoDB photometer metadata')
     
     mgphck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
+    mgphck.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
+    mgphck.add_argument('-f', '--file', type=str, required=True, help='Output (for diff-file) CSV file')
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-n', '--names', action='store_true', help='Check for duplicate photometer names')
     mgex1.add_argument('-m', '--macs', action='store_true', help='Check for duplicate MACs')
     mgex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
     mgex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
     mgex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
+    mgex1.add_argument('-d', '--diff-file', type=validfile, help='Diff between current mongo locations and a file')
+  
 
 
     # -----------------------------------------
