@@ -318,7 +318,7 @@ def mongo_flatten_location(row):
         new_row["town"] = row["info_location"].get("town")
         new_row["region"] = row["info_location"].get("region")
         new_row["sub_region"] = row["info_location"].get("sub_region")
-        new_row["country"] = row["info_location"]["country"]
+        new_row["country"] = row["info_location"].get("country")
     else:
         new_row["longitude"] = None
         new_row["latitude"] = None
