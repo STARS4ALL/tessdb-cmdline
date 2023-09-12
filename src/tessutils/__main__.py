@@ -185,7 +185,7 @@ def createParser():
     
     mgphck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
     mgphck.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
-    mgphck.add_argument('-f', '--file', type=str, required=True, help='Output (for diff-file) CSV file')
+    mgphck.add_argument('-f', '--file', type=str, required=True, help='Output file preffix for A/B CSV file comparison')
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-n', '--names', action='store_true', help='Check for duplicate photometer names')
     mgex1.add_argument('-m', '--macs', action='store_true', help='Check for duplicate MACs')

@@ -586,11 +586,19 @@ def do_create_all(url, path, delimiter, names, simulated):
 # ----------------------------------
 
 
+
+def write_chapuza(iterable, header, path):
+    with open(path, 'w', newline='') as f:
+        f.write( f"{repr(header)}\n")
+        lines = [ f"{repr(item)}\n" for item in iterable]
+        f.writelines(lines);
+    log.info("generated CSV file: %s", path)
+
 def log_diff(diff_iterable):
     for item in diff_iterable:
         log.info("%s", item)
 
-def log_diff_from(mongo_iterable, mongo_iterable, file, input_file, delimiter): 
+def log_diff_from(mongo_iterable, input_file, delimiter, output_file_prefix): 
     csv_iterable = read_csv(input_file, delimiter)
     csv_iterable = by_name(csv_iterable)
     mongo_iterable = by_name(mongo_iterable)
@@ -607,12 +615,15 @@ def log_diff_from(mongo_iterable, mongo_iterable, file, input_file, delimiter):
     log.info("#"*80)
 
     
-    in_both_keys = common_A_B_items(mongo_iterable_keys, csv_by_name_keys)
-    log.info("Common in MongoDB and in CSV file, => %d entries", len(in_both_iterables) )
-    common_merged = list()
-    for key in sorted(in_both_keys):
-        common_merged.append(mongo_iterable[key])
-        common_merged.append(mongo_iterable[key])
+    in_both_keys = common_A_B_items(mongo_iterable, csv_iterable)
+    log.info("Common in MongoDB and in CSV file, => %d entries", len(in_both_keys) )
+    version_mongo_csv = [ mongo_iterable[k] for k in sorted(in_both_keys)]
+    version_inp_file_csv = [ csv_iterable[k] for k in sorted(in_both_keys)]
+    path_mongo = os.path.join(os.path.dirname(input_file), "mongo_A.csv")
+    path_inpfile = os.path.join(os.path.dirname(input_file), "file_B.csv")
+    write_chapuza(version_mongo_csv, ALL_HEADER, path_mongo)
+    write_chapuza(version_inp_file_csv, ALL_HEADER, path_inpfile)
+    
 
 
 
@@ -729,6 +740,6 @@ def check(options):
         log_coordinates_nearby(mongo_coords, options.nearby)
     elif options.diff_file:
         log.info("Check differences between MongoDB and a backup CSV file",)
-        log_diff_from(mongo_input_list, options.diff_file, options.file, options.delimiter)
+        log_diff_from(mongo_input_list, options.diff_file, options.delimiter, options.file)
     else:
         log.error("No valid input option to subcommand 'check'")
