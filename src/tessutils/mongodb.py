@@ -25,7 +25,7 @@ import requests
 # -------------
 
 from .dbutils import by_place, by_name, by_mac, by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
-from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate, common_A_B_items, in_A_not_in_B
+from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate, common_A_B_items, in_A_not_in_B, filter_and_flatten
 
 
 class ListLengthMismatchError(Exception):
@@ -268,10 +268,14 @@ def mongo_api_body_all(row):
 
 
 def mongo_api_body_photometer(row, aux_iterable, create=False):
+    log.info("ROW: %s", row)
     local_timezone = get_timezone(aux_iterable, row['name']).strip() if not create else 'Etc/UTC'  # This is a hack, shouldn't be here
-    zero_point = float(row['zero_point']) if row['zero_point'] != '' else None
-    filters = row['filters'].strip() if row['filters'] != '' else None
-    period = int(row['period']) if row['period'] != '' else None
+    zero_point = row.get('zero_point')
+    zero_point = float(zero_point) if zero_point is not None and zero_point != '' else None
+    filters = row.get('filters')
+    filters = filters.strip() if filters is not None and filters != '' else None
+    period = row.get('period')
+    period = int(period) if period is not None and period != '' else None
     body = {
         "tess": {
             "name": row['name'].strip(),
@@ -452,6 +456,7 @@ def filter_by_name(iterable, name):
 
 def get_item(iterable, key, item):
     result = filter_by_name(iterable, key)
+    assert len(result) > 0, f"get_item(key={key}, item={item})"
     if len(result) > 1:
         raise DuplicatesError("getting by key '%s' returned %d items" % (key, len(result)) )
     return result[0][item]
@@ -518,8 +523,8 @@ def do_update_photometer(url, path, delimiter, names, simulated):
 
 
 def do_create_photometer(url, path, delimiter, names, simulated):
-    mongo_output_list = read_csv(options.file, delimiter)
-    log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+    mongo_output_list = read_csv(path, delimiter)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
         log.info("filtered up to %d items", len(mongo_output_list))
@@ -583,52 +588,34 @@ def do_create_all(url, path, delimiter, names, simulated):
         mongo_api_create(url, body, simulated)
 
 
-# ----------------------------------
-
-
-
-def write_chapuza(iterable, header, path):
-    with open(path, 'w', newline='') as f:
-        f.write( f"{repr(header)}\n")
-        lines = [ f"{repr(item)}\n" for item in iterable]
-        f.writelines(lines);
-    log.info("generated CSV file: %s", path)
-
-def log_diff(diff_iterable):
-    for item in diff_iterable:
-        log.info("%s", item)
-
-def log_diff_from(mongo_iterable, input_file, delimiter, output_file_prefix): 
-    csv_iterable = read_csv(input_file, delimiter)
-    csv_iterable = by_name(csv_iterable)
-    mongo_iterable = by_name(mongo_iterable)
+def do_diff_all(url, input_file, delimiter, output_file_prefix): 
+    mongo_iterable = by_name(mongo_get_all_info(url))
+    csv_iterable = by_name(read_csv(input_file, delimiter))
    
-    in_csv_file_not_in_mongo = in_A_not_in_B(csv_iterable, mongo_iterable)
-    log.info("#"*80)
-    log.info("In CSV file, not in MongoDB => %d entries",len(in_csv_file_not_in_mongo ))
-    log_diff(in_csv_file_not_in_mongo)
-    log.info("#"*80)
+    keys_in_csv_file_not_in_mongo = in_A_not_in_B(csv_iterable, mongo_iterable)
 
-    in_mongo_not_in_csv_file = in_A_not_in_B(mongo_iterable, csv_iterable)
-    log.info("In MongoDB, not in CSV file, => %d entries ", len(in_mongo_not_in_csv_file))
-    log_diff(in_mongo_not_in_csv_file)
-    log.info("#"*80)
+    log.info("In CSV file, not in MongoDB => %d entries",len(keys_in_csv_file_not_in_mongo ))
+    csv_not_in_mongo = filter_and_flatten(csv_iterable, keys_in_csv_file_not_in_mongo)
+    path_1 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_in_file_not_in_mongo.csv")
+    write_csv(csv_not_in_mongo, ALL_HEADER, path_1)
 
-    
+    keys_in_mongo_not_in_csv_file = in_A_not_in_B(mongo_iterable, csv_iterable) 
+    log.info("In MongoDB file, not in CSV => %d entries",len(keys_in_mongo_not_in_csv_file ))
+    mongo_not_in_csv = filter_and_flatten(mongo_iterable, keys_in_mongo_not_in_csv_file)
+    path_2 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_in_mongo_not_in_file.csv")
+    write_csv(csv_not_in_mongo, ALL_HEADER, path_2)
+
     in_both_keys = common_A_B_items(mongo_iterable, csv_iterable)
     log.info("Common in MongoDB and in CSV file, => %d entries", len(in_both_keys) )
-    version_mongo_csv = [ mongo_iterable[k] for k in sorted(in_both_keys)]
-    version_inp_file_csv = [ csv_iterable[k] for k in sorted(in_both_keys)]
-    path_mongo = os.path.join(os.path.dirname(input_file), "mongo_A.csv")
-    path_inpfile = os.path.join(os.path.dirname(input_file), "file_B.csv")
-    write_chapuza(version_mongo_csv, ALL_HEADER, path_mongo)
-    write_chapuza(version_inp_file_csv, ALL_HEADER, path_inpfile)
-    
+    common_entries_mongo = filter_and_flatten(mongo_iterable, in_both_keys)
+    common_entries_file = filter_and_flatten(csv_iterable, in_both_keys)
 
+    path_3 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_common_file.csv")
+    write_csv(common_entries_file, ALL_HEADER, path_3)
 
+    path_4 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_common_mongo.csv")
+    write_csv(common_entries_mongo, ALL_HEADER, path_4)
 
-
-# ----------------------------------
 
 # ===================
 # Module entry points
@@ -709,6 +696,9 @@ def all(options):
         do_create_all(url, options.file, options.delimiter, options.names, simulated=False)
     elif options.sim_create:
         do_create_all(url, options.file, options.delimiter, options.names, simulated=True)
+    elif options.diff_file:
+        log.info("Check differences between MongoDB and a backup CSV file",)
+        do_diff_all(url, options.diff_file, options.delimiter, options.file)
     else:
         log.error("No valid input option to subcommand 'all'")
 
@@ -738,8 +728,5 @@ def check(options):
         log.info("Check for nearby places in radius %0.0f meters", options.nearby)
         mongo_coords  = by_coordinates(mongo_input_list)
         log_coordinates_nearby(mongo_coords, options.nearby)
-    elif options.diff_file:
-        log.info("Check differences between MongoDB and a backup CSV file",)
-        log_diff_from(mongo_input_list, options.diff_file, options.delimiter, options.file)
     else:
         log.error("No valid input option to subcommand 'check'")

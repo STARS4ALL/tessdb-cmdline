@@ -246,6 +246,16 @@ def log_coordinates_nearby(coords_iterable, limit):
 
 
 
+def filter_and_flatten(iterable, keys=None):
+    '''Filter and flaten list created by by_xxx() filters
+    Useful to dump in CSV multy-entry iterables, one entry per row
+    '''
+    if keys is None:
+        result = [item for k, v in iterable.items() for item in v]
+    else:
+        result = [item for k, v in iterable.items() for item in v if k in keys]
+    return result
+
 def distance(coords_A, coords_B):
     '''
     Compute approximate geographical distance (arc) [meters] between two points on Earth

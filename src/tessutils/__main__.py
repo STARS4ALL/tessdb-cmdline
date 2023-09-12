@@ -178,6 +178,7 @@ def createParser():
     mgall.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
     mgex1 = mgall.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List all MongoDB metadata')
+    mgex1.add_argument('-d', '--diff-file', type=validfile, help='Diff between Mongo and a backup input CSV file. Generates 4 files.')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update all MongoDB metadata')
     mgex1.add_argument('-c', '--create', action='store_true', help='Create MongoDB photometer metadata')
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB all metadata')
@@ -192,7 +193,7 @@ def createParser():
     mgex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
     mgex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
     mgex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
-    mgex1.add_argument('-d', '--diff-file', type=validfile, help='Diff between current mongo locations and a file')
+ 
   
 
 
