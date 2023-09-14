@@ -61,10 +61,11 @@ class DuplicatesError(Exception):
 
 # CSV File generation rows
 LOCATION_HEADER = ('name', 'longitude', 'latitude', 'place', 'town', 'sub_region', 'region','country','timezone')
-PHOTOMETER_HEADER = ('name', 'mac', 'zero_point', 'filters','period')
+PHOTOMETER_HEADER = ('name', 'old_mac', 'mac', 'old_zero_point', 'zero_point', 'old_filters', 'filters','period','comment')
+PHOTOMETER_HEADER2 = ('name', 'mac', 'zero_point', 'filters', 'period')
 ORGANIZATION_HEADER = ('name', 'org_name', 'org_description', 'org_phone', 'org_email', 'org_web_url', 'org_logo_url',)
 CONTACT_HEADER = ('name', 'contact_name', 'contact_mail', 'contact_phone')
-ALL_HEADER = ('name', 'mac') + PHOTOMETER_HEADER[2:] + LOCATION_HEADER[1:] + ORGANIZATION_HEADER[1:] + CONTACT_HEADER[1:]
+ALL_HEADER = ('name', 'mac') + PHOTOMETER_HEADER2 + LOCATION_HEADER[1:] + ORGANIZATION_HEADER[1:] + CONTACT_HEADER[1:]
 
 NOMINATIM_HEADER = ('name', 'longitude', 'latitude', 'place', 'nominatim_place', 'nominatim_place_type', 'town', 'nominatim_town', 'nominatim_town_type',
             'sub_region', 'nominatim_sub_region', 'nominatim_sub_region_type', 'region', 'nominatim_region', 'nominatim_region_type', 
@@ -398,12 +399,18 @@ def mongo_flatten_all(row):
     new_row = {**new_row, **dict4}
     return new_row
 
+def add_old_columns(row):
+    row['old_mac'] = row['mac']
+    row['old_zero_point'] = row['zero_point']
+    row['old_filters'] = row['filters']
+    row['comment'] = ''
+    return row
 
 def mongo_get_location_info(url):
     return list(map(mongo_flatten_location, mongo_get_all(url)))
 
 def mongo_get_photometer_info(url):
-    return list(map(mongo_flatten_photometer, mongo_get_all(url)))
+    return list(map(add_old_columns, map(mongo_flatten_photometer, mongo_get_all(url))) )
 
 def mongo_get_organization_info(url):
     return list(map(mongo_flatten_organization, mongo_get_all(url)))
