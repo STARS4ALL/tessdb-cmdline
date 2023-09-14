@@ -65,7 +65,7 @@ PHOTOMETER_HEADER = ('name', 'old_mac', 'mac', 'old_zero_point', 'zero_point', '
 PHOTOMETER_HEADER2 = ('name', 'mac', 'zero_point', 'filters', 'period')
 ORGANIZATION_HEADER = ('name', 'org_name', 'org_description', 'org_phone', 'org_email', 'org_web_url', 'org_logo_url',)
 CONTACT_HEADER = ('name', 'contact_name', 'contact_mail', 'contact_phone')
-ALL_HEADER = ('name', 'mac') + PHOTOMETER_HEADER2 + LOCATION_HEADER[1:] + ORGANIZATION_HEADER[1:] + CONTACT_HEADER[1:]
+ALL_HEADER = PHOTOMETER_HEADER2 + LOCATION_HEADER[1:] + ORGANIZATION_HEADER[1:] + CONTACT_HEADER[1:]
 
 NOMINATIM_HEADER = ('name', 'longitude', 'latitude', 'place', 'nominatim_place', 'nominatim_place_type', 'town', 'nominatim_town', 'nominatim_town_type',
             'sub_region', 'nominatim_sub_region', 'nominatim_sub_region_type', 'region', 'nominatim_region', 'nominatim_region_type', 
