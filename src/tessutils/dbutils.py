@@ -43,6 +43,14 @@ log = logging.getLogger('dbutils')
 # Module auxiliar functions
 # -------------------------
 
+
+def common_A_B_items(iterable_A, iterable_B):
+    return set(iterable_A.keys()).intersection(set(iterable_B.keys()))
+
+def in_A_not_in_B(iterable_A, iterable_B):
+    return set(iterable_A.keys()) - set(iterable_B.keys())
+
+
 def get_mongo_api_url():
     url = os.environ.get("STARS4ALL_API")
     if not url:
@@ -244,6 +252,16 @@ def log_coordinates_nearby(coords_iterable, limit):
             log.warn("Place 1 (%s): '%s' %s vs Place 2 (%s): '%s' %s [%d meters]", name_a, place_a, pair[0], name_b, place_b, pair[1], d)
 
 
+
+def filter_and_flatten(iterable, keys=None):
+    '''Filter and flaten list created by by_xxx() filters
+    Useful to dump in CSV multy-entry iterables, one entry per row
+    '''
+    if keys is None:
+        result = [item for k, v in iterable.items() for item in v]
+    else:
+        result = [item for k, v in iterable.items() for item in v if k in keys]
+    return result
 
 def distance(coords_A, coords_B):
     '''

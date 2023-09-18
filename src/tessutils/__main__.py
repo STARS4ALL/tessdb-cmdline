@@ -119,7 +119,8 @@ def createParser():
     # ------------------------------------------
 
     subparser = parser_location.add_subparsers(dest='subcommand')
-    locg = subparser.add_parser('generate',  help="Generate location creation script")
+    
+    locg = subparser.add_parser('generate',  help="Generate tessdb location creation script")
     locg.add_argument('-d', '--dbase', type=validfile, default=DEFAULT_DBASE, help='SQLite database full file path')
     locg.add_argument('-i', '--input-file', type=validfile, required=True, help='Input CSV file')
     locg.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
@@ -129,6 +130,7 @@ def createParser():
     # -----------------------------------------
 
     subparser = parser_mongodb.add_subparsers(dest='subcommand')
+
     mgloc = subparser.add_parser('location',  help="MongoDB location metadata operations")
     mgloc.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
     mgloc.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
@@ -138,6 +140,7 @@ def createParser():
     mgex1.add_argument('-m', '--nominatim', action='store_true', help='List MongoDB location + Nominatim metadata')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB location metadata')
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB location metadata')
+  
 
     mgphot = subparser.add_parser('photometer',  help="MongoDB photometer metadata operations")
     mgphot.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
@@ -175,12 +178,15 @@ def createParser():
     mgall.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
     mgex1 = mgall.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List all MongoDB metadata')
+    mgex1.add_argument('-d', '--diff-file', type=validfile, help='Diff between Mongo and a backup input CSV file. Generates 4 files.')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update all MongoDB metadata')
     mgex1.add_argument('-c', '--create', action='store_true', help='Create MongoDB photometer metadata')
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB all metadata')
     mgex1.add_argument('-x', '--sim-create', action='store_true', help='(simulated) Create MongoDB photometer metadata')
     
     mgphck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
+    mgphck.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
+    mgphck.add_argument('-f', '--file', type=str, required=True, help='Output file preffix for A/B CSV file comparison')
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-n', '--names', action='store_true', help='Check for duplicate photometer names')
     mgex1.add_argument('-m', '--macs', action='store_true', help='Check for duplicate MACs')
@@ -198,7 +204,9 @@ def createParser():
     # -----------------------------------------
 
     subparser = parser_tessdb.add_subparsers(dest='subcommand')
-    tdloc = subparser.add_parser('location',  help="TessDB locations metadata check")
+
+    tdloc = subparser.add_parser('locations',  help="TessDB locations metadata check")
+    tdloc.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
     tdloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
     tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata check")
@@ -218,6 +226,11 @@ def createParser():
     # -----------------------------------------
 
     subparser = parser_crossdb.add_subparsers(dest='subcommand')
+    
+    xdbmac = subparser.add_parser('macs',  help="Cross DB MAC metadata check")
+    xdbmac.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
+    xdbmac.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
     xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
     xdbloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
     grp = xdbloc.add_mutually_exclusive_group(required=True)

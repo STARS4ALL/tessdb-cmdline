@@ -26,7 +26,7 @@ import requests
 
 from .utils import formatted_mac, is_tess_mac, is_mac
 from .dbutils import by_place, by_name, by_mac, by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
-from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate
+from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate, common_A_B_items, in_A_not_in_B, filter_and_flatten
 
 class ListLengthMismatchError(Exception):
     '''List length mismatch error between lists'''
@@ -61,10 +61,11 @@ class DuplicatesError(Exception):
 
 # CSV File generation rows
 LOCATION_HEADER = ('name', 'longitude', 'latitude', 'place', 'town', 'sub_region', 'region','country','timezone')
-PHOTOMETER_HEADER = ('name', 'mac', 'zero_point', 'filters','period')
+PHOTOMETER_HEADER = ('name', 'old_mac', 'mac', 'old_zero_point', 'zero_point', 'old_filters', 'filters','period','comment')
+PHOTOMETER_HEADER2 = ('name', 'mac', 'zero_point', 'filters', 'period')
 ORGANIZATION_HEADER = ('name', 'org_name', 'org_description', 'org_phone', 'org_email', 'org_web_url', 'org_logo_url',)
 CONTACT_HEADER = ('name', 'contact_name', 'contact_mail', 'contact_phone')
-ALL_HEADER = ('name', 'mac') + PHOTOMETER_HEADER[2:] + LOCATION_HEADER[1:] + ORGANIZATION_HEADER[1:] + CONTACT_HEADER[1:]
+ALL_HEADER = PHOTOMETER_HEADER2 + LOCATION_HEADER[1:] + ORGANIZATION_HEADER[1:] + CONTACT_HEADER[1:]
 
 NOMINATIM_HEADER = ('name', 'longitude', 'latitude', 'place', 'nominatim_place', 'nominatim_place_type', 'town', 'nominatim_town', 'nominatim_town_type',
             'sub_region', 'nominatim_sub_region', 'nominatim_sub_region_type', 'region', 'nominatim_region', 'nominatim_region_type', 
@@ -266,10 +267,14 @@ def mongo_api_body_all(row):
 
 
 def mongo_api_body_photometer(row, aux_iterable, create=False):
+    log.info("ROW: %s", row)
     local_timezone = get_timezone(aux_iterable, row['name']).strip() if not create else 'Etc/UTC'  # This is a hack, shouldn't be here
-    zero_point = float(row['zero_point']) if row['zero_point'] != '' else None
-    filters = row['filters'].strip() if row['filters'] != '' else None
-    period = int(row['period']) if row['period'] != '' else None
+    zero_point = row.get('zero_point')
+    zero_point = float(zero_point) if zero_point is not None and zero_point != '' else None
+    filters = row.get('filters')
+    filters = filters.strip() if filters is not None and filters != '' else None
+    period = row.get('period')
+    period = int(period) if period is not None and period != '' else None
     body = {
         "tess": {
             "name": row['name'].strip(),
@@ -316,7 +321,7 @@ def mongo_flatten_location(row):
         new_row["town"] = row["info_location"].get("town")
         new_row["region"] = row["info_location"].get("region")
         new_row["sub_region"] = row["info_location"].get("sub_region")
-        new_row["country"] = row["info_location"]["country"]
+        new_row["country"] = row["info_location"].get("country")
     else:
         new_row["longitude"] = None
         new_row["latitude"] = None
@@ -392,12 +397,18 @@ def mongo_flatten_all(row):
     new_row = {**new_row, **dict4}
     return new_row
 
+def add_old_columns(row):
+    row['old_mac'] = row['mac']
+    row['old_zero_point'] = row['zero_point']
+    row['old_filters'] = row['filters']
+    row['comment'] = ''
+    return row
 
 def mongo_get_location_info(url):
     return list(map(mongo_flatten_location, mongo_get_all(url)))
 
 def mongo_get_photometer_info(url):
-    return list(map(mongo_flatten_photometer, mongo_get_all(url)))
+    return list(map(add_old_columns, map(mongo_flatten_photometer, mongo_get_all(url))) )
 
 def mongo_get_organization_info(url):
     return list(map(mongo_flatten_organization, mongo_get_all(url)))
@@ -460,6 +471,7 @@ def filter_by_name(iterable, name):
 
 def get_item(iterable, key, item):
     result = filter_by_name(iterable, key)
+    assert len(result) > 0, f"get_item(key={key}, item={item})"
     if len(result) > 1:
         raise DuplicatesError("getting by key '%s' returned %d items" % (key, len(result)) )
     return result[0][item]
@@ -538,9 +550,9 @@ def do_update_photometer(url, path, delimiter, names, simulated):
 
 
 def do_create_photometer(url, path, delimiter, names, simulated):
-    mongo_output_list = read_csv(options.file, delimiter)
+    mongo_output_list = read_csv(path, delimiter)
     mongo_output_list = remap_mac(mongo_output_list)
-    log.info("read %d items from CSV file %s", len(mongo_output_list), options.file)
+    log.info("read %d items from CSV file %s", len(mongo_output_list), path)
     if names:
         mongo_output_list = filter_by_names(mongo_output_list, names)
         log.info("filtered up to %d items", len(mongo_output_list))
@@ -691,6 +703,36 @@ def do_check_zp(mongo_input_list):
     else:
         log.info("Correct these: %s", ' '.join(names))
 
+
+def do_diff_all(url, input_file, delimiter, output_file_prefix): 
+    mongo_iterable = by_name(mongo_get_all_info(url))
+    csv_iterable = by_name(read_csv(input_file, delimiter))
+   
+    keys_in_csv_file_not_in_mongo = in_A_not_in_B(csv_iterable, mongo_iterable)
+
+    log.info("In CSV file, not in MongoDB => %d entries",len(keys_in_csv_file_not_in_mongo ))
+    csv_not_in_mongo = filter_and_flatten(csv_iterable, keys_in_csv_file_not_in_mongo)
+    path_1 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_in_file_not_in_mongo.csv")
+    write_csv(csv_not_in_mongo, ALL_HEADER, path_1)
+
+    keys_in_mongo_not_in_csv_file = in_A_not_in_B(mongo_iterable, csv_iterable) 
+    log.info("In MongoDB file, not in CSV => %d entries",len(keys_in_mongo_not_in_csv_file ))
+    mongo_not_in_csv = filter_and_flatten(mongo_iterable, keys_in_mongo_not_in_csv_file)
+    path_2 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_in_mongo_not_in_file.csv")
+    write_csv(csv_not_in_mongo, ALL_HEADER, path_2)
+
+    in_both_keys = common_A_B_items(mongo_iterable, csv_iterable)
+    log.info("Common in MongoDB and in CSV file, => %d entries", len(in_both_keys) )
+    common_entries_mongo = filter_and_flatten(mongo_iterable, in_both_keys)
+    common_entries_file = filter_and_flatten(csv_iterable, in_both_keys)
+
+    path_3 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_common_file.csv")
+    write_csv(common_entries_file, ALL_HEADER, path_3)
+
+    path_4 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_common_mongo.csv")
+    write_csv(common_entries_mongo, ALL_HEADER, path_4)
+
+
 # ===================
 # Module entry points
 # ===================
@@ -770,6 +812,9 @@ def all(options):
         do_create_all(url, options.file, options.delimiter, options.names, simulated=False)
     elif options.sim_create:
         do_create_all(url, options.file, options.delimiter, options.names, simulated=True)
+    elif options.diff_file:
+        log.info("Check differences between MongoDB and a backup CSV file",)
+        do_diff_all(url, options.diff_file, options.delimiter, options.file)
     else:
         log.error("No valid input option to subcommand 'all'")
 
