@@ -53,11 +53,11 @@ def tessdb_remap_info(row):
     new_row['name'] = row[0]
     new_row['mac'] = formatted_mac(row[1])
     try:
-        new_row['longitude'] = float(row[4])
+        new_row['longitude'] = float(row[4]) if row[4] is not None else 0.0
     except ValueError:
         new_row['longitude'] = 0.0
     try:
-        new_row['latitude'] = float(row[5])
+        new_row['latitude'] = float(row[5]) if row[5] is not None else 0.0
     except ValueError:
         new_row['latitude'] = 0.0
     new_row['place'] = row[6]
@@ -170,7 +170,8 @@ def check(options):
 
 
 def locations(options):
-    connection = open_database(options.dbase)
+    database = get_tessdb_connection_string()
+    connection = open_database(database)
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
@@ -179,7 +180,8 @@ def locations(options):
   
 
 def photometers(options):
-    connection = open_database(options.dbase)
+    database = get_tessdb_connection_string()
+    connection = open_database(database)
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))

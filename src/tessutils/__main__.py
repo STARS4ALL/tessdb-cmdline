@@ -239,7 +239,6 @@ def createParser():
     grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
 
     xdbphot = subparser.add_parser('photometers',  help="Cross DB photometers metadata check")
-    xdbphot.add_argument('-u', '--url', type=url, required=True, help='API URL for MongoDB queries')
     xdbphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
     grp = xdbphot.add_mutually_exclusive_group(required=True)
     grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')

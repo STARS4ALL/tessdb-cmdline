@@ -26,8 +26,8 @@ import collections
 # -------------
 
 from .utils import open_database
-from .dbutils import by_place, by_name, by_coordinates, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
-from .mongodb import mongo_get_location_info
+from .dbutils import by_place, by_name, by_coordinates, by_mac, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
+from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info
 from .tessdb import photometers_from_tessdb, places_from_tessdb
 
 # ----------------
@@ -94,15 +94,22 @@ def similar_locations_csv(iterable, path):
 def macs(options):
     log.info(" ====================== ANALIZING CROSS DB MAC METADATA ======================")
     url = get_mongo_api_url()
-    connection = open_database(options.dbase)
-    mongo_input_list = mongo_get_all_info(url)
+    database = get_tessdb_connection_string()
+    connection = open_database(database)
+    mongo_input_list = mongo_get_photometer_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
+    tessdb_input_list = photometers_from_tessdb(connection)
+    log.info("read %d items from TessDB", len(tessdb_input_list))
+    tessdb_macs = by_mac(tessdb_input_list)
+    mongo_macs = by_mac(mongo_input_list)
 
 
 def locations(options):
     log.info(" ====================== ANALIZING CROSS DB LOCATION METADATA ======================")
-    connection = open_database(options.dbase)
-    mongo_input_list = photometers_from_mongo(options.url)
+    database = get_tessdb_connection_string()
+    connection = open_database(database)
+    url = get_mongo_api_url()
+    mongo_input_list = mongo_get_location_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_place  = by_place(mongo_input_list)
     tessdb_input_list = photometers_from_tessdb(connection)
@@ -124,8 +131,10 @@ def locations(options):
 
 def photometers(options):
     log.info(" ====================== ANALIZING CROSS DB PHOTOMETER METADATA ======================")
-    connection = open_database(options.dbase)
-    mongo_input_list = photometers_from_mongo(options.url)
+    database = get_tessdb_connection_string()
+    connection = open_database(database)
+    url = get_mongo_api_url()
+    mongo_input_list = mongo_get_photometer_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_phot = by_name(mongo_input_list)
     tessdb_input_list = photometers_from_tessdb(connection)
