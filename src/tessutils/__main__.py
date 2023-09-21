@@ -186,11 +186,11 @@ def createParser():
     
     mgphck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
     mgphck.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
-    mgphck.add_argument('-f', '--file', type=str, required=True, help='Output file preffix for A/B CSV file comparison')
+    mgphck.add_argument('-f', '--file', type=str, required=True, help='Output file prefix for A/B CSV file comparison')
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-n', '--names', action='store_true', help='Check for duplicate photometer names')
     mgex1.add_argument('-m', '--macs', action='store_true', help='Check for duplicate MACs')
-    mgex1.add_argument('-f', '--mac-format', action='store_true', help='Check for properly formatted MACs')
+    mgex1.add_argument('-a', '--mac-format', action='store_true', help='Check for properly formatted MACs')
     mgex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
     mgex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
     mgex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
