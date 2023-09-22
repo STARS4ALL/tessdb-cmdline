@@ -219,6 +219,7 @@ def createParser():
     tdex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
     tdex1.add_argument('-d', '--dupl', action='store_true', help='Check same coordinates, duplicated places')
     tdex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
+    tdex1.add_argument('-m', '--macs', action='store_true', help='Check for proper MACS in tess_t')
 
 
     # -----------------------------------------

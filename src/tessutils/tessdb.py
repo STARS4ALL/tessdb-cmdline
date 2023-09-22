@@ -20,7 +20,7 @@ import logging
 # local imports
 # -------------
 
-from .utils import open_database, formatted_mac
+from .utils import open_database, formatted_mac, is_mac, is_tess_mac
 from .dbutils import get_tessdb_connection_string, by_coordinates, log_coordinates, log_coordinates_nearby, by_place, log_places, log_names
 
 
@@ -33,6 +33,24 @@ log = logging.getLogger('tessdb')
 # -------------------------
 # Module auxiliar functions
 # -------------------------
+
+def _raw_photometers_from_tessdb(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT t.tess_id, n.name, t.mac_address, t.zero_point, t.filter,
+        t.valid_since, t.valid_until, t.valid_state,
+        t.location_id,
+        t.model, t.firmware, t.channel, t.cover_offset, t.fov, t.azimuth, t.altitude,
+        t.authorised, t.registered,
+        l.contact_name, l.organization, l.contact_email, l.site, l.longitude, l.latitude, 
+        l.elevation, l.zipcode, l.location, l.province, l.country, l.timezone
+        FROM tess_t AS t
+        JOIN location_t AS l   USING (location_id)
+        JOIN name_to_mac_t AS n USING (mac_address)
+        WHERE name LIKE 'stars%' ORDER BY name ASC
+        ''')
+    return cursor
 
 def _photometers_from_tessdb(connection):
     cursor = connection.cursor()
@@ -74,6 +92,9 @@ def tessdb_remap_info(row):
     new_row['org_web'] = None
     new_row['org_logo'] = None
     return new_row
+
+
+
 
 def photometers_from_tessdb(connection):
     return list(map(tessdb_remap_info, _photometers_from_tessdb(connection)))
@@ -138,6 +159,19 @@ def log_detailed_impact(connection, coords_iterable):
                     row['name'], row['place'], count2)
 
 
+def check_proper_macs(connection):
+    cursor = _raw_photometers_from_tessdb(connection)
+    bad_macs=list()
+    bad_formatted=list() 
+    for t in cursor:
+        if not is_tess_mac(t[2]):
+            log.warn("%d %s (MAC=%s) has not even a good MAC", t[0], t[1], t[2])
+            bad_macs.append(t[2])
+        elif not is_mac(t[2]):
+            good_mac = formatted_mac(t[2])
+            log.warn("%d %s (MAC=%s) should be (MAC=%s)", t[0], t[1], t[2], good_mac)
+            bad_formatted.append(t[2])
+    log.info("%d Bad MAC addresses aand %d bad formatted MAC addresses", len(bad_macs), len(bad_formatted))
 
 # ===================
 # Module entry points
@@ -165,6 +199,9 @@ def check(options):
         log.info("Check for nearby places in radius %0.0f meters", options.nearby)
         tessdb_coords  = by_coordinates(places_from_tessdb(connection))
         log_coordinates_nearby(tessdb_coords, options.nearby)
+    elif options.macs:
+        log.info("Check for proper MAC addresses in tess_t")
+        check_proper_macs(connection);
     else:
         log.error("No valid input option to subcommand 'check'")
 
