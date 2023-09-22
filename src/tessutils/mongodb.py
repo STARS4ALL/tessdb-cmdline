@@ -430,14 +430,14 @@ def remap_nominatim(row):
         new_row[key] = row[key]
     return new_row
 
-def remap_mac(imput_iterable):
+def remap_mac(input_iterable):
     '''When reading MACS from CSV files'''
     def _map_mac(item):
         new_mac = formatted_mac(item['mac'])
         log.debug("remapping MAC: %-17s -> %-17s", item['mac'], new_mac)
         item['mac'] = new_mac
         return item
-    return list(map(_map_mac, imput_iterable))
+    return list(map(_map_mac, input_iterable))
 
 
 def merge_info(input_iterable, nominatim_iterable):
