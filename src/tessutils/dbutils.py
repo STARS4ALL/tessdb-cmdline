@@ -11,6 +11,7 @@
 
 import os
 import math
+import time
 import logging
 import itertools
 import collections
@@ -74,7 +75,11 @@ def get_tessdb_connection_string():
 
 def _make_remap_location(geolocator, tzfinder):
     def _remap_location_func(row):
+        time.sleep(1) # Inserts a one seconds delay
         location = geolocator.reverse(f"{row['latitude']}, {row['longitude']}", language="en")
+        if location is None:
+            log.error("Nominatim didn't find a location for %s (lon=%s, lat=%s)", row['name'], row['longitude'], row['latitude'])
+            return None
         metadata = location.raw['address']
         out_row = dict()
         out_row['name'] = row['name'] # Photometer name (this may go away ....)
@@ -95,7 +100,7 @@ def _make_remap_location(geolocator, tzfinder):
                     out_row['place_type'] = place_type
                 break
         if found:
-            log.info("proposal: '%s' (%s)  as place name to '%s'", metadata[place_type], place_type, row['place'])
+            log.info("proposal for %s: '%s' (%s)  as place name to '%s'", row['name'], metadata[place_type], place_type, row['place'])
         else:
             out_row['place'] = None
             out_row['place_type'] = None
