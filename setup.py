@@ -18,6 +18,7 @@ DEPENDENCIES = [
     'timezonefinder',
     'requests',
     'validators',
+    'python-decouple'
 ]
 
 CLASSIFIERS  = [

@@ -23,6 +23,7 @@ import collections
 from timezonefinder import TimezoneFinder
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
+import decouple
 
 #--------------
 # local imports
@@ -51,26 +52,14 @@ def common_A_B_items(iterable_A, iterable_B):
 def in_A_not_in_B(iterable_A, iterable_B):
     return set(iterable_A.keys()) - set(iterable_B.keys())
 
-
 def get_mongo_api_url():
-    url = os.environ.get("STARS4ALL_API")
-    if not url:
-        raise KeyError("'STARS4ALL_API' environment variable not set")
-    return url
+    return decouple.config('STARS4ALL_API')
 
 def get_mongo_api_key():
-    token = os.environ.get("STARS4ALL_API_KEY")
-    if not token:
-        raise KeyError("'STARS4ALL_API_KEY' environment variable not set")
-    return token
-
+    return decouple.config('STARS4ALL_API_KEY')
 
 def get_tessdb_connection_string():
-    url = os.environ.get("TESSDB_CONNECTION")
-    if not url:
-        raise KeyError("'TESSDB_CONNECTION' environment variable not set")
-    return url
-
+   return decouple.config('DATABASE_URL')
 
 
 def _make_remap_location(geolocator, tzfinder):
