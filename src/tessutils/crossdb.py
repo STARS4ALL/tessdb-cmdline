@@ -40,6 +40,9 @@ from .tessdb import photometers_from_tessdb, places_from_tessdb
 
 log = logging.getLogger('crossdb')
 
+
+
+
 # -------------------------
 # Module auxiliar functions
 # -------------------------
@@ -86,6 +89,9 @@ def similar_locations_csv(iterable, path):
             writer.writerow(row)
 
 
+def cross_photemeters_list(keys, mongo_iterable, tessdb_iterable):
+    for key in keys:
+        log.info("MONGO %s TESSDB %s", mongo_iterable[key], tessdb_iterable[key])
 
 # ===================
 # Module entry points
@@ -102,6 +108,30 @@ def macs(options):
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_macs = by_mac(tessdb_input_list)
     mongo_macs = by_mac(mongo_input_list)
+
+def photometers(options):
+    log.info(" ====================== ANALIZING CROSS DB PHOTOMETER METADATA ======================")
+    database = get_tessdb_connection_string()
+    connection = open_database(database)
+    url = get_mongo_api_url()
+    mongo_input_list = mongo_get_photometer_info(url)
+    log.info("read %d items from MongoDB", len(mongo_input_list))
+    mongo_phot = by_name(mongo_input_list)
+    tessdb_input_list = photometers_from_tessdb(connection)
+    log.info("read %d items from TessDB", len(tessdb_input_list))
+    tessdb_phot = by_name(tessdb_input_list)
+    if options.mongo:
+        photometers = in_mongo_not_in_tessdb(mongo_phot, tessdb_phot)
+        log.info("%d photometers exclusive MongoDB locations",len(photometers))
+    if options.tess:
+        photometers = in_tessdb_not_in_mongo(mongo_phot, tessdb_phot)
+        log.info("%d photometers exclusive TessDB locations",len(photometers))
+    if options.common:
+        photometers = common_items(mongo_phot, tessdb_phot)
+        log.info("%d photometers in common between MongoDB and TessDB",len(photometers))
+        for photometer in photometers:
+            cross_photemeters_list(photometers, mongo_phot, tessdb_phot)
+   
 
 
 def locations(options):
@@ -129,29 +159,6 @@ def locations(options):
 
 
 
-def photometers(options):
-    log.info(" ====================== ANALIZING CROSS DB PHOTOMETER METADATA ======================")
-    database = get_tessdb_connection_string()
-    connection = open_database(database)
-    url = get_mongo_api_url()
-    mongo_input_list = mongo_get_photometer_info(url)
-    log.info("read %d items from MongoDB", len(mongo_input_list))
-    mongo_phot = by_name(mongo_input_list)
-    tessdb_input_list = photometers_from_tessdb(connection)
-    log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_phot = by_name(tessdb_input_list)
-    if options.mongo:
-        photometers = in_mongo_not_in_tessdb(mongo_phot, tessdb_phot)
-        log.info("%d photometers exclusive MongoDB locations",len(photometers))
-    if options.tess:
-        photometers = in_tessdb_not_in_mongo(mongo_phot, tessdb_phot)
-        log.info("%d photometers exclusive TessDB locations",len(photometers))
-    if options.common:
-        photometers = common_items(mongo_phot, tessdb_phot)
-        log.info("%d photometers in common between MongoDB and TessDB",len(photometers))
-        for photometer in photometers:
-            log.debug("Photometer %s", photometer)
-   
 
 def coordinates(options):
     log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")

@@ -34,7 +34,7 @@ log = logging.getLogger('tessdb')
 # Module auxiliar functions
 # -------------------------
 
-def _raw_photometers_from_tessdb(connection):
+def _raw_photometers_and_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
@@ -52,7 +52,7 @@ def _raw_photometers_from_tessdb(connection):
         ''')
     return cursor
 
-def _photometers_from_tessdb(connection):
+def _photometers_and_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
@@ -66,7 +66,28 @@ def _photometers_from_tessdb(connection):
         ''')
     return cursor
 
+def _photometers_from_tessdb(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT DISTINCT name, mac_address, zero_point, filter
+        FROM tess_v 
+        WHERE valid_state = 'Current'
+        AND name LIKE 'stars%'
+        ''')
+    return cursor
+
+
 def tessdb_remap_info(row):
+    new_row = dict()
+    new_row['name'] = row[0]
+    new_row['mac'] = formatted_mac(row[1])
+    new_row['zero_point'] =row[2]
+    new_row['filter'] = row[3]
+    return new_row
+
+
+def tessdb_remap_all_info(row):
     new_row = dict()
     new_row['name'] = row[0]
     new_row['mac'] = formatted_mac(row[1])
@@ -95,9 +116,11 @@ def tessdb_remap_info(row):
 
 
 
-
 def photometers_from_tessdb(connection):
     return list(map(tessdb_remap_info, _photometers_from_tessdb(connection)))
+
+def photometers_and_locations_from_tessdb(connection):
+    return list(map(tessdb_remap_all_info, _photometers_and_locations_from_tessdb(connection)))
 
 def places_from_tessdb(connection):
     cursor = connection.cursor()
@@ -160,7 +183,7 @@ def log_detailed_impact(connection, coords_iterable):
 
 
 def check_proper_macs(connection):
-    cursor = _raw_photometers_from_tessdb(connection)
+    cursor = _raw_photometers_and_locations_from_tessdb(connection)
     bad_macs=list()
     bad_formatted=list() 
     for t in cursor:
@@ -210,7 +233,7 @@ def locations(options):
     database = get_tessdb_connection_string()
     connection = open_database(database)
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
-    tessdb_input_list = photometers_from_tessdb(connection)
+    tessdb_input_list = photometers_and_locations_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_loc  = by_place(tessdb_input_list)
     log_places(tessdb_loc)
@@ -220,7 +243,7 @@ def photometers(options):
     database = get_tessdb_connection_string()
     connection = open_database(database)
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
-    tessdb_input_list = photometers_from_tessdb(connection)
+    tessdb_input_list = photometers_and_locations_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_phot = by_name(tessdb_input_list)
     log_names(tessdb_phot)
