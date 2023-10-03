@@ -34,6 +34,19 @@ log = logging.getLogger('tessdb')
 # Module auxiliar functions
 # -------------------------
 
+def fake_zero_points(connection):
+    cursor = connection.cursor()
+    cursor.execute('''
+        SELECT t.mac_address, t.zero_point, n.name, n.valid_since, n.valid_until
+        FROM tess_t AS t
+        JOIN name_to_mac_t AS n USING(mac_address)
+        WHERE t.zero_point < 18.5
+        AND t.valid_state = 'Current'
+        AND n.name LIKE 'stars%'
+        ORDER BY mac_address
+        ''')
+    return cursor
+
 def _raw_photometers_and_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
@@ -188,6 +201,9 @@ def log_detailed_impact(connection, coords_iterable):
                 log.info("[%d] (%s) Ojito con esta location que tiene %d referencias en tess_readings_t",
                     row['name'], row['place'], count2)
 
+def check_fake_zero_points(connection):
+    for mac, zp, name, valid_since, valid_until in fake_zero_points(connection):
+        log.info("Photometer %s ZP=%s [%s] (%s - %s) ", formatted_mac(mac), zp, name, valid_since, valid_until)
 
 def check_proper_macs(connection):
     cursor = _raw_photometers_and_locations_from_tessdb(connection)
@@ -232,6 +248,9 @@ def check(options):
     elif options.macs:
         log.info("Check for proper MAC addresses in tess_t")
         check_proper_macs(connection);
+    elif options.fake_zero_points:
+        log.info("Check for fake Zero Points in tess_t")
+        check_fake_zero_points(connection)
     else:
         log.error("No valid input option to subcommand 'check'")
 
