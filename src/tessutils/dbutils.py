@@ -148,7 +148,10 @@ def log_names(names_iterable):
 def by_name(iterable):
     names = collections.defaultdict(list)
     for row in iterable:
-        names[row['name']].append(row)
+        if row is not None:
+            names[row['name']].append(row)
+        else:
+            log.warn("Skiping None row")
     log.info("From %d entries, we have extracted %d different photometer names",len(iterable), len(names.keys()))
     return names
 
@@ -159,7 +162,10 @@ def by_name(iterable):
 def by_mac(iterable):
     macs = collections.defaultdict(list)
     for row in iterable:
-        macs[row['mac']].append(row)
+        if row is not None:
+            macs[row['mac']].append(row)
+        else:
+            log.warn("Skiping None row")
     log.info("From %d entries, we have extracted %d different photometer MACs",len(iterable), len(macs.keys()))
     return macs
 
@@ -175,7 +181,10 @@ def log_macs(macs_iterable):
 def by_place(iterable):
     places = collections.defaultdict(list)
     for row in iterable:
-        places[row['place']].append(row)
+        if row is not None:
+            places[row['place']].append(row)
+        else:
+            log.warn("Skiping None row")
     log.info("From %d entries, we have extracted %d different places",len(iterable), len(places.keys()))
     return places
 

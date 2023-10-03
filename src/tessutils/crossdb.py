@@ -89,25 +89,70 @@ def similar_locations_csv(iterable, path):
             writer.writerow(row)
 
 
-def cross_photemeters_list(keys, mongo_iterable, tessdb_iterable):
-    for key in keys:
-        log.info("MONGO %s TESSDB %s", mongo_iterable[key], tessdb_iterable[key])
+def common_mac_check(keys, mongo_iterable, tessdb_iterable):
+    log.info("comparing %d keys", len(keys))
+    result = list()
+    for key in sorted(keys):
+        if len(mongo_iterable[key]) > 1:
+            log.warn("Skippiing %s because it is duplicated: %s", key, mongo_iterable[key])
+        else:
+            mongo_mac = mongo_iterable[key][0]['mac']
+            tessdb_mac = tessdb_iterable[key][0]['mac']
+            if mongo_mac != tessdb_mac:
+                result.append(key)
+                log.debug("MAC differs for: %s. Mongo MAC = %s, Tessdb MAC = %s", key, 
+                    mongo_mac, tessdb_mac)
+    log.info("Found %d MAC differences", len(result))
+
+def common_zp_check(keys, mongo_iterable, tessdb_iterable):
+    log.info("comparing %d keys", len(keys))
+    result = list()
+    for key in sorted(keys):
+        if len(mongo_iterable[key]) > 1:
+            log.warn("Skippiing %s because it is duplicated: %s", key, mongo_iterable[key])
+        else:
+            mongo_zp = mongo_iterable[key][0]['zero_point']
+            tessdb_zp = tessdb_iterable[key][0]['zero_point']
+            tessdb_mac = tessdb_iterable[key][0]['mac']
+            if mongo_zp != tessdb_zp:
+                if tessdb_zp < 19.0:
+                    log.warn("Fake tessdb ZP %s for %s, (%s)", tessdb_zp, key, tessdb_mac)
+                else:
+                    result.append(key)
+                    log.debug("ZP differs for: %s. Mongo ZP = %s, Tessdb ZP = %s", key, 
+                    mongo_zp, tessdb_zp)
+    log.info("Found %d Zero Point differences", len(result))
 
 # ===================
 # Module entry points
 # ===================
 
-def macs(options):
-    log.info(" ====================== ANALIZING CROSS DB MAC METADATA ======================")
-    url = get_mongo_api_url()
+def check(options):
+    log.info(" ====================== PERFORM CROSS DB CHEKCS ======================")
     database = get_tessdb_connection_string()
     connection = open_database(database)
+    url = get_mongo_api_url()
     mongo_input_list = mongo_get_photometer_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
+    mongo_phot = by_name(mongo_input_list)
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_macs = by_mac(tessdb_input_list)
-    mongo_macs = by_mac(mongo_input_list)
+    tessdb_phot = by_name(tessdb_input_list)
+    if options.mac:
+        log.info("Check for MAC differentces in common photometer names")
+        photometer_names = common_items(mongo_phot, tessdb_phot)
+        log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
+        common_mac_check(photometer_names, mongo_phot, tessdb_phot)
+    elif options.zero_point:
+        log.info("Check for Zero Point differentces in common photometer names")
+        photometer_names = common_items(mongo_phot, tessdb_phot)
+        log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
+        common_zp_check(photometer_names, mongo_phot, tessdb_phot)
+    else:
+        log.error("No valid input option to subcommand 'check'")
+
+
+
 
 def photometers(options):
     log.info(" ====================== ANALIZING CROSS DB PHOTOMETER METADATA ======================")
@@ -129,8 +174,7 @@ def photometers(options):
     if options.common:
         photometers = common_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometers))
-        for photometer in photometers:
-            cross_photemeters_list(photometers, mongo_phot, tessdb_phot)
+        common_mac_check(photometers, mongo_phot, tessdb_phot)
    
 
 

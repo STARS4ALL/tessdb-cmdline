@@ -80,17 +80,23 @@ def _photometers_from_tessdb(connection):
 
 def tessdb_remap_info(row):
     new_row = dict()
-    new_row['name'] = row[0]
+    try:
+        new_row['mac'] = formatted_mac(row[1])
+    except ValueError:
+        return None
     new_row['mac'] = formatted_mac(row[1])
     new_row['zero_point'] =row[2]
     new_row['filter'] = row[3]
+    new_row['name'] = row[0]
     return new_row
 
 
 def tessdb_remap_all_info(row):
     new_row = dict()
-    new_row['name'] = row[0]
-    new_row['mac'] = formatted_mac(row[1])
+    try:
+        new_row['mac'] = formatted_mac(row[1])
+    except ValueError:
+         return None
     try:
         new_row['longitude'] = float(row[4]) if row[4] is not None else 0.0
     except ValueError:
@@ -99,6 +105,7 @@ def tessdb_remap_all_info(row):
         new_row['latitude'] = float(row[5]) if row[5] is not None else 0.0
     except ValueError:
         new_row['latitude'] = 0.0
+    new_row['name'] = row[0]
     new_row['place'] = row[6]
     new_row["town"] = row[7]
     new_row["sub_region"] = row[8]

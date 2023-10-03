@@ -227,10 +227,6 @@ def createParser():
 
     subparser = parser_crossdb.add_subparsers(dest='subcommand')
     
-    xdbmac = subparser.add_parser('macs',  help="Cross DB MAC metadata check")
-    xdbmac.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
-    xdbmac.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
-
     xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
     xdbloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
     grp = xdbloc.add_mutually_exclusive_group(required=True)
@@ -249,6 +245,12 @@ def createParser():
     xdbcoord.add_argument('-f', '--file', type=str, required=True, help='CSV file to generate differences')
     xdbcoord.add_argument('--lower', type=float, default=0.0, help='Lower limit in meters')
     xdbcoord.add_argument('--upper', type=float, default=1000.0, help='Upper limit in meters')
+
+    mgphck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
+    mgex1 = mgphck.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-m', '--mac', action='store_true', help="Check for common photometer's MACs")
+    mgex1.add_argument('-z', '--zero-point', action='store_true', help="Check for common photometer's Zero Points")
+
 
 
     return parser
