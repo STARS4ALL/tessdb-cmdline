@@ -113,7 +113,18 @@ def createParser():
     parser_mongodb = subparser.add_parser('mongodb', help='MongoDB commands')
     parser_tessdb  = subparser.add_parser('tessdb', help='TessDB commands')
     parser_crossdb = subparser.add_parser('crossdb', help='Cross database check commands')
+    parser_zptess  = subparser.add_parser('zptess', help='zptess commands')
     
+    # ------------------------------------------
+    # Create second level parsers for 'zptess'
+    # ------------------------------------------
+
+    subparser = parser_zptess.add_subparsers(dest='subcommand')
+    
+    zpt = subparser.add_parser('generate',  help="Generate cross zptess/tessdb CSV comparison")
+    zpt.add_argument('-f', '--file', type=str, required=True, help='CSV File preffix')
+
+
     # ------------------------------------------
     # Create second level parsers for 'location'
     # ------------------------------------------

@@ -59,8 +59,10 @@ def get_mongo_api_key():
     return decouple.config('STARS4ALL_API_KEY')
 
 def get_tessdb_connection_string():
-   return decouple.config('DATABASE_URL')
+   return decouple.config('TESSDB_URL')
 
+def get_zptess_connection_string():
+   return decouple.config('ZPTESS_URL')
 
 def _make_remap_location(geolocator, tzfinder):
     def _remap_location_func(row):
@@ -145,7 +147,7 @@ def log_names(names_iterable):
             log.warn("Photometer %s has %d coordinates: %s", name, len(rows), [(row['longitude'],row['latitude']) for row in rows])
 
 
-def by_name(iterable):
+def group_by_name(iterable):
     names = collections.defaultdict(list)
     for row in iterable:
         if row is not None:
@@ -159,7 +161,7 @@ def by_name(iterable):
 # Photometers MACs check
 # ----------------------
 
-def by_mac(iterable):
+def group_by_mac(iterable):
     macs = collections.defaultdict(list)
     for row in iterable:
         if row is not None:

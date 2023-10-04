@@ -272,5 +272,5 @@ def photometers(options):
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
     tessdb_input_list = photometers_and_locations_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_phot = by_name(tessdb_input_list)
+    tessdb_phot = group_by_name(tessdb_input_list)
     log_names(tessdb_phot)

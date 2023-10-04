@@ -25,7 +25,7 @@ import requests
 # -------------
 
 from .utils import formatted_mac, is_tess_mac, is_mac
-from .dbutils import by_place, by_name, by_mac, by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
+from .dbutils import by_place, group_by_name,group_by_mac, by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
 from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate, common_A_B_items, in_A_not_in_B, filter_and_flatten
 
 class ListLengthMismatchError(Exception):
@@ -705,8 +705,8 @@ def do_check_zp(mongo_input_list):
 
 
 def do_diff_all(url, input_file, delimiter, output_file_prefix): 
-    mongo_iterable = by_name(mongo_get_all_info(url))
-    csv_iterable = by_name(read_csv(input_file, delimiter))
+    mongo_iterable = group_by_name(mongo_get_all_info(url))
+    csv_iterable = group_by_name(read_csv(input_file, delimiter))
    
     keys_in_csv_file_not_in_mongo = in_A_not_in_B(csv_iterable, mongo_iterable)
 
@@ -826,11 +826,11 @@ def check(options):
     log.info("read %d items from MongoDB", len(mongo_input_list))
     if options.names:
         log.info("Check for duplicate photometer names")
-        mongo_names = by_name(mongo_input_list)
+        mongo_names = group_by_name(mongo_input_list)
         log_names(mongo_names)
     elif options.macs:
         log.info("Check for duplicate photometer MAC addresses")
-        mongo_macs = by_mac(mongo_input_list)
+        mongo_macs =group_by_mac(mongo_input_list)
         log_macs(mongo_macs)
     elif options.mac_format:
         log.info("Check for properly formatted MAC addresses")

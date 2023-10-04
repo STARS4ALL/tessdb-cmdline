@@ -54,7 +54,7 @@ from .utils      import paging
 
 def instrument_coalesce(connection, options):
     if options.name:
-        instrument_coalesce_by_name(connection, options)
+        instrument_coalesce_group_by_name(connection, options)
     elif options.mac:
         instrument_coalesce_by_mac(connection, options)
     elif options.all:
@@ -180,7 +180,7 @@ def instrument_coalesce_by_mac(connection,options):
 
 
 
-def instrument_coalesce_by_name(connection,options):
+def instrument_coalesce_group_by_name(connection,options):
     cursor = connection.cursor()
     row = {'name': options.name}
     cursor.execute(

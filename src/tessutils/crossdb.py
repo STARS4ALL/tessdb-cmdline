@@ -28,7 +28,7 @@ import requests
 # -------------
 
 from .utils import open_database
-from .dbutils import by_place, by_name, by_coordinates, by_mac, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
+from .dbutils import by_place, group_by_name, by_coordinates,group_by_mac, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
 from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info, filter_by_names, get_mac, mongo_api_body_photometer, mongo_api_update
 from .tessdb import photometers_from_tessdb, places_from_tessdb
 
@@ -181,10 +181,10 @@ def check(options):
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_photometer_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
-    mongo_phot = by_name(mongo_input_list)
+    mongo_phot = group_by_name(mongo_input_list)
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_phot = by_name(tessdb_input_list)
+    tessdb_phot = group_by_name(tessdb_input_list)
     if options.mac:
         log.info("Check for MAC differences in common photometer names")
         photometer_names = common_items(mongo_phot, tessdb_phot)
@@ -206,34 +206,34 @@ def photometers(options):
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_all_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
-    mongo_phot = by_name(mongo_input_list)
+    mongo_phot = group_by_name(mongo_input_list)
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
 
     if options.sim_update_mac:
-        tessdb_phot = by_name(tessdb_input_list)
+        tessdb_phot = group_by_name(tessdb_input_list)
         photometer_names = common_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         mongo_input_list = filter_by_names(mongo_input_list, photometer_names)
-        mongo_phot = by_name(mongo_input_list) # Again
+        mongo_phot = group_by_name(mongo_input_list) # Again
         mongo_output_list = upd_mongo_mac(mongo_phot, tessdb_phot)
         do_update_photometer(mongo_output_list, simulated=True)
     elif options.update_mac:
-        tessdb_phot = by_name(tessdb_input_list)
+        tessdb_phot = group_by_name(tessdb_input_list)
         photometer_names = common_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         mongo_input_list = filter_by_names(mongo_input_list, photometer_names)
-        mongo_phot = by_name(mongo_input_list) # Again
+        mongo_phot = group_by_name(mongo_input_list) # Again
         mongo_output_list = upd_mongo_mac(mongo_phot, tessdb_phot)
         do_update_photometer(mongo_output_list, simulated=False)
     if options.sim_update_zp:
         tessdb_input_list = filter_fake_zero_points(tessdb_input_list)
         log.info("filtered fake ZP, remaining %d items from TessDB", len(tessdb_input_list))
-        tessdb_phot = by_name(tessdb_input_list)
+        tessdb_phot = group_by_name(tessdb_input_list)
         photometer_names = common_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         mongo_input_list = filter_by_names(mongo_input_list, photometer_names)
-        mongo_phot = by_name(mongo_input_list) # Again
+        mongo_phot = group_by_name(mongo_input_list) # Again
         mongo_output_list = upd_mongo_zp(mongo_phot, tessdb_phot)
         #do_update_photometer(mongo_output_list, simulated=True)
     
