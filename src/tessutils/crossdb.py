@@ -21,13 +21,15 @@ import collections
 # Third party imports
 # -------------------
 
+import requests
+
 #--------------
 # local imports
 # -------------
 
 from .utils import open_database
 from .dbutils import by_place, by_name, by_coordinates, by_mac, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
-from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info
+from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info, filter_by_names, get_mac, mongo_api_body_photometer, mongo_api_update
 from .tessdb import photometers_from_tessdb, places_from_tessdb
 
 # ----------------
@@ -123,6 +125,51 @@ def common_zp_check(keys, mongo_iterable, tessdb_iterable):
                     mongo_zp, tessdb_zp)
     log.info("Found %d Zero Point differences", len(result))
 
+
+def upd_mongo_field(mongo_dict, tessdb_dict, field):
+    result = list()
+    for key, row in mongo_dict.items():
+        mongo_field = row[0][field]
+        tessdb_field = tessdb_dict[key][0][field]
+        if mongo_field != tessdb_field:
+            log.debug("[%s] M[%s] T[%s] UPDATING %s %s  with %s", 
+                key, row[0]['mac'], tessdb_dict[key][0]['mac'],
+                field, mongo_field, tessdb_field)
+            row[0]['field'] = tessdb_field
+            result.append(row)
+    log.info("Updated %d rows for field %s",len(result), field)
+    return result
+
+
+def upd_mongo_mac(mongo_dict, tessdb_dict):
+    return upd_mongo_field(mongo_dict, tessdb_dict, 'mac')
+
+
+def upd_mongo_zp(mongo_dict, tessdb_dict):
+    return upd_mongo_field(mongo_dict, tessdb_dict, 'zero_point')
+
+def filter_fake_zero_points(tessdb_sequence):
+    def _filter_fake_zero_points(x):
+        log.info("%s",x)
+        return 20.5 > x['zero_point'] > 18.5  if x is not None else False
+    return list(filter(_filter_fake_zero_points, tessdb_sequence))
+
+def do_update_photometer(mongo_output_list, simulated):
+    url = get_mongo_api_url()
+    mongo_aux_list = mongo_get_all_info(url) 
+    for [row] in mongo_output_list:
+        oldmac = get_mac(mongo_aux_list, row['name'])
+        body = mongo_api_body_photometer(row, mongo_aux_list)
+        log.info("Updating MongoDB with photometer info for %s (%s)", row['name'], oldmac)
+        try:
+            if(oldmac != row['mac']):
+                log.info("Changing %s MAC: (%s) -> (%s)", row['name'], oldmac, row['mac'])
+            mongo_api_update(url, body, oldmac, simulated)
+        except ValueError:
+            log.warn("Ignoring update photometer info for item %s (%s)", row['name'], oldmac)
+        except requests.exceptions.HTTPError as e:
+            log.error(f"{e}, RESP. BODY = {e.response.text}")
+
 # ===================
 # Module entry points
 # ===================
@@ -152,30 +199,44 @@ def check(options):
         log.error("No valid input option to subcommand 'check'")
 
 
-
-
 def photometers(options):
-    log.info(" ====================== ANALIZING CROSS DB PHOTOMETER METADATA ======================")
+    log.info(" ====================== CROSS DB PHOTOMETER METADATA ======================")
     database = get_tessdb_connection_string()
     connection = open_database(database)
     url = get_mongo_api_url()
-    mongo_input_list = mongo_get_photometer_info(url)
+    mongo_input_list = mongo_get_all_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_phot = by_name(mongo_input_list)
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_phot = by_name(tessdb_input_list)
-    if options.mongo:
-        photometers = in_mongo_not_in_tessdb(mongo_phot, tessdb_phot)
-        log.info("%d photometers exclusive MongoDB locations",len(photometers))
-    if options.tess:
-        photometers = in_tessdb_not_in_mongo(mongo_phot, tessdb_phot)
-        log.info("%d photometers exclusive TessDB locations",len(photometers))
-    if options.common:
-        photometers = common_items(mongo_phot, tessdb_phot)
-        log.info("%d photometers in common between MongoDB and TessDB",len(photometers))
-        common_mac_check(photometers, mongo_phot, tessdb_phot)
-   
+
+    if options.sim_update_mac:
+        tessdb_phot = by_name(tessdb_input_list)
+        photometer_names = common_items(mongo_phot, tessdb_phot)
+        log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
+        mongo_input_list = filter_by_names(mongo_input_list, photometer_names)
+        mongo_phot = by_name(mongo_input_list) # Again
+        mongo_output_list = upd_mongo_mac(mongo_phot, tessdb_phot)
+        do_update_photometer(mongo_output_list, simulated=True)
+    elif options.update_mac:
+        tessdb_phot = by_name(tessdb_input_list)
+        photometer_names = common_items(mongo_phot, tessdb_phot)
+        log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
+        mongo_input_list = filter_by_names(mongo_input_list, photometer_names)
+        mongo_phot = by_name(mongo_input_list) # Again
+        mongo_output_list = upd_mongo_mac(mongo_phot, tessdb_phot)
+        do_update_photometer(mongo_output_list, simulated=False)
+    if options.sim_update_zp:
+        tessdb_input_list = filter_fake_zero_points(tessdb_input_list)
+        log.info("filtered fake ZP, remaining %d items from TessDB", len(tessdb_input_list))
+        tessdb_phot = by_name(tessdb_input_list)
+        photometer_names = common_items(mongo_phot, tessdb_phot)
+        log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
+        mongo_input_list = filter_by_names(mongo_input_list, photometer_names)
+        mongo_phot = by_name(mongo_input_list) # Again
+        mongo_output_list = upd_mongo_zp(mongo_phot, tessdb_phot)
+        #do_update_photometer(mongo_output_list, simulated=True)
+    
 
 
 def locations(options):

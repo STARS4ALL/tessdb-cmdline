@@ -221,7 +221,6 @@ def createParser():
     tdex1.add_argument('-m', '--macs', action='store_true', help='Check for proper MACS in tess_t')
     tdex1.add_argument('-z', '--fake-zero-points', action='store_true', help='Check for proper MACS in tess_t')
 
-
     # -----------------------------------------
     # Create second level parsers for 'crossdb'
     # -----------------------------------------
@@ -235,12 +234,13 @@ def createParser():
     grp.add_argument('-t', '--tess', action='store_true',  help='TessDB exclusive locations')
     grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
 
-    xdbphot = subparser.add_parser('photometers',  help="Cross DB photometers metadata check")
+    xdbphot = subparser.add_parser('photometers',  help="Cross DB photometers metadata operations")
     xdbphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
     grp = xdbphot.add_mutually_exclusive_group(required=True)
-    grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')
-    grp.add_argument('-t', '--tess', action='store_true',  help='TessDB exclusive locations')
-    grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
+    grp.add_argument('-s', '--sim-update-mac', action='store_true', help='Simulated update Mongo DB MAC with TESS-DB MAC value')
+    grp.add_argument('-m', '--update-mac', action='store_true',  help='Update Mongo DB MAC with TESS-DB MAC value')
+    grp.add_argument('-x', '--sim-update-zp', action='store_true', help='Simulated update Mongo DB ZP with TESS-DB ZP value')
+    grp.add_argument('-z', '--update-zp', action='store_true',  help='Update Mongo DB ZP with TESS-DB ZP value')
 
     xdbcoord = subparser.add_parser('coordinates',  help="Cross DB photometers metadata check")
     xdbcoord.add_argument('-f', '--file', type=str, required=True, help='CSV file to generate differences')
@@ -251,8 +251,6 @@ def createParser():
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-m', '--mac', action='store_true', help="Check for common photometer's MACs")
     mgex1.add_argument('-z', '--zero-point', action='store_true', help="Check for common photometer's Zero Points")
-
-
 
     return parser
 
