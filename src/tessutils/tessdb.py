@@ -202,6 +202,7 @@ def log_detailed_impact(connection, coords_iterable):
                     row['name'], row['place'], count2)
 
 def check_fake_zero_points(connection):
+    fake_zero_points(connection)
     for mac, zp, name, valid_since, valid_until in fake_zero_points(connection):
         log.info("Photometer %s ZP=%s [%s] (%s - %s) ", formatted_mac(mac), zp, name, valid_since, valid_until)
 
@@ -217,7 +218,7 @@ def check_proper_macs(connection):
             good_mac = formatted_mac(t[2])
             log.warn("%d %s (MAC=%s) should be (MAC=%s)", t[0], t[1], t[2], good_mac)
             bad_formatted.append(t[2])
-    log.info("%d Bad MAC addresses aand %d bad formatted MAC addresses", len(bad_macs), len(bad_formatted))
+    log.info("%d Bad MAC addresses and %d bad formatted MAC addresses", len(bad_macs), len(bad_formatted))
 
 # ===================
 # Module entry points
