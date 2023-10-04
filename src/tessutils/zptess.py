@@ -92,6 +92,8 @@ def photometers_from_zptess(connection):
     return list(map(zptess_remap_info, _photometers_from_zptess(connection)))
 
 
+def filter_by_field(iterable, keys):
+    return [iterable[key] for key in keys]
 
 # ===================
 # Module entry points
@@ -113,3 +115,7 @@ def generate(options):
     zptess_input_list = group_by_mac(zptess_input_list)
     common_macs = common_A_B_items(zptess_input_list, tessdb_input_list)
     log.info("Common entries: %d", len(common_macs))
+    common_tessdb_list = [tessdb_input_list[key][0] for key in common_macs]
+    common_zptess_list = [zptess_input_list[key][0] for key in common_macs]
+    log.info("%s",common_tessdb_list[0:4])
+    log.info("%s",common_zptess_list[0:4])
