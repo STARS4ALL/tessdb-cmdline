@@ -139,7 +139,7 @@ def check(options):
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_phot = by_name(tessdb_input_list)
     if options.mac:
-        log.info("Check for MAC differentces in common photometer names")
+        log.info("Check for MAC differences in common photometer names")
         photometer_names = common_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         common_mac_check(photometer_names, mongo_phot, tessdb_phot)
