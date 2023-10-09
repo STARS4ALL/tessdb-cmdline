@@ -30,7 +30,7 @@ from .dbutils import get_tessdb_connection_string, get_zptess_connection_string,
 
 log = logging.getLogger('zptess')
 
-COLUMNS = ("zptess_method", "zptess_name", "zptess_mac", "tessdb_mac", "zptess_zp", "tessdb_zp", "zptess_date", "tessdb_date")
+COLUMNS = ("mac", "zptess_zp", "tessdb_zp", "zptess_method", "tessdb_registered", "zptess_name", "zptess_date", "tessdb_date")
 
 # -------------------------
 # Module auxiliar functions
@@ -38,13 +38,37 @@ COLUMNS = ("zptess_method", "zptess_name", "zptess_mac", "tessdb_mac", "zptess_z
 
 
 
-def _photometers_from_tessdb(connection):
+def _photometers_from_tessdb1(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT mac_address, zero_point, valid_since
+        SELECT DISTINCT mac_address, zero_point, valid_since, registered
         FROM tess_t
         WHERE valid_state = 'Current'
+        AND mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) = 1)
+        ''')
+    return cursor.fetchall()
+
+def _photometers_from_tessdb2(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT DISTINCT mac_address, zero_point, valid_since, registered
+        FROM tess_t
+        WHERE valid_state = 'Current'
+        AND mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) = 2)
+        ''')
+    return cursor.fetchall()
+
+
+def _photometers_from_tessdb3(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT DISTINCT mac_address, zero_point, valid_since, registered
+        FROM tess_t
+        WHERE valid_state = 'Current'
+        AND mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 2)
         ''')
     return cursor.fetchall()
 
@@ -63,11 +87,11 @@ def tessdb_remap_info(row):
     new_row = dict()
     try:
         new_row['mac'] = formatted_mac(row[0])
-        new_row['tessdb_mac'] = formatted_mac(row[0])
     except:
         return None
     new_row['tessdb_zp'] =row[1]
     new_row['tessdb_date'] = row[2]
+    new_row['tessdb_registered'] = row[3]
     #new_row['tessdb_name'] = row[0]
     return new_row
 
@@ -75,7 +99,6 @@ def zptess_remap_info(row):
     new_row = dict()
     try:
         new_row['mac'] = formatted_mac(row[0])
-        new_row['zptess_mac'] = formatted_mac(row[0])
     except:
         return None
     new_row['zptess_zp'] =row[1]
@@ -86,11 +109,10 @@ def zptess_remap_info(row):
 
 
 def photometers_from_tessdb(connection):
-    return list(map(tessdb_remap_info, _photometers_from_tessdb(connection)))
+    return list(map(tessdb_remap_info, _photometers_from_tessdb1(connection)))
 
 def photometers_from_zptess(connection):
     return list(map(zptess_remap_info, _photometers_from_zptess(connection)))
-
 
 def filter_by_field(iterable, keys):
     return [iterable[key] for key in keys]
@@ -115,7 +137,13 @@ def generate(options):
     zptess_input_list = group_by_mac(zptess_input_list)
     common_macs = common_A_B_items(zptess_input_list, tessdb_input_list)
     log.info("Common entries: %d", len(common_macs))
-    common_tessdb_list = [tessdb_input_list[key][0] for key in common_macs]
-    common_zptess_list = [zptess_input_list[key][0] for key in common_macs]
-    log.info("%s",common_tessdb_list[0:4])
-    log.info("%s",common_zptess_list[0:4])
+    common_list = [{**tessdb_input_list[key][0], **zptess_input_list[key][0]} for key in common_macs]
+    filtered_list = filter(lambda x: x['tessdb_zp'] != x['zptess_zp'], common_list)
+    sorted_list = sorted(filtered_list, key=lambda x: x['zptess_name'])
+    log.info("Only %d entries differ in ZP", len(sorted_list))
+    #common_zptess_list = [zptess_input_list[key][0] for key in common_macs]
+    with open(options.file, 'w', newline='') as f:
+        writer = csv.DictWriter(f, delimiter=';', fieldnames=COLUMNS)
+        writer.writeheader()
+        for row in sorted_list:
+            writer.writerow(row);

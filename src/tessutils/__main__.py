@@ -123,6 +123,13 @@ def createParser():
     
     zpt = subparser.add_parser('generate',  help="Generate cross zptess/tessdb CSV comparison")
     zpt.add_argument('-f', '--file', type=str, required=True, help='CSV File preffix')
+    zpex1 = zpt.add_mutually_exclusive_group(required=True)
+    zpex1.add_argument('-o', '--one', action='store_true', help='One entry in name_to_mac')
+    zpex1.add_argument('-t', '--two', action='store_true', help='two entries in name_to_mac')
+    zpex1.add_argument('-m', '--more', action='store_true', help='More than 2 entries in name_to_mac')
+    zpex2 = zpt.add_mutually_exclusive_group(required=True)
+    zpex2.add_argument('-c', '--current', action='store_true', help='Current ZP')
+    zpex2.add_argument('-i', '--historic', action='store_true', help='Historic ZP entries')
 
 
     # ------------------------------------------
