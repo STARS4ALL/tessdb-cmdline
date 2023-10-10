@@ -136,9 +136,30 @@ def geolocate(iterable):
     remap_location = _make_remap_location(geolocator, tzfinder)
     return list(map(remap_location, iterable))
 
+
+def group_by(iterable, key):
+    result = collections.defaultdict(list)
+    for row in iterable:
+        if row is not None:
+            result[row[key]].append(row)
+        else:
+            log.warn("Skiping None row")
+    log.info("From %d entries, we have extracted %d different %s",len(iterable), len(result.keys()), key)
+    for k, v in result.items():
+        log.debug("%s %s has %d values", key, k, len(v))
+    return result
+
+def filter_out_multidict(multidict):
+    result = {k: v for k, v in multidict.items() if len(v) == 1}
+    log.info("From multidict with %d entries, we have fitered %d entries out", len(multidict), len(multidict)-len(result))
+    return result
+
 # ----------------------
 # Photometers names check
 # ----------------------
+
+def group_by_name(iterable):
+    return group_by(iterable, 'name')
 
 def log_names(names_iterable):
     for name, rows in names_iterable.items():
@@ -146,30 +167,13 @@ def log_names(names_iterable):
             log.warn("Photometer %s has %d places: %s", name, len(rows), [row['place'] for row in rows])
             log.warn("Photometer %s has %d coordinates: %s", name, len(rows), [(row['longitude'],row['latitude']) for row in rows])
 
-
-def group_by_name(iterable):
-    names = collections.defaultdict(list)
-    for row in iterable:
-        if row is not None:
-            names[row['name']].append(row)
-        else:
-            log.warn("Skiping None row")
-    log.info("From %d entries, we have extracted %d different photometer names",len(iterable), len(names.keys()))
-    return names
-
 # ----------------------
 # Photometers MACs check
 # ----------------------
 
 def group_by_mac(iterable):
-    macs = collections.defaultdict(list)
-    for row in iterable:
-        if row is not None:
-            macs[row['mac']].append(row)
-        else:
-            log.warn("Skiping None row")
-    log.info("From %d entries, we have extracted %d different photometer MACs",len(iterable), len(macs.keys()))
-    return macs
+    return group_by(iterable, 'mac')
+
 
 def log_macs(macs_iterable):
     for mac, rows in macs_iterable.items():
@@ -180,15 +184,8 @@ def log_macs(macs_iterable):
 # Photometers Places check
 # ------------------------
 
-def by_place(iterable):
-    places = collections.defaultdict(list)
-    for row in iterable:
-        if row is not None:
-            places[row['place']].append(row)
-        else:
-            log.warn("Skiping None row")
-    log.info("From %d entries, we have extracted %d different places",len(iterable), len(places.keys()))
-    return places
+def group_by_place(iterable):
+    return group_by(iterable, 'place')
 
 
 def log_places(places_iterable):
@@ -227,7 +224,6 @@ def by_coordinates(iterable):
     for row in iterable:
         coords[(row['longitude'],row['latitude'])].append(row)
     log.info("From %d entries, we have extracted %d different coordinates",len(iterable), len(coords.keys()))
-
     return coords
 
 

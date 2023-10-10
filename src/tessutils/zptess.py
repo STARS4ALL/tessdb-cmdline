@@ -21,7 +21,7 @@ import logging
 # -------------
 
 from .utils import open_database, formatted_mac, is_mac, is_tess_mac
-from .dbutils import get_tessdb_connection_string, get_zptess_connection_string, group_by_mac, common_A_B_items
+from .dbutils import get_tessdb_connection_string, get_zptess_connection_string, group_by_mac, common_A_B_items, filter_out_multidict
 
 
 # -----------------------
@@ -76,9 +76,12 @@ def _photometers_from_zptess(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT mac, zero_point, session, name, calibration
-        FROM summary_v
-        WHERE name LIKE 'stars%'
+        SELECT mac, zero_point, session, name, calibration FROM summary_v WHERE mac in (
+            SELECT mac FROM summary_v WHERE name LIKE 'stars%' AND upd_flag = 1 AND calibration = 'AUTO' GROUP BY mac HAVING count(mac) > 1 )
+        UNION ALL
+        SELECT mac, zero_point, session, name, calibration FROM summary_v WHERE mac in (
+            SELECT mac FROM summary_v WHERE name LIKE 'stars%' AND upd_flag = 1 AND calibration = 'AUTO' GROUP BY mac HAVING count(mac) = 1 )
+        ORDER BY mac, session DESC
         ''')
     return cursor.fetchall()
 
@@ -114,8 +117,6 @@ def photometers_from_tessdb(connection):
 def photometers_from_zptess(connection):
     return list(map(zptess_remap_info, _photometers_from_zptess(connection)))
 
-def filter_by_field(iterable, keys):
-    return [iterable[key] for key in keys]
 
 # ===================
 # Module entry points
@@ -133,8 +134,11 @@ def generate(options):
     log.info("%d entries from tessdb", len(tessdb_input_list))
     zptess_input_list = photometers_from_zptess(conn_zptess)
     log.info("%d entries from zptess", len(zptess_input_list))
+    log.info("=========================== TESSDB Grouping by MAC=========================== ")
     tessdb_input_list = group_by_mac(tessdb_input_list)
+    log.info("=========================== ZPTESS Grouping by MAC ==========================")
     zptess_input_list = group_by_mac(zptess_input_list)
+    #zptess_input_list = filter_out_multidict(zptess_input_list)
     common_macs = common_A_B_items(zptess_input_list, tessdb_input_list)
     log.info("Common entries: %d", len(common_macs))
     common_list = [{**tessdb_input_list[key][0], **zptess_input_list[key][0]} for key in common_macs]
