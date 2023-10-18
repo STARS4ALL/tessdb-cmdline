@@ -9,8 +9,10 @@
 # System wide imports
 # -------------------
 
+import os
 import csv
 import logging
+import functools
 
 # -------------------
 # Third party imports
@@ -21,7 +23,7 @@ import logging
 # -------------
 
 from .utils import open_database, formatted_mac, is_mac, is_tess_mac
-from .dbutils import get_tessdb_connection_string, get_zptess_connection_string, group_by_mac, common_A_B_items, filter_out_multidict
+from .dbutils import get_tessdb_connection_string, get_zptess_connection_string, group_by_mac, common_A_B_items, in_A_not_in_B
 
 
 # -----------------------
@@ -30,7 +32,12 @@ from .dbutils import get_tessdb_connection_string, get_zptess_connection_string,
 
 log = logging.getLogger('zptess')
 
-COLUMNS = ("mac", "zptess_zp", "tessdb_zp", "zptess_method", "tessdb_registered", "zptess_name", "zptess_date", "tessdb_date")
+COMMON_COLUMNS = ("mac", "zptess_name", "tessdb_state", "zptess_zp", "tessdb_zp", 
+    "zptess_method", "tessdb_registered", "zptess_date", "tessdb_date", "tessdb_entries", "zptess_entries")
+
+TESSDB_COLUMNS = ("mac", "tessdb_state",  "tessdb_zp", "tessdb_registered",  "tessdb_date", "tessdb_entries")
+
+ZPTESS_COLUMNS = ("mac", "zptess_name", "zptess_zp", "zptess_method",  "zptess_date",  "zptess_entries")
 
 # -------------------------
 # Module auxiliar functions
@@ -42,7 +49,7 @@ def _photometers_from_tessdb1(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT mac_address, zero_point, valid_since, registered
+        SELECT DISTINCT mac_address, valid_state, zero_point, valid_since, registered
         FROM tess_t
         WHERE valid_state = 'Current'
         AND mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) = 1)
@@ -53,22 +60,9 @@ def _photometers_from_tessdb2(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT mac_address, zero_point, valid_since, registered
+        SELECT DISTINCT mac_address, valid_state, zero_point, valid_since, registered
         FROM tess_t
-        WHERE valid_state = 'Current'
-        AND mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) = 2)
-        ''')
-    return cursor.fetchall()
-
-
-def _photometers_from_tessdb3(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT DISTINCT mac_address, zero_point, valid_since, registered
-        FROM tess_t
-        WHERE valid_state = 'Current'
-        AND mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 2)
+        ORDER BY mac_address, valid_since
         ''')
     return cursor.fetchall()
 
@@ -76,12 +70,10 @@ def _photometers_from_zptess(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT mac, zero_point, session, name, calibration FROM summary_v WHERE mac in (
-            SELECT mac FROM summary_v WHERE name LIKE 'stars%' AND upd_flag = 1 AND calibration = 'AUTO' GROUP BY mac HAVING count(mac) > 1 )
-        UNION ALL
-        SELECT mac, zero_point, session, name, calibration FROM summary_v WHERE mac in (
-            SELECT mac FROM summary_v WHERE name LIKE 'stars%' AND upd_flag = 1 AND calibration = 'AUTO' GROUP BY mac HAVING count(mac) = 1 )
-        ORDER BY mac, session DESC
+        SELECT mac, zero_point, session, name, calibration 
+        FROM summary_v 
+        WHERE name LIKE 'stars%' AND upd_flag = 1
+        ORDER BY mac, session
         ''')
     return cursor.fetchall()
 
@@ -92,10 +84,10 @@ def tessdb_remap_info(row):
         new_row['mac'] = formatted_mac(row[0])
     except:
         return None
-    new_row['tessdb_zp'] =row[1]
-    new_row['tessdb_date'] = row[2]
-    new_row['tessdb_registered'] = row[3]
-    #new_row['tessdb_name'] = row[0]
+    new_row['tessdb_state'] =row[1]
+    new_row['tessdb_zp'] =row[2]
+    new_row['tessdb_date'] = row[3]
+    new_row['tessdb_registered'] = row[4]
     return new_row
 
 def zptess_remap_info(row):
@@ -104,18 +96,116 @@ def zptess_remap_info(row):
         new_row['mac'] = formatted_mac(row[0])
     except:
         return None
-    new_row['zptess_zp'] =row[1]
+    new_row['zptess_zp'] = row[1]
     new_row['zptess_date'] = row[2]
     new_row['zptess_name'] = row[3]
     new_row['zptess_method'] = row[4]
     return new_row
 
 
-def photometers_from_tessdb(connection):
-    return list(map(tessdb_remap_info, _photometers_from_tessdb1(connection)))
+def complex_filtering(item, mac_list=None):
+    if item['mac'] not in mac_list:
+        return True
+    if item['tessdb_zp'] != item['zptess_zp']:
+        return True
+    return False
 
-def photometers_from_zptess(connection):
-    return list(map(zptess_remap_info, _photometers_from_zptess(connection)))
+
+def generate_common(conn_tessdb, conn_zptess, historic_flag, path):
+    zptess_input_list = list(map(zptess_remap_info, _photometers_from_zptess(conn_zptess)))
+    if historic_flag:
+        tessdb_input_list = list(map(tessdb_remap_info, _photometers_from_tessdb2(conn_tessdb)))
+    else:
+        tessdb_input_list = list(map(tessdb_remap_info, _photometers_from_tessdb1(conn_tessdb)))
+    log.info("%d entries from tessdb", len(tessdb_input_list))
+    log.info("%d entries from zptess", len(zptess_input_list))
+    log.info("=========================== TESSDB Grouping by MAC=========================== ")
+    tessdb_input_list = group_by_mac(tessdb_input_list)
+    log.info("=========================== ZPTESS Grouping by MAC ==========================")
+    zptess_input_list = group_by_mac(zptess_input_list)
+    common_macs = common_A_B_items(zptess_input_list, tessdb_input_list)
+    log.info("Common entries: %d", len(common_macs))
+    common_list = list()
+    aux_list = list()
+    # For each photometer we calculate the cartesian product
+    for key in common_macs:
+        tdblen = len(tessdb_input_list[key])
+        zptlen = len(zptess_input_list[key])
+        entries = tdblen * zptlen
+        log.debug("Generating %d entries for %s", entries, key)
+        aux_list.append({"mac": key, "entries": entries, "tessdb_entries": tdblen, "zptess_entries": zptlen})
+        common_list.extend([{**x, **y, 'tessdb_entries': tdblen, 'zptess_entries': zptlen} for x in tessdb_input_list[key] for y in zptess_input_list[key]])
+    simple_case_list = list(map(lambda x: x['mac'] ,filter(lambda x: x['entries'] == 1, aux_list)))
+    simples_out_func = functools.partial(complex_filtering, mac_list=simple_case_list)
+    common_list = filter(simples_out_func, common_list)
+    common_list = sorted(common_list, key=lambda x: x['mac'])
+    aux_list = sorted(aux_list, key=lambda x: x['mac'])
+    log.info("Final list of %d common, filtered elements", len(common_list))
+    folder = os.path.dirname(path)
+    aux_path = os.path.join(folder, "common_mac_entries.csv")
+    with open(path, 'w', newline='') as f:
+            writer = csv.DictWriter(f, delimiter=';', fieldnames=COMMON_COLUMNS)
+            writer.writeheader()
+            for row in common_list:
+                writer.writerow(row);
+    with open(aux_path, 'w', newline='') as f:
+            writer = csv.DictWriter(f, delimiter=';', fieldnames=["mac","entries","tessdb_entries","zptess_entries"])
+            writer.writeheader()
+            for row in aux_list:
+                writer.writerow(row);
+
+def generate_tessdb(conn_tessdb, conn_zptess, historic_flag, path):
+    zptess_input_list = list(map(zptess_remap_info, _photometers_from_zptess(conn_zptess)))
+    if historic_flag:
+        tessdb_input_list = list(map(tessdb_remap_info, _photometers_from_tessdb2(conn_tessdb)))
+    else:
+        tessdb_input_list = list(map(tessdb_remap_info, _photometers_from_tessdb1(conn_tessdb)))
+    log.info("%d entries from tessdb", len(tessdb_input_list))
+    log.info("%d entries from zptess", len(zptess_input_list))
+    log.info("=========================== TESSDB Grouping by MAC=========================== ")
+    tessdb_input_list = group_by_mac(tessdb_input_list)
+    log.info("=========================== ZPTESS Grouping by MAC ==========================")
+    zptess_input_list = group_by_mac(zptess_input_list)
+    only_tessdb_macs = in_A_not_in_B(tessdb_input_list, zptess_input_list)
+    log.info("TESSDB MACs only, entries: %d", len(only_tessdb_macs))
+    only_tessdb_list = list()
+    # For each photometer we calculate the cartesian product
+    for key in only_tessdb_macs:
+        tdblen = len(tessdb_input_list[key])
+        only_tessdb_list.extend([{**x, 'tessdb_entries': tdblen} for x in tessdb_input_list[key]])
+    only_tessdb_list = sorted(only_tessdb_list, key=lambda x: x['mac'])
+    with open(path, 'w', newline='') as f:
+            writer = csv.DictWriter(f, delimiter=';', fieldnames=TESSDB_COLUMNS)
+            writer.writeheader()
+            for row in only_tessdb_list:
+                writer.writerow(row);
+
+
+def generate_zptess(conn_tessdb, conn_zptess, historic_flag, path):
+    zptess_input_list = list(map(zptess_remap_info, _photometers_from_zptess(conn_zptess)))
+    if historic_flag:
+        tessdb_input_list = list(map(tessdb_remap_info, _photometers_from_tessdb2(conn_tessdb)))
+    else:
+        tessdb_input_list = list(map(tessdb_remap_info, _photometers_from_tessdb1(conn_tessdb)))
+    log.info("%d entries from tessdb", len(tessdb_input_list))
+    log.info("%d entries from zptess", len(zptess_input_list))
+    log.info("=========================== TESSDB Grouping by MAC=========================== ")
+    tessdb_input_list = group_by_mac(tessdb_input_list)
+    log.info("=========================== ZPTESS Grouping by MAC ==========================")
+    zptess_input_list = group_by_mac(zptess_input_list)
+    only_zptess_macs = in_A_not_in_B(zptess_input_list, tessdb_input_list)
+    log.info("ZPTESS MACs only, entries: %d", len(only_zptess_macs))
+    only_zptess_list = list()
+    # For each photometer we calculate the cartesian product
+    for key in only_zptess_macs:
+        zptlen = len(zptess_input_list[key])
+        only_zptess_list.extend([{**x, 'zptess_entries': zptlen} for x in zptess_input_list[key]])
+    only_zptess_list = sorted(only_zptess_list, key=lambda x: x['mac'])
+    with open(path, 'w', newline='') as f:
+            writer = csv.DictWriter(f, delimiter=';', fieldnames=ZPTESS_COLUMNS)
+            writer.writeheader()
+            for row in only_zptess_list:
+                writer.writerow(row);
 
 
 # ===================
@@ -130,24 +220,9 @@ def generate(options):
     zptess = get_zptess_connection_string()
     log.info("connecting to SQLite database %s", zptess)
     conn_zptess = open_database(zptess)
-    tessdb_input_list = photometers_from_tessdb(conn_tessdb)
-    log.info("%d entries from tessdb", len(tessdb_input_list))
-    zptess_input_list = photometers_from_zptess(conn_zptess)
-    log.info("%d entries from zptess", len(zptess_input_list))
-    log.info("=========================== TESSDB Grouping by MAC=========================== ")
-    tessdb_input_list = group_by_mac(tessdb_input_list)
-    log.info("=========================== ZPTESS Grouping by MAC ==========================")
-    zptess_input_list = group_by_mac(zptess_input_list)
-    #zptess_input_list = filter_out_multidict(zptess_input_list)
-    common_macs = common_A_B_items(zptess_input_list, tessdb_input_list)
-    log.info("Common entries: %d", len(common_macs))
-    common_list = [{**tessdb_input_list[key][0], **zptess_input_list[key][0]} for key in common_macs]
-    filtered_list = filter(lambda x: x['tessdb_zp'] != x['zptess_zp'], common_list)
-    sorted_list = sorted(filtered_list, key=lambda x: x['zptess_name'])
-    log.info("Only %d entries differ in ZP", len(sorted_list))
-    #common_zptess_list = [zptess_input_list[key][0] for key in common_macs]
-    with open(options.file, 'w', newline='') as f:
-        writer = csv.DictWriter(f, delimiter=';', fieldnames=COLUMNS)
-        writer.writeheader()
-        for row in sorted_list:
-            writer.writerow(row);
+    if options.common:
+        generate_common(conn_tessdb, conn_zptess, options.historic, options.file)
+    elif options.tessdb:
+        generate_tessdb(conn_tessdb, conn_zptess, options.historic, options.file)
+    else:
+        generate_zptess(conn_tessdb, conn_zptess, options.historic, options.file)
