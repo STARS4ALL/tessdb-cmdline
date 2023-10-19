@@ -1,3 +1,15 @@
+El historico de los ZPs embebido en el histórico de los nombres
+```sql
+SELECT t.mac_address, n.name, 
+n.valid_since AS name_valid_since, n.valid_until AS name_valid_until, n.valid_state AS name_valid_state, 
+t.tess_id, t.zero_point, t.valid_since AS zp_valid_since, t.valid_until AS zp_valid_until, t.valid_state AS zp_valid_state,
+t.registered AS registered
+FROM tess_t AS t
+JOIN name_to_mac_t as n USING (mac_address)
+WHERE n.name LIKE 'stars%'
+AND  t.valid_since BETWEEN n.valid_since AND n.valid_until
+ORDER BY t.mac_address, t.valid_since
+```
 ==================== HISTORIOCO DE LOS TESS-W SOSPECHOSOS DE TEBEER ZP 2.0 EN SU CALIBRACION ===========
 ```sql
 select count(*) from tess_t as t
