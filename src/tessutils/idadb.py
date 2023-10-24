@@ -130,7 +130,7 @@ def write_csv(path, output_list, columns):
     with open(path, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=columns)
         writer.writeheader()
-        for mac, items in output_list.items():
+        for mac, items in sorted(output_list.items()):
             for item in items:
                 writer.writerow(item)
 
