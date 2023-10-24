@@ -64,6 +64,9 @@ def get_tessdb_connection_string():
 def get_zptess_connection_string():
    return decouple.config('ZPTESS_URL')
 
+def get_idadb_connection_string():
+   return decouple.config('IDADB_URL')
+
 def _make_remap_location(geolocator, tzfinder):
     def _remap_location_func(row):
         time.sleep(1) # Inserts a one seconds delay

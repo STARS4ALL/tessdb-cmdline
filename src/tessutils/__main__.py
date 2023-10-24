@@ -114,17 +114,16 @@ def createParser():
     parser_tessdb  = subparser.add_parser('tessdb', help='TessDB commands')
     parser_crossdb = subparser.add_parser('crossdb', help='Cross database check commands')
     parser_zptess  = subparser.add_parser('zptess', help='zptess commands')
-    parser_ida  = subparser.add_parser('ida', help='zptess commands')
+    parser_ida  = subparser.add_parser('idadb', help='idadb commands')
 
     # -------------------------------------
     # Create second level parsers for 'ida'
     # -------------------------------------
 
-    subparser = parser_zptess.add_subparsers(dest='subcommand')
+    subparser = parser_ida.add_subparsers(dest='subcommand')
     
     ida = subparser.add_parser('generate',  help="Generate cross IDA/tessdb CSV comparison")
-    ida.add_argument('--input-file', type=str, required=True, help='CSV IDA File preffix')
-    ida.add_argument('--output-file', type=str, required=True, help='CSV IDA File preffix')
+    ida.add_argument('-f', '--file', type=str, required=True, help='Output CSV File')
     idaex1 = ida.add_mutually_exclusive_group(required=True)
     idaex1.add_argument('--common', action='store_true', help='Common MACs')
     idaex1.add_argument('--ida', action='store_true', help='MACs in IDA CSV file not in TESSDB')
@@ -137,7 +136,7 @@ def createParser():
     subparser = parser_zptess.add_subparsers(dest='subcommand')
     
     zpt = subparser.add_parser('generate',  help="Generate cross zptess/tessdb CSV comparison")
-    zpt.add_argument('-f', '--file', type=str, required=True, help='CSV File preffix')
+    zpt.add_argument('-f', '--file', type=str, required=True, help='Output CSV File')
     zpex1 = zpt.add_mutually_exclusive_group(required=True)
     zpex1.add_argument('--common', action='store_true', help='Common MACs')
     zpex1.add_argument('--zptess', action='store_true', help='MACs in ZPTESS not in TESSDB')
