@@ -123,19 +123,21 @@ def read_databases():
     idadb_input_list = group_by_mac(idadb_input_list)
     return tessdb_input_list, idadb_input_list
 
+def write_ida_csv(path, output_list, columns):
+    with open(path, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=columns)
+        writer.writeheader()
+        for mac, items in output_list.items():
+            for item in items:
+                writer.writerow(item)
+
 def generate_common(output_path):
     tessdb_input_list, idadb_input_list = read_databases()
     common_macs = common_A_B_items(tessdb_input_list, idadb_input_list)
     log.info("Common MAC entries: %d", len(common_macs))
     output = intra_ida_analisys(common_macs, idadb_input_list)
-    with open(output_path, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=IDADB_COLUMNS)
-        writer.writeheader()
-        for mac, items in output.items():
-            for item in items:
-                writer.writerow(item)
-   
-   
+    write_ida_csv(output_path, output, IDADB_COLUMNS)
+  
 
 def generate_only_tessdb(output_path):
     tessdb_input_list, idadb_input_list = read_databases()
@@ -144,9 +146,11 @@ def generate_only_tessdb(output_path):
    
 
 def generate_only_idadb(output_path):
-    tessdb_input_list, idadb_input_list = read_databases(conn_tessdb, conn_idadb)
+    tessdb_input_list, idadb_input_list = read_databases()
     only_ida_file_macs = in_A_not_in_B(idadb_input_list, tessdb_input_list)
     log.info("IDADB MACs only, entries: %d", len(only_ida_file_macs))
+    output = { mac:  idadb_input_list[mac] for mac in only_ida_file_macs}
+    write_ida_csv(output_path, output, IDADB_COLUMNS)
 
 
 def all_equal(pair):
@@ -194,4 +198,4 @@ def generate(options):
     elif options.tessdb:
         generate_only_tessdb(options.file)
     else:
-        generate_only_ida(options.file)
+        generate_only_idadb(options.file)
