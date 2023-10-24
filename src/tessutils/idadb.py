@@ -38,6 +38,9 @@ log = logging.getLogger('idadb')
 IDADB_COLUMNS = ("mac", "name", "filename", "data_rows", "computed_zp_median", 
     "computed_zp_stdev", "tessdb_zp_median", "tessdb_zp_stdev", "computed_zp_min", "computed_zp_max", "t0", "t1")
 
+TESSDB_COLUMNS = ("mac", "name", "name_valid_since", "name_valid_until", "name_valid_state", "tess_id", "zero_point",
+  "zp_valid_since",  "zp_valid_until",  "zp_valid_state",  "registered")  
+
 # -------------------------
 # Module auxiliar functions
 # -------------------------
@@ -123,7 +126,7 @@ def read_databases():
     idadb_input_list = group_by_mac(idadb_input_list)
     return tessdb_input_list, idadb_input_list
 
-def write_ida_csv(path, output_list, columns):
+def write_csv(path, output_list, columns):
     with open(path, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=columns)
         writer.writeheader()
@@ -136,13 +139,15 @@ def generate_common(output_path):
     common_macs = common_A_B_items(tessdb_input_list, idadb_input_list)
     log.info("Common MAC entries: %d", len(common_macs))
     output = intra_ida_analisys(common_macs, idadb_input_list)
-    write_ida_csv(output_path, output, IDADB_COLUMNS)
+    write_csv(output_path, output, IDADB_COLUMNS)
   
 
 def generate_only_tessdb(output_path):
     tessdb_input_list, idadb_input_list = read_databases()
     only_tessdb_macs = in_A_not_in_B(tessdb_input_list, idadb_input_list)
     log.info("TESSDB MACs only, entries: %d", len(only_tessdb_macs))
+    output = { mac:  tessdb_input_list[mac] for mac in only_tessdb_macs}
+    write_csv(output_path, output, TESSDB_COLUMNS)
    
 
 def generate_only_idadb(output_path):
@@ -150,7 +155,7 @@ def generate_only_idadb(output_path):
     only_ida_file_macs = in_A_not_in_B(idadb_input_list, tessdb_input_list)
     log.info("IDADB MACs only, entries: %d", len(only_ida_file_macs))
     output = { mac:  idadb_input_list[mac] for mac in only_ida_file_macs}
-    write_ida_csv(output_path, output, IDADB_COLUMNS)
+    write_csv(output_path, output, IDADB_COLUMNS)
 
 
 def all_equal(pair):
