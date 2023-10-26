@@ -46,11 +46,11 @@ log = logging.getLogger('dbutils')
 # -------------------------
 
 
-def common_A_B_items(iterable_A, iterable_B):
-    return set(iterable_A.keys()).intersection(set(iterable_B.keys()))
+def common_A_B_items(map_A, map_B):
+    return set(map_A.keys()).intersection(set(map_B.keys()))
 
-def in_A_not_in_B(iterable_A, iterable_B):
-    return set(iterable_A.keys()) - set(iterable_B.keys())
+def in_A_not_in_B(map_A, map_B):
+    return set(map_A.keys()) - set(map_B.keys())
 
 def get_mongo_api_url():
     return decouple.config('STARS4ALL_API')
@@ -222,7 +222,7 @@ def check_place_same_coords(place, rows):
 # Photometers Coords check
 # ------------------------
 
-def by_coordinates(iterable):
+def group_by_coordinates(iterable):
     coords = collections.defaultdict(list)
     for row in iterable:
         coords[(row['longitude'],row['latitude'])].append(row)

@@ -153,10 +153,11 @@ def createParser():
 
     subparser = parser_location.add_subparsers(dest='subcommand')
     
-    locg = subparser.add_parser('generate',  help="Generate tessdb location creation script")
-    locg.add_argument('-d', '--dbase', type=validfile, default=DEFAULT_DBASE, help='SQLite database full file path')
-    locg.add_argument('-i', '--input-file', type=validfile, required=True, help='Input CSV file')
-    locg.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    locg = subparser.add_parser('generate',  help="Generate SQL file with location updates from MongoDB ")
+    locgex1 = locg.add_mutually_exclusive_group(required=True)
+    locgex1.add_argument('-u', '--unknown', action='store_true', help='Update those with a single name/mac entry and unknown location')
+    locgex1.add_argument('-s', '--single', action='store_true', help='Update those with a single name/mac entry in tessdb')
+    locgex1.add_argument('-m', '--multiple', action='store_true', help='Update those with multiple name/mac entries in tessdb')
 
     # -----------------------------------------
     # Create second level parsers for 'mongodb'

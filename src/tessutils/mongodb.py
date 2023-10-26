@@ -25,7 +25,7 @@ import requests
 # -------------
 
 from .utils import formatted_mac, is_tess_mac, is_mac
-from .dbutils import by_place, group_by_name,group_by_mac, by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
+from .dbutils import group_by_place, group_by_name, group_by_mac, group_by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
 from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate, common_A_B_items, in_A_not_in_B, filter_and_flatten
 
 class ListLengthMismatchError(Exception):
