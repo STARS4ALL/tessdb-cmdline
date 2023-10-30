@@ -35,8 +35,8 @@ __version__ = get_versions()['version']
 
 # DATABASE RESOURCES
 CREATE_LOCATIONS_TEMPLATE = resource_filename(__name__, os.path.join('templates', 'location-create.j2'))
-PROBLEMATIC_LOCATIONS_TEMPLATE = resource_filename(__name__, os.path.join('templates', 'location-problematic.j2'))
-SQL_CREATE_LOCATIONS_TEMPLATE = resource_filename(__name__, os.path.join('templates', 'sql-location-create.j2'))
+SQL_INSERT_LOCATIONS_TEMPLATE = resource_filename(__name__, os.path.join('templates', 'sql-location-insert.j2'))
+SQL_UPDATE_PHOT_LOCATIONS_TEMPLATE = resource_filename(__name__, os.path.join('templates', 'sql-phot-update.j2'))
 
 del get_versions
 

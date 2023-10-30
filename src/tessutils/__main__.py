@@ -155,9 +155,9 @@ def createParser():
     
     locg = subparser.add_parser('generate',  help="Generate SQL file with location updates from MongoDB ")
     locgex1 = locg.add_mutually_exclusive_group(required=True)
-    locgex1.add_argument('-u', '--unknown', action='store_true', help='Update those with a single name/mac entry and unknown location')
-    locgex1.add_argument('-s', '--single', action='store_true', help='Update those with a single name/mac entry in tessdb')
-    locgex1.add_argument('-m', '--multiple', action='store_true', help='Update those with multiple name/mac entries in tessdb')
+    locgex1.add_argument('-u', '--unknown', action='store_true', help='Update those with no repairs and no renamings and unknown location')
+    locgex1.add_argument('-s', '--single', action='store_true', help='Update those with no repairs and no renamings in tessdb')
+    locgex1.add_argument('-m', '--multiple', action='store_true', help='Update those with repair/renamings entries in tessdb')
 
     # -----------------------------------------
     # Create second level parsers for 'mongodb'

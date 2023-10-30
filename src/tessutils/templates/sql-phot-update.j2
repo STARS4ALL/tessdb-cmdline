@@ -1,0 +1,10 @@
+BEGIN
+{% for row in photometers %}
+INSERT INTO location_t (longitude,latitude,elevation,timezone,site,location,province,state,country,organization)
+VALUES ({{row['longitude']}},{{row['latitude']}},{{row['masl']}},'{{row['timezone']}}','{{row['place']}}','{{row['town']}}','{{row['sub_region']}}','{{row['region']}}', '{{row['country']}}','{{row['org_name']}}') RETURNING location_id
+UPDATE tess_t
+SET location_id = id
+FROM ( last_insert_rowid() ) AS id
+WHERE mac_address = '{{row['mac']}}'
+{% endfor -%}
+COMMIT;
