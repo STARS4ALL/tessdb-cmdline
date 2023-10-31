@@ -39,6 +39,11 @@ from .mongodb import mongo_get_all_info
 # Module constants
 # ----------------
 
+# Distance to consider all coordinates to be the same place
+# between tessdb and MongoDB
+# Experimentally determined by establishing a growth curve  
+# with 1, 10, 50, 100, 150 , 200 & 500 m
+NEARBY_DISTANCE = 200 # meters
 
 # -----------------------
 # Module global variables
@@ -118,7 +123,7 @@ def _easy_photometers_with_unknown_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT name, t.mac_address, tess_id, zero_point
+        SELECT name, t.mac_address, tess_id, zero_point, , location_id
         FROM tess_t AS t
         JOIN name_to_mac_t AS n USING(mac_address)
         WHERE mac_address IN (
@@ -136,7 +141,39 @@ def _easy_photometers_with_unknown_locations_from_tessdb(connection):
         ''')
     return cursor
 
-def tessdb_remap_unknown_location_info(row):
+def _easy_photometers_with_former_locations_from_tessdb(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT name, t.mac_address, tess_id, zero_point, location_id
+        FROM tess_t AS t
+        JOIN name_to_mac_t AS n USING(mac_address)
+        WHERE mac_address IN (
+            -- Photometers with no repairs and no renamings
+            SELECT mac_address  FROM name_to_mac_t
+            WHERE name LIKE 'stars%'
+            EXCEPT -- this is the photometer substitution/repair part
+            SELECT mac_address FROM name_to_mac_t
+            WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
+            EXCEPT -- This is the renamings part
+            SELECT mac_address FROM name_to_mac_t
+            WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1))
+        AND location_id > -1
+        ORDER BY mac_address, t.valid_since
+        ''')
+    return cursor
+
+def _coordinates_from_id(connection, location_id):
+    row = dict()
+    row['location_id'] = location_id
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT longitude, latitude FROM location_t WHERE location_id = :location_id
+        ''', row)
+    return cursor.fetchone()
+
+def tessdb_remap_location_info(row):
     new_row = dict()
     new_row['name'] = row[0]
     try:
@@ -145,10 +182,16 @@ def tessdb_remap_unknown_location_info(row):
         return None
     new_row['tess_id'] = row[2]
     new_row['zero_point'] =row[3]
+    new_row['location_id'] =row[4]
     return new_row
 
+
+
 def easy_photometers_with_unknown_locations_from_tessdb(connection):
-    return list(map(tessdb_remap_unknown_location_info, _easy_photometers_with_unknown_locations_from_tessdb(connection)))
+    return list(map(tessdb_remap_location_info, _easy_photometers_with_unknown_locations_from_tessdb(connection)))
+
+def easy_photometers_with_former_locations_from_tessdb(connection):
+    return list(map(tessdb_remap_location_info, _easy_photometers_with_former_locations_from_tessdb(connection)))
 
 
 def render(template_path, context):
@@ -173,16 +216,6 @@ def generate_script(path, valid_coords_iterable, dbpath):
     contents = render(CREATE_LOCATIONS_TEMPLATE, context)
     with open(path, "w") as script:
         script.write(contents)
-    
-def new_photometer_location(mongo_db_input_dict, tessdb_input_dict):
-    photometers = list()
-    for name, value in sorted(mongo_db_input_dict.items()):
-        row = value[0]
-        row['masl'] = 0.0
-        row['tess_ids'] = tuple( str(item['tess_id']) for item in tessdb_input_dict[name])
-        log.info("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
-        photometers.append(row)
-    return photometers
 
 def same_mac_filter(mongo_db_input_dict, tessdb_input_dict):
     result = list()
@@ -191,10 +224,43 @@ def same_mac_filter(mongo_db_input_dict, tessdb_input_dict):
         mongo_mac = mongo_db_input_dict[name][0]['mac']
         tessdb_mac = tessdb_input_dict[name][0]['mac']
         if mongo_mac  != tessdb_mac:
-            log.warn("Excluding photometer %s with different MACs: MongoDB (%s) , TESSDB (%s)", name, mongo_mac, tessdb_mac)
+            log.debug("Excluding photometer %s with different MACs: MongoDB (%s) , TESSDB (%s)", name, mongo_mac, tessdb_mac)
         else:
             result.append(name)
     return result
+
+def new_photometer_location(mongo_db_input_dict, tessdb_input_dict):
+    photometers = list()
+    for name, value in sorted(mongo_db_input_dict.items()):
+        assert len(value) == 1
+        row = value[0]
+        row['masl'] = 0.0
+        row['tess_ids'] = tuple( str(item['tess_id']) for item in tessdb_input_dict[name])
+        log.info("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
+        photometers.append(row)
+    return photometers
+
+def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection):
+    photometers = list()
+    n_inserts = 0
+    n_updates = 0
+    for name, value in sorted(mongo_db_input_dict.items()):
+        assert len(value) == 1
+        row = value[0]
+        row['masl'] = 0.0
+        row['tess_ids'] = tuple( str(item['tess_id']) for item in tessdb_input_dict[name])
+        locations = tuple( item['location_id'] for item in tessdb_input_dict[name])
+        assert all(loc == locations[0] for loc in locations)
+        log.debug("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
+        tessdb_coords = _coordinates_from_id(connection, locations[0])
+        mongodb_coords = (row['longitude'], row['latitude'])
+        if distance ( mongodb_coords, tessdb_coords) < 200:
+            n_updates += 1
+        else:
+            n_inserts += 1
+        photometers.append(row)
+    log.info("Must perform %d location info updates and %d location info inserts", n_updates, n_inserts)
+    return photometers
 
 # ======================
 # Second level functions
@@ -207,14 +273,35 @@ def generate_unknown(connection, mongodb_url, output_path):
     mongodb_input_list = mongo_get_all_info(mongodb_url)
     mongo_db_input_dict = group_by_name(mongodb_input_list)
     common_names = common_A_B_items(tessdb_input_dict, mongo_db_input_dict)
-    log.info("Photometer names that must be updates with MongoDB location: %d", len(common_names))
+    log.info("Photometer names that must be updated with MongoDB location: %d", len(common_names))
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
     common_names = same_mac_filter(mongo_db_input_dict, tessdb_input_dict)
+    log.info("Reduced list of only %d entries after MAC exclusion", len(common_names))
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
     context = dict()
     context['photometers'] = new_photometer_location(mongo_db_input_dict, tessdb_input_dict)
+    output = render(SQL_UPDATE_PHOT_LOCATIONS_TEMPLATE, context)
+    with open(output_path, "w") as sqlfile:
+        sqlfile.write(output)
+
+def generate_single(connection, mongodb_url, output_path):
+    tessdb_input_list = easy_photometers_with_former_locations_from_tessdb(connection)
+    tessdb_input_dict = group_by_name(tessdb_input_list)
+    log.info("Photometer entries with former locations: %d", len(tessdb_input_dict))
+    mongodb_input_list = mongo_get_all_info(mongodb_url)
+    mongo_db_input_dict = group_by_name(mongodb_input_list)
+    common_names = common_A_B_items(tessdb_input_dict, mongo_db_input_dict)
+    log.info("Photometer names that must be updated with MongoDB location: %d", len(common_names))
+    mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
+    tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
+    common_names = same_mac_filter(mongo_db_input_dict, tessdb_input_dict)
+    log.info("Reduced list of only %d entries after MAC exclusion", len(common_names))
+    mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
+    tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
+    context = dict()
+    context['photometers'] = existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection)
     output = render(SQL_UPDATE_PHOT_LOCATIONS_TEMPLATE, context)
     with open(output_path, "w") as sqlfile:
         sqlfile.write(output)
@@ -232,7 +319,7 @@ def generate(options):
     if options.unknown:
         generate_unknown(connection, mongodb_url, options.file)
     elif options.single:
-        raise NotImplementedError("Command line option not yet implemented")
+        generate_single(connection, mongodb_url, options.file)
     else:
         raise NotImplementedError("Command line option not yet implemented")
    
