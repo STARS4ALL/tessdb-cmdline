@@ -42,7 +42,7 @@ from .mongodb import mongo_get_all_info
 # Distance to consider all coordinates to be the same place
 # between tessdb and MongoDB
 # Experimentally determined by establishing a growth curve  
-# with 1, 10, 50, 100, 150 , 200 & 500 m
+# with 1, 10, 50, 100, 150, 200 & 500 m
 NEARBY_DISTANCE = 200 # meters
 
 # -----------------------
