@@ -1,3 +1,10 @@
+# SQLite version
+
+En producción es `SQLite version 3.34.1 2021-01-20 14:10:07`
+
+# Consultas interesantes
+
+==============================================================
 El historico de los ZPs embebido en el histórico de los nombres
 ```sql
 SELECT t.mac_address, n.name, 

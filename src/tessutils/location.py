@@ -174,11 +174,12 @@ def generate_script(path, valid_coords_iterable, dbpath):
     with open(path, "w") as script:
         script.write(contents)
     
-def new_photometer_location(mongo_db_input_dict):
+def new_photometer_location(mongo_db_input_dict, tessdb_input_dict):
     photometers = list()
-    for name, value in mongo_db_input_dict.items():
+    for name, value in sorted(mongo_db_input_dict.items()):
         row = value[0]
         row['masl'] = 0.0
+        row['tess_ids'] = tuple( str(item['tess_id']) for item in tessdb_input_dict[name])
         log.info("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
         photometers.append(row)
     return photometers
@@ -213,7 +214,7 @@ def generate_unknown(connection, mongodb_url):
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
     context = dict()
-    context['photometers'] = new_photometer_location(mongo_db_input_dict)
+    context['photometers'] = new_photometer_location(mongo_db_input_dict, tessdb_input_dict)
     output = render(SQL_UPDATE_PHOT_LOCATIONS_TEMPLATE, context)
     log.info(output)
 

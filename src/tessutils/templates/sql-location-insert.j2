@@ -1,6 +1,0 @@
-BEGIN
-{% for row in locations %}
-INSERT INTO location_t (longitude,latitude,elevation,timezone,site,location,province,state,country,organization)
-VALUES ({{row['longitude']}},{{row['latitude']}},{{row['masl']}},'{{row['timezone']}}','{{row['place']}}','{{row['town']}}','{{row['sub_region']}}','{{row['region']}}', '{{row['country']}}','Unknown') RETURNING location_id
-{% endfor -%}
-COMMIT;

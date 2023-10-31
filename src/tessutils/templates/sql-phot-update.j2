@@ -1,10 +1,18 @@
-BEGIN
+-- CREATE INDEX tess_id_readings ON tess_readings_t(tess_id);
+PRAGMA foreign_keys = OFF;
+BEGIN TRANSACTION;
 {% for row in photometers %}
+-- Inserts new Location
 INSERT INTO location_t (longitude,latitude,elevation,timezone,site,location,province,state,country,organization)
-VALUES ({{row['longitude']}},{{row['latitude']}},{{row['masl']}},'{{row['timezone']}}','{{row['place']}}','{{row['town']}}','{{row['sub_region']}}','{{row['region']}}', '{{row['country']}}','{{row['org_name']}}') RETURNING location_id
+VALUES ({{row['longitude']}},{{row['latitude']}},{{row['masl']}},'{{row['timezone']}}','{{row['place']}}','{{row['town']}}','{{row['sub_region']}}','{{row['region']}}', '{{row['country']}}','{{row['org_name']}}');
+-- Updates photometer current location
 UPDATE tess_t
-SET location_id = id
-FROM ( last_insert_rowid() ) AS id
-WHERE mac_address = '{{row['mac']}}'
+SET location_id = last_insert_rowid()
+WHERE mac_address = '{{row['mac']}}';
+-- Updates past readings with the former location id
+UPDATE tess_readings_t
+SET location_id = last_insert_rowid()
+WHERE tess_id IN ({{ ','.join(row['tess_ids']) }});
 {% endfor -%}
 COMMIT;
+PRAGMA foreign_keys = ON;
