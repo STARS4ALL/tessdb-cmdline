@@ -28,9 +28,9 @@ from geopy.extra.rate_limiter import RateLimiter
 # local imports
 # -------------
 
-from . import  SQL_INSERT_LOCATIONS_TEMPLATE, SQL_UPDATE_PHOT_LOCATIONS_TEMPLATE
+from . import  SQL_INSERT_LOCATIONS_TEMPLATE, SQL_PHOT_NEW_LOCATIONS_TEMPLATE, SQL_PHOT_UPD_LOCATIONS_TEMPLATE
 
-from .utils import  open_database, formatted_mac
+from .utils import  open_database, formatted_mac, tessify_mac
 from .dbutils import get_mongo_api_url, get_tessdb_connection_string
 from .dbutils import group_by_name, group_by_mac, common_A_B_items, in_A_not_in_B, distance
 from .mongodb import mongo_get_all_info
@@ -123,7 +123,7 @@ def _easy_photometers_with_unknown_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT name, t.mac_address, tess_id, zero_point, , location_id
+        SELECT name, t.mac_address, tess_id, zero_point, location_id
         FROM tess_t AS t
         JOIN name_to_mac_t AS n USING(mac_address)
         WHERE mac_address IN (
@@ -235,32 +235,36 @@ def new_photometer_location(mongo_db_input_dict, tessdb_input_dict):
         assert len(value) == 1
         row = value[0]
         row['masl'] = 0.0
+        row['mac'] = tessify_mac(row['mac'])
         row['tess_ids'] = tuple( str(item['tess_id']) for item in tessdb_input_dict[name])
-        log.info("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
+        log.debug("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
         photometers.append(row)
     return photometers
 
 def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection):
-    photometers = list()
+    inserters, updaters = list(), list()
     n_inserts = 0
     n_updates = 0
     for name, value in sorted(mongo_db_input_dict.items()):
         assert len(value) == 1
         row = value[0]
         row['masl'] = 0.0
+        row['mac'] = tessify_mac(row['mac'])
         row['tess_ids'] = tuple( str(item['tess_id']) for item in tessdb_input_dict[name])
         locations = tuple( item['location_id'] for item in tessdb_input_dict[name])
         assert all(loc == locations[0] for loc in locations)
+        row['location_id'] = locations[0]
         log.debug("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
-        tessdb_coords = _coordinates_from_id(connection, locations[0])
+        tessdb_coords = _coordinates_from_id(connection, row['location_id'])
         mongodb_coords = (row['longitude'], row['latitude'])
-        if distance ( mongodb_coords, tessdb_coords) < 200:
+        if distance ( mongodb_coords, tessdb_coords) < NEARBY_DISTANCE:
             n_updates += 1
+            updaters.append(row)
         else:
             n_inserts += 1
-        photometers.append(row)
+            inserters.append(row)
     log.info("Must perform %d location info updates and %d location info inserts", n_updates, n_inserts)
-    return photometers
+    return inserters, updaters
 
 # ======================
 # Second level functions
@@ -281,8 +285,8 @@ def generate_unknown(connection, mongodb_url, output_path):
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
     context = dict()
-    context['photometers'] = new_photometer_location(mongo_db_input_dict, tessdb_input_dict)
-    output = render(SQL_UPDATE_PHOT_LOCATIONS_TEMPLATE, context)
+    context['photometers_with_new_locations'] = new_photometer_location(mongo_db_input_dict, tessdb_input_dict)
+    output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
     with open(output_path, "w") as sqlfile:
         sqlfile.write(output)
 
@@ -301,10 +305,12 @@ def generate_single(connection, mongodb_url, output_path):
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
     context = dict()
-    context['photometers'] = existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection)
-    output = render(SQL_UPDATE_PHOT_LOCATIONS_TEMPLATE, context)
+    context['photometers_with_new_locations'],  context['photometers_with_upd_locations'] = existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection)
+    output_insert = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
+    output_update = render(SQL_PHOT_UPD_LOCATIONS_TEMPLATE, context)
     with open(output_path, "w") as sqlfile:
-        sqlfile.write(output)
+        sqlfile.write(output_insert)
+        sqlfile.write(output_update)
     
 
 # ===================

@@ -1,13 +1,17 @@
+-- ---------------------------
+-- NEW LOCATION INSERTION PART 
+-- ---------------------------
+
 -- CREATE INDEX tess_id_readings ON tess_readings_t(tess_id);
 PRAGMA foreign_keys = OFF;
 BEGIN TRANSACTION;
-{% for row in photometers %}
-{% set org_name = 'NULL' if row['org_name'] is none else '"' + row['org_name'] + '"'%}
-{% set org_email = 'NULL' if row['org_email'] is none else '"' + row['org_email'] + '"'%}
+{% for row in photometers_with_new_locations -%}
+{% set org_name = 'NULL' if row['org_name'] is none else '"' + row['org_name'] + '"' -%}
+{% set org_email = 'NULL' if row['org_email'] is none else '"' + row['org_email'] + '"' -%}
 -- Inserts new Location
 INSERT INTO location_t (longitude,latitude,elevation,timezone,site,location,province,state,country,organization,contact_email)
 VALUES ({{row['longitude']}},{{row['latitude']}},{{row['masl']}},'{{row['timezone']}}',"{{row['place']}}","{{row['town']}}","{{row['sub_region']}}","{{row['region']}}", "{{row['country']}}",{{org_name}},{{org_email}});
--- Updates photometer current location
+-- Updates photometer's current location from former location_id = {{ row['location_id']}}
 UPDATE tess_t
 SET location_id = last_insert_rowid()
 WHERE mac_address = '{{row['mac']}}';
@@ -18,3 +22,4 @@ WHERE tess_id IN ({{ ','.join(row['tess_ids']) }});
 {% endfor -%}
 COMMIT;
 PRAGMA foreign_keys = ON;
+--
