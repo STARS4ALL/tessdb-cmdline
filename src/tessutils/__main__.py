@@ -158,7 +158,7 @@ def createParser():
     locgex1.add_argument('-u', '--unknown', action='store_true', help='Update those with no repairs and no renamings and unknown location')
     locgex1.add_argument('-s', '--single', action='store_true', help='Update those with no repairs and no renamings in tessdb')
     locgex1.add_argument('-m', '--multiple', action='store_true', help='Update those with repair/renamings entries in tessdb')
-
+    locg.add_argument('-f', '--file', type=str, required=True, help='Output SQL file')
     # -----------------------------------------
     # Create second level parsers for 'mongodb'
     # -----------------------------------------

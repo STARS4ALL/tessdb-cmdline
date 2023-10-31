@@ -200,7 +200,7 @@ def same_mac_filter(mongo_db_input_dict, tessdb_input_dict):
 # Second level functions
 # ======================
 
-def generate_unknown(connection, mongodb_url):
+def generate_unknown(connection, mongodb_url, output_path):
     tessdb_input_list = easy_photometers_with_unknown_locations_from_tessdb(connection)
     tessdb_input_dict = group_by_name(tessdb_input_list)
     log.info("Photometer entries with unknown locations: %d", len(tessdb_input_dict))
@@ -216,7 +216,9 @@ def generate_unknown(connection, mongodb_url):
     context = dict()
     context['photometers'] = new_photometer_location(mongo_db_input_dict, tessdb_input_dict)
     output = render(SQL_UPDATE_PHOT_LOCATIONS_TEMPLATE, context)
-    log.info(output)
+    with open(output_path, "w") as sqlfile:
+        sqlfile.write(output)
+    
 
 # ===================
 # Module entry points
@@ -228,7 +230,7 @@ def generate(options):
     connection = open_database(tessdb_url)
     log.info("LOCATIONS SCRIPT GENERATION")
     if options.unknown:
-        generate_unknown(connection, mongodb_url)
+        generate_unknown(connection, mongodb_url, options.file)
     elif options.single:
         raise NotImplementedError("Command line option not yet implemented")
     else:

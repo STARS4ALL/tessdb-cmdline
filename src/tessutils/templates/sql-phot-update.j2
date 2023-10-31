@@ -2,9 +2,11 @@
 PRAGMA foreign_keys = OFF;
 BEGIN TRANSACTION;
 {% for row in photometers %}
+{% set org_name = 'NULL' if row['org_name'] is none else '"' + row['org_name'] + '"'%}
+{% set org_email = 'NULL' if row['org_email'] is none else '"' + row['org_email'] + '"'%}
 -- Inserts new Location
-INSERT INTO location_t (longitude,latitude,elevation,timezone,site,location,province,state,country,organization)
-VALUES ({{row['longitude']}},{{row['latitude']}},{{row['masl']}},'{{row['timezone']}}','{{row['place']}}','{{row['town']}}','{{row['sub_region']}}','{{row['region']}}', '{{row['country']}}','{{row['org_name']}}');
+INSERT INTO location_t (longitude,latitude,elevation,timezone,site,location,province,state,country,organization,contact_email)
+VALUES ({{row['longitude']}},{{row['latitude']}},{{row['masl']}},'{{row['timezone']}}',"{{row['place']}}","{{row['town']}}","{{row['sub_region']}}","{{row['region']}}", "{{row['country']}}",{{org_name}},{{org_email}});
 -- Updates photometer current location
 UPDATE tess_t
 SET location_id = last_insert_rowid()
