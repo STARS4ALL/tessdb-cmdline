@@ -147,7 +147,7 @@ def group_by(iterable, key):
             result[row[key]].append(row)
         else:
             log.warn("Skiping None row")
-    log.info("From %d entries, we have extracted %d different %s",len(iterable), len(result.keys()), key)
+    log.info("From %d entries, we have extracted %d different %s(s)",len(iterable), len(result.keys()), key)
     for k, v in result.items():
         log.debug("%s %s has %d values", key, k, len(v))
     return result
