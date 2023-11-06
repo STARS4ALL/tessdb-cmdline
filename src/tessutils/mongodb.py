@@ -267,7 +267,6 @@ def mongo_api_body_all(row):
 
 
 def mongo_api_body_photometer(row, aux_iterable, create=False):
-    log.info("ROW: %s", row)
     local_timezone = get_timezone(aux_iterable, row['name']).strip() if not create else 'Etc/UTC'  # This is a hack, shouldn't be here
     zero_point = row.get('zero_point')
     zero_point = float(zero_point) if zero_point is not None and zero_point != '' else None
@@ -433,7 +432,10 @@ def remap_nominatim(row):
 def remap_mac(input_iterable):
     '''When reading MACS from CSV files'''
     def _map_mac(item):
-        new_mac = formatted_mac(item['mac'])
+        try:
+            new_mac = formatted_mac(item['mac'])
+        except ValueError as e:
+            log.error("when processing %s => %s", item['name'], e)
         log.debug("remapping MAC: %-17s -> %-17s", item['mac'], new_mac)
         item['mac'] = new_mac
         return item

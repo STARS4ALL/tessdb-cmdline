@@ -53,7 +53,13 @@ def url(string):
 
 def formatted_mac(mac):
     ''''Corrects TESS-W MAC strings to be properly formatted'''
-    return ':'.join(f"{int(x,16):02X}" for x in mac.split(':'))
+    try:
+        corrected_mac = ':'.join(f"{int(x,16):02X}" for x in mac.split(':'))
+    except ValueError:
+        raise ValueError("Invalid MAC: %s" % mac)
+    except AttributeError:
+        raise ValueError("Invalid MAC: %s" % mac)
+    return corrected_mac
 
 def is_tess_mac(mac):
     '''TESS-W MAC address do not contain with padding 0s'''
