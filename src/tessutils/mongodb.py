@@ -24,7 +24,7 @@ import requests
 # local imports
 # -------------
 
-from .utils import formatted_mac, is_tess_mac, is_mac
+from .utils import formatted_mac, is_tess_mac, is_mac, read_csv, write_csv
 from .dbutils import group_by_place, group_by_name, group_by_mac, group_by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
 from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate, common_A_B_items, in_A_not_in_B, filter_and_flatten
 
@@ -449,19 +449,6 @@ def merge_info(input_iterable, nominatim_iterable):
         output.append(row)
     return output
 
-def write_csv(sequence, header, path, delimiter=';'):
-    with open(path, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=header, delimiter=delimiter)
-        writer.writeheader()
-        for row in sequence:
-            writer.writerow(row)
-    log.info("generated CSV file: %s", path)
-
-def read_csv(path, delimiter=';'):
-    with open(path, newline='') as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=delimiter)
-        sequence = [row for row in reader]
-        return sequence
 
 def filter_by_names(iterable, names):
     def _filter_by_names(row):

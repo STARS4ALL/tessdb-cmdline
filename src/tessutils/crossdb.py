@@ -27,7 +27,7 @@ import requests
 # local imports
 # -------------
 
-from .utils import open_database
+from .utils import open_database, write_csv
 from .dbutils import by_place, group_by_name, by_coordinates,group_by_mac, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
 from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info, filter_by_names, get_mac, mongo_api_body_photometer, mongo_api_update
 from .tessdb import photometers_from_tessdb, places_from_tessdb
@@ -298,13 +298,7 @@ X_HEADER = ('mongo_coords', 'tessdb_coords', 'distance', 'mongo_name','tessdb_na
     'mongo_place','tessdb_place', 'mongo_town','tessdb_town', 'mongo_sub_region', 'tessdb_sub_region',
     'mongo_region', 'tessdb_region', 'mongo_country', 'tessdb_country', 'mongo_timezone', 'tessdb_timezone')
 
-def write_csv(sequence, header, path, delimiter=';'):
-    with open(path, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=header, delimiter=delimiter)
-        writer.writeheader()
-        for row in sequence:
-            writer.writerow(row)
-    log.info("generated CSV file: %s", path)
+
 
 def coordinates(options):
     log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")

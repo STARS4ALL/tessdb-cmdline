@@ -24,7 +24,7 @@ import collections
 # local imports
 # -------------
 
-from .utils import open_database, formatted_mac, is_mac, is_tess_mac
+from .utils import open_database, formatted_mac, is_mac, is_tess_mac, write_csv
 from .dbutils import get_tessdb_connection_string, get_idadb_connection_string, group_by_mac, common_A_B_items, in_A_not_in_B
 
 
@@ -125,21 +125,14 @@ def read_databases():
     log.info("%d entries from idadb", len(idadb_input_list))
     idadb_input_list = group_by_mac(idadb_input_list)
     return tessdb_input_list, idadb_input_list
-
-def write_csv(path, output_list, columns):
-    with open(path, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=columns)
-        writer.writeheader()
-        for mac, items in sorted(output_list.items()):
-            for item in items:
-                writer.writerow(item)
+    
 
 def generate_common(output_path):
     tessdb_input_list, idadb_input_list = read_databases()
     common_macs = common_A_B_items(tessdb_input_list, idadb_input_list)
     log.info("Common MAC entries: %d", len(common_macs))
     output = intra_ida_analisys(common_macs, idadb_input_list)
-    write_csv(output_path, output, IDADB_COLUMNS)
+    write_csv(output, TESSDB_COLUMNS, output_path)
   
 
 def generate_only_tessdb(output_path):
@@ -147,7 +140,7 @@ def generate_only_tessdb(output_path):
     only_tessdb_macs = in_A_not_in_B(tessdb_input_list, idadb_input_list)
     log.info("TESSDB MACs only, entries: %d", len(only_tessdb_macs))
     output = { mac:  tessdb_input_list[mac] for mac in only_tessdb_macs}
-    write_csv(output_path, output, TESSDB_COLUMNS)
+    write_csv(output, TESSDB_COLUMNS, output_path)
    
 
 def generate_only_idadb(output_path):
@@ -155,7 +148,8 @@ def generate_only_idadb(output_path):
     only_ida_file_macs = in_A_not_in_B(idadb_input_list, tessdb_input_list)
     log.info("IDADB MACs only, entries: %d", len(only_ida_file_macs))
     output = { mac:  idadb_input_list[mac] for mac in only_ida_file_macs}
-    write_csv(output_path, output, IDADB_COLUMNS)
+    write_csv(output, TESSDB_COLUMNS, output_path)
+   
 
 
 def all_equal(pair):

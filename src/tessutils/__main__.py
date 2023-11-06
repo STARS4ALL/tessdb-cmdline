@@ -115,6 +115,19 @@ def createParser():
     parser_crossdb = subparser.add_parser('crossdb', help='Cross database check commands')
     parser_zptess  = subparser.add_parser('zptess', help='zptess commands')
     parser_ida  = subparser.add_parser('idadb', help='idadb commands')
+    parser_forms  = subparser.add_parser('forms', help='Google forms commands')
+
+
+    # --------------------------------------
+    # Create second level parsers for 'forms'
+    # ---------------------------------------
+
+    subparser = parser_forms.add_subparsers(dest='subcommand')
+    forms = subparser.add_parser('check',  help="Generate cross IDA/tessdb CSV comparison")
+    forms.add_argument('-f', '--file', type=str, required=True, help='Input Google Forms CSV File')
+    forms = forms.add_mutually_exclusive_group(required=True)
+    forms.add_argument('--common', action='store_true', help='Common Photometers in Google Forms and in MongoDB')
+    forms.add_argument('--google', action='store_true', help='Photometers in Google Forms not in MongoDB')
 
     # -------------------------------------
     # Create second level parsers for 'ida'

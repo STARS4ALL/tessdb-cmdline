@@ -12,6 +12,7 @@
 # System wide imports
 # -------------------
 
+import csv
 import sys
 import sqlite3
 import os
@@ -80,7 +81,24 @@ def is_mac(mac):
 def tessify_mac(mac):
     '''This is needed for SQL comparison in tessdb'''
     return ':'.join(f"{int(x,16):X}" for x in mac.split(':'))
-    
+
+# ========================    
+# CSV reading and Writting
+# ========================
+
+def write_csv(sequence, header, path, delimiter=';'):
+    with open(path, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=header, delimiter=delimiter)
+        writer.writeheader()
+        for row in sequence:
+            writer.writerow(row)
+    #log.info("generated CSV file: %s", path)
+
+def read_csv(path, delimiter=';'):
+    with open(path, newline='') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=delimiter)
+        sequence = [row for row in reader]
+        return sequence
 
 # ==============
 # DATABASE STUFF
