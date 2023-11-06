@@ -271,9 +271,11 @@ def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connect
 # ======================
 
 def generate_unknown(connection, mongodb_url, output_path):
+    log.info("Accesing TESSDB database")
     tessdb_input_list = easy_photometers_with_unknown_locations_from_tessdb(connection)
     tessdb_input_dict = group_by_name(tessdb_input_list)
     log.info("Photometer entries with unknown locations: %d", len(tessdb_input_dict))
+    log.info("Accesing MongoDB database")
     mongodb_input_list = mongo_get_all_info(mongodb_url)
     mongo_db_input_dict = group_by_name(mongodb_input_list)
     common_names = common_A_B_items(tessdb_input_dict, mongo_db_input_dict)
@@ -291,9 +293,11 @@ def generate_unknown(connection, mongodb_url, output_path):
         sqlfile.write(output)
 
 def generate_single(connection, mongodb_url, output_path):
+    log.info("Accesing TESSDB database")
     tessdb_input_list = easy_photometers_with_former_locations_from_tessdb(connection)
     tessdb_input_dict = group_by_name(tessdb_input_list)
-    log.info("Photometer entries with former locations: %d", len(tessdb_input_dict))
+    log.info("TESSDB Photometer entries with former locations: %d", len(tessdb_input_dict))
+    log.info("Accesing MongoDB database")
     mongodb_input_list = mongo_get_all_info(mongodb_url)
     mongo_db_input_dict = group_by_name(mongodb_input_list)
     common_names = common_A_B_items(tessdb_input_dict, mongo_db_input_dict)
