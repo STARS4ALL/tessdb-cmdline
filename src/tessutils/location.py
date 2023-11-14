@@ -193,6 +193,13 @@ def easy_photometers_with_unknown_locations_from_tessdb(connection):
 def easy_photometers_with_former_locations_from_tessdb(connection):
     return list(map(tessdb_remap_location_info, _easy_photometers_with_former_locations_from_tessdb(connection)))
 
+def quote_for_sql(row):
+    for key in ('timezone', 'place', 'town', 'sub_region', 'region', 'country', 'org_name', 'org_email'):
+        if row[key] is not None:
+            row[key] = "'" + row[key].replace("'","''") + "'"
+        else:
+            row[key] = 'NULL'
+    return row
 
 def render(template_path, context):
     if not os.path.exists(template_path):
@@ -286,7 +293,8 @@ def generate_unknown(connection, mongodb_url, output_path_prefix):
     log.info("Reduced list of only %d entries after MAC exclusion", len(common_names))
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
-    for i, phot in enumerate(new_photometer_location(mongo_db_input_dict, tessdb_input_dict)):
+    photometers_with_new_locations = list(map(quote_for_sql, new_photometer_location(mongo_db_input_dict, tessdb_input_dict)))
+    for i, phot in enumerate(new_photometer_location(mongo_db_input_dict, tessdb_input_dict), 1):
         context = dict()
         context['row'] = phot
         context['i'] = i
@@ -312,7 +320,8 @@ def generate_single(connection, mongodb_url, output_path_prefix):
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
     photometers_with_new_locations, photometers_with_upd_locations = existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection)
-    for i, phot in enumerate(photometers_with_new_locations):
+    photometers_with_new_locations = list(map(quote_for_sql,photometers_with_new_locations))
+    for i, phot in enumerate(photometers_with_new_locations, 1):
         context = dict()
         context['row'] = phot
         context['i'] = i
@@ -320,7 +329,8 @@ def generate_single(connection, mongodb_url, output_path_prefix):
         output_path = f"{i:03d}_new_{output_path_prefix}"
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
-    for i, phot in enumerate(photometers_with_upd_locations):
+     photometers_with_upd_locations = list(map(quote_for_sql,photometers_with_upd_locations))
+    for i, phot in enumerate(photometers_with_upd_locations, 1):
         context = dict()
         context['row'] = phot
         context['i'] = i

@@ -1,15 +1,13 @@
 -- ----------------------
--- LOCATION UPDATING PART 
+-- LOCATION UPDATING PART {{ row['name']}}
 -- ----------------------
 
 PRAGMA foreign_keys = OFF;
 BEGIN TRANSACTION;
-{% set org_name = 'NULL' if row['org_name'] is none else "'" + row['org_name'] + "'" -%}
-{% set org_email = 'NULL' if row['org_email'] is none else "'" + row['org_email'] + "'" -%}
--- Updates Location given by location_id = {{ row['location_id']}}
+-- Updates Location given by location_id = {{ row['location_id'] }}
 UPDATE location_t
 SET (longitude,latitude,elevation,timezone,site,location,province,state,country,organization,contact_email) = 
-({{row['longitude']}},{{row['latitude']}},{{row['masl']}},'{{row['timezone']}}','{{row['place']}}','{{row['town']}}','{{row['sub_region']}}','{{row['region']}}', '{{row['country']}}',{{org_name}},{{org_email}})
+({{row['longitude']}},{{row['latitude']}},{{row['masl']}},{{row['timezone']}},{{row['place']}},{{row['town']}},{{row['sub_region']}},{{row['region']}},{{row['country']}},{{row['org_name']}},{{row['org_email']}} )
 WHERE location_id = {{ row['location_id'] }}
 COMMIT;
 PRAGMA foreign_keys = ON;

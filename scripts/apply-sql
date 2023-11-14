@@ -1,5 +1,6 @@
 #!/bin/bash
 DATABASE="/home/rafa/tessdb-operations/dbase/tess.db-20231026"
+SECS=3
 if ! test -d processed; then
   mkdir processed
 fi
@@ -9,5 +10,7 @@ do
 	echo "sqlite3 $DATABASE < $FILE"
 	/usr/bin/time --format='%C took %e seconds' sqlite3 $DATABASE < $FILE
 	mv $FILE processed
-	exit 0 # Yes ! we will do it one at a time since it takes so much ...
+	echo "sleeping for $SECS seconds so that we can abort with <CTRL-C>"
+	sleep $SECS
+	#exit 0 # Yes ! we will do it one at a time since it takes so much ...
 done
