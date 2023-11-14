@@ -329,7 +329,7 @@ def generate_single(connection, mongodb_url, output_path_prefix):
         output_path = f"{i:03d}_new_{output_path_prefix}"
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
-     photometers_with_upd_locations = list(map(quote_for_sql,photometers_with_upd_locations))
+    photometers_with_upd_locations = list(map(quote_for_sql,photometers_with_upd_locations))
     for i, phot in enumerate(photometers_with_upd_locations, 1):
         context = dict()
         context['row'] = phot
