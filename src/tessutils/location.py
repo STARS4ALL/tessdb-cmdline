@@ -270,7 +270,7 @@ def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connect
 # Second level functions
 # ======================
 
-def generate_unknown(connection, mongodb_url, output_path):
+def generate_unknown(connection, mongodb_url, output_path_prefix):
     log.info("Accesing TESSDB database")
     tessdb_input_list = easy_photometers_with_unknown_locations_from_tessdb(connection)
     tessdb_input_dict = group_by_name(tessdb_input_list)
@@ -286,13 +286,16 @@ def generate_unknown(connection, mongodb_url, output_path):
     log.info("Reduced list of only %d entries after MAC exclusion", len(common_names))
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
-    context = dict()
-    context['photometers_with_new_locations'] = new_photometer_location(mongo_db_input_dict, tessdb_input_dict)
-    output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
-    with open(output_path, "w") as sqlfile:
-        sqlfile.write(output)
+    for i, phot in enumerate(new_photometer_location(mongo_db_input_dict, tessdb_input_dict)):
+        context = dict()
+        context['row'] = phot
+        context['i'] = i
+        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
+        output_path = f"{i:03d}_new_{output_path_prefix}"
+        with open(output_path, "w") as sqlfile:
+            sqlfile.write(output)
 
-def generate_single(connection, mongodb_url, output_path):
+def generate_single(connection, mongodb_url, output_path_prefix):
     log.info("Accesing TESSDB database")
     tessdb_input_list = easy_photometers_with_former_locations_from_tessdb(connection)
     tessdb_input_dict = group_by_name(tessdb_input_list)
@@ -308,13 +311,23 @@ def generate_single(connection, mongodb_url, output_path):
     log.info("Reduced list of only %d entries after MAC exclusion", len(common_names))
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
-    context = dict()
-    context['photometers_with_new_locations'],  context['photometers_with_upd_locations'] = existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection)
-    output_insert = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
-    output_update = render(SQL_PHOT_UPD_LOCATIONS_TEMPLATE, context)
-    with open(output_path, "w") as sqlfile:
-        sqlfile.write(output_insert)
-        sqlfile.write(output_update)
+    photometers_with_new_locations, photometers_with_upd_locations = existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection)
+    for i, phot in enumerate(photometers_with_new_locations):
+        context = dict()
+        context['row'] = phot
+        context['i'] = i
+        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
+        output_path = f"{i:03d}_new_{output_path_prefix}"
+        with open(output_path, "w") as sqlfile:
+            sqlfile.write(output)
+    for i, phot in enumerate(photometers_with_upd_locations):
+        context = dict()
+        context['row'] = phot
+        context['i'] = i
+        output = render(SQL_PHOT_UPD_LOCATIONS_TEMPLATE, context)
+        output_path = f"{i:03d}_upd_{output_path_prefix}"
+        with open(output_path, "w") as sqlfile:
+            sqlfile.write(output)
     
 
 # ===================
