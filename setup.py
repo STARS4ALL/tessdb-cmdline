@@ -51,7 +51,8 @@ SCRIPTS = [
     "scripts/tessutils",
     "scripts/mongo-db", 
     "scripts/tess-db", 
-    "scripts/cross-db", 
+    "scripts/cross-db",
+    "scripts/apply-sql", 
 ]
 
 DATA_FILES  = []
