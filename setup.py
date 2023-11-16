@@ -52,7 +52,6 @@ SCRIPTS = [
     "scripts/mongo-db", 
     "scripts/tess-db", 
     "scripts/cross-db",
-    "scripts/apply-sql",
     "scripts/auto-apply-sql", 
 ]
 

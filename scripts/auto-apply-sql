@@ -1,5 +1,12 @@
 #!/bin/bash
-DATABASE=${1:-/var/dbase/tess.db}
+if test -f .env; then
+	source .env
+else
+	echo "No environemnt variables file found. Exiting"
+	exit 255
+fi
+
+DATABASE=${1:-${TESSDB_URL}}
 SECS=3
 
 echo "Creating SQLite Index tess_id_readings_i on Database ${DATABASE} table tess_readings_t"
@@ -7,20 +14,19 @@ sqlite3 ${DATABASE} <<EOF
 	CREATE INDEX IF NOT EXISTS tess_id_readings_i ON tess_readings_t(tess_id);
 EOF
 
-
-if ! test -d processed; then
-  mkdir processed
+if ! test -d sql/processed; then
+  mkdir -p sql/processed
 fi
 
-for FILE in $(ls -1 *.sql)
+for FILE in $(ls -1 sql/*.sql)
 do
-	echo "sqlite3 $DATABASE < $FILE"
-	/usr/bin/time --format='%C took %e seconds' sqlite3 $DATABASE < $FILE
-	mv $FILE processed
+	echo "sqlite3 ${DATABASE} < ${FILE}"
+	/usr/bin/time --format='%C took %e seconds' sqlite3 ${DATABASE} < ${FILE}
+	mv ${FILE} sql/processed
 	echo "sleeping for $SECS seconds so that we can abort with <CTRL-C>"
-	sleep $SECS
-	#exit 0 # Yes ! we will do it one at a time since it takes so much ...
+	sleep ${SECS}
 done
+
 
 echo "Deleting SQLite Index tess_id_readings_i on Database ${DATABASE}"
 sqlite3 ${DATABASE} <<EOF

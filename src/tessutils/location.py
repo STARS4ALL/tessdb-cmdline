@@ -277,7 +277,7 @@ def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connect
 # Second level functions
 # ======================
 
-def generate_unknown(connection, mongodb_url, output_path_prefix):
+def generate_unknown(connection, mongodb_url, output_dir):
     log.info("Accesing TESSDB database")
     tessdb_input_list = easy_photometers_with_unknown_locations_from_tessdb(connection)
     tessdb_input_dict = group_by_name(tessdb_input_list)
@@ -299,11 +299,11 @@ def generate_unknown(connection, mongodb_url, output_path_prefix):
         context['row'] = phot
         context['i'] = i
         output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
-        output_path = f"{i:03d}_new_{output_path_prefix}"
+        output_path = os.path.join(output_dir, f"{i:03d}_new_unknown.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
 
-def generate_single(connection, mongodb_url, output_path_prefix):
+def generate_single(connection, mongodb_url, output_dir):
     log.info("Accesing TESSDB database")
     tessdb_input_list = easy_photometers_with_former_locations_from_tessdb(connection)
     tessdb_input_dict = group_by_name(tessdb_input_list)
@@ -326,7 +326,7 @@ def generate_single(connection, mongodb_url, output_path_prefix):
         context['row'] = phot
         context['i'] = i
         output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
-        output_path = f"{i:03d}_new_{output_path_prefix}"
+        output_path = os.path.join(output_dir, f"{i:03d}_new_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
     photometers_with_upd_locations = list(map(quote_for_sql,photometers_with_upd_locations))
@@ -335,7 +335,7 @@ def generate_single(connection, mongodb_url, output_path_prefix):
         context['row'] = phot
         context['i'] = i
         output = render(SQL_PHOT_UPD_LOCATIONS_TEMPLATE, context)
-        output_path = f"{i:03d}_upd_{output_path_prefix}"
+        output_path = os.path.join(output_dir, f"{i:03d}_upd_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
     
@@ -350,9 +350,9 @@ def generate(options):
     connection = open_database(tessdb_url)
     log.info("LOCATIONS SCRIPT GENERATION")
     if options.unknown:
-        generate_unknown(connection, mongodb_url, options.file)
+        generate_unknown(connection, mongodb_url, options.directory)
     elif options.single:
-        generate_single(connection, mongodb_url, options.file)
+        generate_single(connection, mongodb_url, options.directory)
     else:
         raise NotImplementedError("Command line option not yet implemented")
    
