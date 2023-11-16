@@ -28,3 +28,4 @@ src/*.json
 src/*.sh
 tess.db*
 *.sql
+sql/

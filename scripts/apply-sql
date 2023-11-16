@@ -1,5 +1,5 @@
 #!/bin/bash
-DATABASE="/home/rafa/tessdb-operations/dbase/tess.db-20231026"
+DATABASE=${1:-/var/dbase/tess.db}
 SECS=3
 if ! test -d processed; then
   mkdir processed
