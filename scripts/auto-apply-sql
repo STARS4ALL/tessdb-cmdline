@@ -37,3 +37,4 @@ echo "Compacting database ${DATABASE}"
 sqlite3 ${DATABASE} <<EOF
 	VACUUM;
 EOF
+echo "Processing database ${DATABASE} ended!"
