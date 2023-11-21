@@ -9,6 +9,12 @@ fi
 DATABASE=${1:-${TESSDB_URL}}
 SECS=3
 
+FILES=$(ls -1 sql/*.sql)
+if [ -n $? ]; then
+	echo "No SQL Files to process. Exiting."
+	exit 0
+fi
+
 echo "Creating SQLite Index tess_id_readings_i on Database ${DATABASE} table tess_readings_t"
 sqlite3 ${DATABASE} <<EOF
 	CREATE INDEX IF NOT EXISTS tess_id_readings_i ON tess_readings_t(tess_id);
@@ -18,7 +24,7 @@ if ! test -d sql/processed; then
   mkdir -p sql/processed
 fi
 
-for FILE in $(ls -1 sql/*.sql)
+for FILE in $FILES
 do
 	echo "sqlite3 ${DATABASE} < ${FILE}"
 	/usr/bin/time --format='%C took %e seconds' sqlite3 ${DATABASE} < ${FILE}
