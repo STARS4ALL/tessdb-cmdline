@@ -232,13 +232,36 @@ def group_by_coordinates(iterable):
 
 def log_coordinates(coords_iterable):
     '''Check for coordinates consistency among phothometers deployed on the same 'place' name'''
+    result = list()
     for coords, rows in coords_iterable.items():
+        names = [row['name'] for row in rows]
         if None in coords:
             log.error("entry %s with no coordinates: %s", rows[0]['name'], coords)
         if len(rows) > 1 and all(row['name'] == rows[0]['name'] for row in rows):
-            log.error("Coordinates %s has %d duplicated photometers: %s", coords, len(rows), [row['name'] for row in rows])
+            result.extend(names)
+            log.error("Coordinates %s has %d duplicated photometers: %s", coords, len(rows), names)
         if len(rows) > 1 and not all(row['place'] == rows[0]['place'] for row in rows):
-            log.error("Coordinates %s has different place names: %s for %s", coords, [row['place'] for row in rows], [row['name'] for row in rows])
+            result.extend(names)
+            log.error("Coordinates %s has different place names: %s for %s", coords, [row['place'] for row in rows], names)
+        if len(rows) > 1 and not all(row['town'] == rows[0]['town'] for row in rows):
+            result.extend(names)
+            log.error("Coordinates %s has different town names: %s for %s", coords, [row['town'] for row in rows], names)
+        if len(rows) > 1 and not all(row['sub_region'] == rows[0]['sub_region'] for row in rows):
+            result.extend(names)
+            log.error("Coordinates %s has different sub_region names: %s for %s", coords, [row['sub_region'] for row in rows], names)
+        if len(rows) > 1 and not all(row['region'] == rows[0]['region'] for row in rows):
+            result.extend(names)
+            log.error("Coordinates %s has different region names: %s for %s", coords, [row['region'] for row in rows], names)
+        if len(rows) > 1 and not all(row['country'] == rows[0]['country'] for row in rows):
+            result.extend(names)
+            log.error("Coordinates %s has different region names: %s for %s", coords, [row['country'] for row in rows], names)
+        if len(rows) > 1 and not all(row['timezone'] == rows[0]['timezone'] for row in rows):
+            result.extend(names)
+            log.error("Coordinates %s has different timezone names: %s for %s", coords, [row['timezone'] for row in rows], names)
+    log.info("Photometers to fix with inconsistencies in location metadata: (%d) %s", len(set(result)), " ".join(set(result)))
+
+
+
 
 
 def log_coordinates_nearby(coords_iterable, limit):

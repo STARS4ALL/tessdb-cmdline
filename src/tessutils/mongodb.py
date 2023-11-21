@@ -830,11 +830,11 @@ def check(options):
         log_places(mongo_places)
     elif options.coords:
         log.info("Check for same coordinates, different places")
-        mongo_coords  = by_coordinates(mongo_input_list)
+        mongo_coords  = group_by_coordinates(mongo_input_list)
         log_coordinates(mongo_coords)
     elif options.nearby:
         log.info("Check for nearby places in radius %0.0f meters", options.nearby)
-        mongo_coords  = by_coordinates(mongo_input_list)
+        mongo_coords  = group_by_coordinates(mongo_input_list)
         log_coordinates_nearby(mongo_coords, options.nearby)
     elif options.filter:
         log.info("Check for 'UV/IR-cut default filter")
