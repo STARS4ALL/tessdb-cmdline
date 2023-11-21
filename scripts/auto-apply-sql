@@ -22,7 +22,7 @@ for FILE in $(ls -1 sql/*.sql)
 do
 	echo "sqlite3 ${DATABASE} < ${FILE}"
 	/usr/bin/time --format='%C took %e seconds' sqlite3 ${DATABASE} < ${FILE}
-	mv ${FILE} sql/processed
+	mv ${FILE} sql/processed || exit 255
 	echo "sleeping for $SECS seconds so that we can abort with <CTRL-C>"
 	sleep ${SECS}
 done

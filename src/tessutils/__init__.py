@@ -38,6 +38,7 @@ CREATE_LOCATIONS_TEMPLATE = resource_filename(__name__, os.path.join('templates'
 SQL_INSERT_LOCATIONS_TEMPLATE = resource_filename(__name__, os.path.join('templates', 'sql-location-insert.j2'))
 SQL_PHOT_NEW_LOCATIONS_TEMPLATE = resource_filename(__name__, os.path.join('templates', 'sql-phot-new-locations.j2'))
 SQL_PHOT_UPD_LOCATIONS_TEMPLATE = resource_filename(__name__, os.path.join('templates', 'sql-phot-upd-locations.j2'))
+SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE = resource_filename(__name__, os.path.join('templates', 'sql-phot-upd-locations-metadata.j2'))
 
 del get_versions
 

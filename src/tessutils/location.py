@@ -28,7 +28,7 @@ from geopy.extra.rate_limiter import RateLimiter
 # local imports
 # -------------
 
-from . import  SQL_INSERT_LOCATIONS_TEMPLATE, SQL_PHOT_NEW_LOCATIONS_TEMPLATE, SQL_PHOT_UPD_LOCATIONS_TEMPLATE
+from . import  SQL_INSERT_LOCATIONS_TEMPLATE, SQL_PHOT_NEW_LOCATIONS_TEMPLATE, SQL_PHOT_UPD_LOCATIONS_TEMPLATE, SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE
 
 from .utils import  open_database, formatted_mac, tessify_mac
 from .dbutils import get_mongo_api_url, get_tessdb_connection_string
@@ -123,9 +123,11 @@ def _easy_photometers_with_unknown_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT name, t.mac_address, tess_id, zero_point, location_id
+        SELECT name, t.mac_address, tess_id, zero_point, location_id, 
+            l.site, l.location, l.province, l.state, l.country, l.timezone, l.organization, l.contact_email
         FROM tess_t AS t
         JOIN name_to_mac_t AS n USING(mac_address)
+        JOIN location_t  AS l USING(location_id)
         WHERE mac_address IN (
             -- Photometers with no repairs and no renamings
             SELECT mac_address  FROM name_to_mac_t
@@ -145,9 +147,11 @@ def _easy_photometers_with_former_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT name, t.mac_address, tess_id, zero_point, location_id
+        SELECT name, t.mac_address, tess_id, zero_point, location_id,
+            l.site, l.location, l.province, l.state, l.country, l.timezone, l.organization, l.contact_email
         FROM tess_t AS t
         JOIN name_to_mac_t AS n USING(mac_address)
+        JOIN location_t  AS l USING(location_id)
         WHERE mac_address IN (
             -- Photometers with no repairs and no renamings
             SELECT mac_address  FROM name_to_mac_t
@@ -183,6 +187,14 @@ def tessdb_remap_location_info(row):
     new_row['tess_id'] = row[2]
     new_row['zero_point'] =row[3]
     new_row['location_id'] =row[4]
+    new_row['place'] =row[5]
+    new_row['town'] =row[6]
+    new_row['sub_region'] =row[7]
+    new_row['region'] =row[8]
+    new_row['country'] =row[9]
+    new_row['timezone'] =row[10]
+    new_row['org_name'] =row[11]
+    new_row['org_email'] =row[11]
     return new_row
 
 
@@ -248,10 +260,23 @@ def new_photometer_location(mongo_db_input_dict, tessdb_input_dict):
         photometers.append(row)
     return photometers
 
+def check_same_location_metadata(mongo_row, tessdb_sequence):
+    # We have already checked that all locations in the sereral tessdb_sequence are the same
+    tessdb_row = tessdb_sequence[0]
+    same = (mongo_row['place'] == tessdb_row['place']) and (mongo_row['town'] == tessdb_row['town']) and \
+    (mongo_row['sub_region'] == tessdb_row['sub_region']) and (mongo_row['region'] == tessdb_row['region']) #and \
+    (mongo_row['country'] == tessdb_row['country']) and (mongo_row['timezone'] == tessdb_row['timezone']) and \
+    (mongo_row['org_name'] == tessdb_row['org_name']) and (mongo_row['org_email'] == tessdb_row['org_email'])
+    if not same:
+        log.debug("METADATA DIFFERENCE Mongo %s \n TessDB %s", mongo_row, tessdb_row)
+    return same
+    
+
 def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection):
-    inserters, updaters = list(), list()
+    inserters, updaters, metas = list(), list(), list()
     n_inserts = 0
     n_updates = 0
+    n_metas   = 0
     for name, value in sorted(mongo_db_input_dict.items()):
         assert len(value) == 1
         row = value[0]
@@ -264,14 +289,19 @@ def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connect
         log.debug("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
         tessdb_coords = _coordinates_from_id(connection, row['location_id'])
         mongodb_coords = (row['longitude'], row['latitude'])
-        if distance ( mongodb_coords, tessdb_coords) < NEARBY_DISTANCE:
+        dist = distance ( mongodb_coords, tessdb_coords)
+        if 0 < dist < NEARBY_DISTANCE:
             n_updates += 1
             updaters.append(row)
+        elif dist == 0:
+            if not check_same_location_metadata(row, tessdb_input_dict[name]):
+                n_metas += 1
+                metas.append(row)
         else:
             n_inserts += 1
             inserters.append(row)
-    log.info("Must perform %d location info updates and %d location info inserts", n_updates, n_inserts)
-    return inserters, updaters
+    log.info("Must perform %d location info updates, %d location info inserts and %d metadata updates", n_updates, n_inserts, n_metas)
+    return inserters, updaters, metas
 
 # ======================
 # Second level functions
@@ -320,7 +350,7 @@ def generate_single(connection, mongodb_url, output_dir):
     log.info("Reduced list of only %d entries after MAC exclusion", len(common_names))
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
-    photometers_with_new_locations, photometers_with_upd_locations = existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection)
+    photometers_with_new_locations, photometers_with_upd_locations, location_metadata_upd = existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connection)
     photometers_with_new_locations = list(map(quote_for_sql,photometers_with_new_locations))
     for i, phot in enumerate(photometers_with_new_locations, 1):
         context = dict()
@@ -341,6 +371,16 @@ def generate_single(connection, mongodb_url, output_dir):
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_upd_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
+    photometers_with_upd_metadata_locations = list(map(quote_for_sql,location_metadata_upd))
+    for i, phot in enumerate(location_metadata_upd, 1):
+        context = dict()
+        context['row'] = phot
+        context['i'] = i
+        name = phot['name']
+        output = render(SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE, context)
+        output_path = os.path.join(output_dir, f"{i:03d}_{name}_upd_meta_single.sql")
+        with open(output_path, "w") as sqlfile:
+            sqlfile.write(output)
     
 
 # ===================
@@ -358,7 +398,3 @@ def generate(options):
         generate_single(connection, mongodb_url, options.directory)
     else:
         raise NotImplementedError("Command line option not yet implemented")
-   
-    
-    
-   
