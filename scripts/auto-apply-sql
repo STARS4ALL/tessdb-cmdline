@@ -10,7 +10,7 @@ DATABASE=${1:-${TESSDB_URL}}
 SECS=3
 
 FILES=$(ls -1 sql/*.sql)
-if [ -n $? ]; then
+if [ "$?" -ne "0" ]; then
 	echo "No SQL Files to process. Exiting."
 	exit 0
 fi
