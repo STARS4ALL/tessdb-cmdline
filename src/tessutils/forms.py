@@ -32,7 +32,7 @@ from .mongodb import mongo_get_all, get_mongo_api_url
 # Module global variables
 # -----------------------
 
-log = logging.getLogger('forms')
+log = logging.getLogger(__name__)
 
 
 FORMS_COLUMNS = ("mac", "name", "filename", "data_rows", "computed_zp_median", 

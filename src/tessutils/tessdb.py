@@ -28,7 +28,7 @@ from .dbutils import get_tessdb_connection_string, by_coordinates, log_coordinat
 # Module global variables
 # -----------------------
 
-log = logging.getLogger('tessdb')
+log = logging.getLogger(__name__)
 
 # -------------------------
 # Module auxiliar functions

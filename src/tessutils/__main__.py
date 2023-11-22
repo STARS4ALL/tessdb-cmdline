@@ -35,7 +35,7 @@ LOG_CHOICES = ('critical', 'error', 'warn', 'info', 'debug')
 # Module global variables
 # -----------------------
 
-log = logging.getLogger('root')
+log = logging.getLogger()
 
 # ----------
 # Exceptions
@@ -62,15 +62,21 @@ def configureLogging(options):
     if options.console:
         ch = logging.StreamHandler()
         ch.setFormatter(fmt)
-        ch.setLevel(level)
+        ch.setLevel(logging.DEBUG) # All logging handles to the MAX level
         log.addHandler(ch)
     # Create a file handler suitable for logrotate usage
     if options.log_file:
         #fh = logging.handlers.WatchedFileHandler(options.log_file)
         fh = logging.handlers.TimedRotatingFileHandler(options.log_file, when='midnight', interval=1, backupCount=365)
         fh.setFormatter(fmt)
-        fh.setLevel(level)
+        fh.setLevel(logging.DEBUG) # All logging handles to the MAX level
         log.addHandler(fh)
+
+    if options.modules:
+        modules = ",".split(options.modules)
+        for module in modules:
+            logging.getLogger(module).setLevel(logging.DEBUG)
+
 
 def validfile(path):
     if not os.path.isfile(path):
@@ -101,6 +107,7 @@ def createParser():
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-v', '--verbose', action='store_true', help='Verbose logging output.')
     group.add_argument('-q', '--quiet',   action='store_true', help='Quiet logging output.')
+    parser.add_argument('-m', '--modules', type=str, default=None, action='store', help='comma separated list of modules to activate debug level upon')
 
 
     # --------------------------

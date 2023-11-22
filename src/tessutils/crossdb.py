@@ -40,10 +40,7 @@ from .tessdb import photometers_from_tessdb, places_from_tessdb
 # Module global variables
 # -----------------------
 
-log = logging.getLogger('crossdb')
-
-
-
+log = logging.getLogger(__name__)
 
 # -------------------------
 # Module auxiliar functions

@@ -49,7 +49,7 @@ NEARBY_DISTANCE = 200 # meters
 # Module global variables
 # -----------------------
 
-log = logging.getLogger('location')
+log = logging.getLogger(__name__)
 
 # -------------------------
 # Module auxiliar functions
@@ -391,7 +391,7 @@ def generate(options):
     mongodb_url = get_mongo_api_url()
     tessdb_url = get_tessdb_connection_string()
     connection = open_database(tessdb_url)
-    log.info("LOCATIONS SCRIPT GENERATION")
+    log.info("%s: LOCATIONS SCRIPT GENERATION", __name__)
     if options.unknown:
         generate_unknown(connection, mongodb_url, options.directory)
     elif options.single:

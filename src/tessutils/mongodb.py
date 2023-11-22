@@ -80,7 +80,7 @@ DEFAULT_CONTACT = {}
 # Module global variables
 # -----------------------
 
-log = logging.getLogger('mongo')
+log = logging.getLogger(__name__)
 
 # -------------------------
 # Module auxiliar functions

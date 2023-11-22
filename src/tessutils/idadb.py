@@ -32,7 +32,7 @@ from .dbutils import get_tessdb_connection_string, get_idadb_connection_string, 
 # Module global variables
 # -----------------------
 
-log = logging.getLogger('idadb')
+log = logging.getLogger(__name__)
 
 
 IDADB_COLUMNS = ("mac", "name", "filename", "data_rows", "computed_zp_median", 

@@ -39,7 +39,7 @@ EARTH_RADIUS =  6371009.0 # in meters
 # Module global variables
 # -----------------------
 
-log = logging.getLogger('dbutils')
+log = logging.getLogger(__name__)
 
 # -------------------------
 # Module auxiliar functions

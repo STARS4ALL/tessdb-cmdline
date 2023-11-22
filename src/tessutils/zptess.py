@@ -30,7 +30,7 @@ from .dbutils import get_tessdb_connection_string, get_zptess_connection_string,
 # Module global variables
 # -----------------------
 
-log = logging.getLogger('zptess')
+log = logging.getLogger(__name__)
 
 COMMON_COLUMNS = ("mac", "zptess_name", "tessdb_state", "zptess_zp", "tessdb_zp", 
     "zptess_method", "tessdb_registered", "zptess_date", "tessdb_date", "tessdb_entries", "zptess_entries")
