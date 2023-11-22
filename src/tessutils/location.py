@@ -268,7 +268,7 @@ def check_same_location_metadata(mongo_row, tessdb_sequence):
     (mongo_row['country'] == tessdb_row['country']) and (mongo_row['timezone'] == tessdb_row['timezone']) and \
     (mongo_row['org_name'] == tessdb_row['org_name']) and (mongo_row['org_email'] == tessdb_row['org_email'])
     if not same:
-        log.debug("METADATA DIFFERENCE Mongo %s \n TessDB %s", mongo_row, tessdb_row)
+        log.info("METADATA DIFFERENCE Mongo %s \n TessDB %s", mongo_row, tessdb_row)
     return same
     
 
@@ -290,13 +290,13 @@ def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connect
         tessdb_coords = _coordinates_from_id(connection, row['location_id'])
         mongodb_coords = (row['longitude'], row['latitude'])
         dist = distance ( mongodb_coords, tessdb_coords)
-        if 0 < dist < NEARBY_DISTANCE:
-            n_updates += 1
-            updaters.append(row)
-        elif dist == 0:
+        if dist == 0:
             if not check_same_location_metadata(row, tessdb_input_dict[name]):
                 n_metas += 1
                 metas.append(row)
+        elif dist < NEARBY_DISTANCE:
+            n_updates += 1
+            updaters.append(row)
         else:
             n_inserts += 1
             inserters.append(row)
