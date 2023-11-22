@@ -239,7 +239,7 @@ def generate_script(path, valid_coords_iterable, dbpath):
 def same_mac_filter(mongo_db_input_dict, tessdb_input_dict):
     result = list()
     names = mongo_db_input_dict.keys()
-    for name in names:
+    for name in sorted(names):
         mongo_mac = mongo_db_input_dict[name][0]['mac']
         tessdb_mac = tessdb_input_dict[name][0]['mac']
         if mongo_mac  != tessdb_mac:
@@ -268,7 +268,7 @@ def check_same_location_metadata(mongo_row, tessdb_sequence):
     (mongo_row['country'] == tessdb_row['country']) and (mongo_row['timezone'] == tessdb_row['timezone']) and \
     (mongo_row['org_name'] == tessdb_row['org_name']) and (mongo_row['org_email'] == tessdb_row['org_email'])
     if not same:
-        log.info("METADATA DIFFERENCE Mongo %s \n TessDB %s", mongo_row, tessdb_row)
+        log.debug("METADATA DIFFERENCE Mongo %s \n TessDB %s", mongo_row, tessdb_row)
     return same
     
 
