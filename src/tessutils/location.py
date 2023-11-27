@@ -329,7 +329,7 @@ def generate_unknown(connection, mongodb_url, output_dir):
         context['row'] = phot
         context['i'] = i
         name = phot['name']
-        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
+        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE.as_file(), context)
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_unknown.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
@@ -357,7 +357,7 @@ def generate_single(connection, mongodb_url, output_dir):
         context['row'] = phot
         context['i'] = i
         name = phot['name']
-        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
+        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE.as_file(), context)
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
@@ -367,7 +367,7 @@ def generate_single(connection, mongodb_url, output_dir):
         context['row'] = phot
         context['i'] = i
         name = phot['name']
-        output = render(SQL_PHOT_UPD_LOCATIONS_TEMPLATE, context)
+        output = render(SQL_PHOT_UPD_LOCATIONS_TEMPLATE.as_file(), context)
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_upd_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
@@ -377,7 +377,7 @@ def generate_single(connection, mongodb_url, output_dir):
         context['row'] = phot
         context['i'] = i
         name = phot['name']
-        output = render(SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE, context)
+        output = render(SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE.as_file(), context)
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_upd_meta_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)

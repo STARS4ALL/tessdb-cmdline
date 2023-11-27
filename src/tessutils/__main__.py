@@ -22,7 +22,7 @@ import importlib
 # local imports
 # -------------
 
-from . import __version__, DEFAULT_DBASE
+from . import __version__
 from .utils import url
 
 # ----------------
