@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools >= 45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tessdb-server"
+dynamic = ["version"]
+description = "A package to collect measurements published by TESS instruments into a SQlite database"
+readme = "README.md"
+requires-python = ">=3.6"
+license = {text = "MIT"}
+authors = [
+    {name = "Rafael González", email = "rafael08@ucm.es"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    'Programming Language :: SQL',
+    'Development Status :: 4 - Beta',
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    'Intended Audience :: Science/Research',
+    'Intended Audience :: Developers',
+    'Natural Language :: English',
+    'Natural Language :: Spanish',
+]
+dependencies = [
+    'jinja2',
+    'tabulate',
+    'geopy',
+    'timezonefinder',
+    'requests',
+    'validators',
+    'python-decouple'
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=6",
+]
+
+[project.urls]
+Homepage = "https://github.com/astrorafael/tessdb-server"
+Repository = "https://github.com/astrorafael/tessdb-server.git"
+
+[project.scripts]
+tessutils = "tessutils.__main__:main"
+
+# pyproject.toml
+# Autimatically generates a _version-py file from with Git information
+# This file shold be placed in .gitignore
+[tool.setuptools_scm]
+write_to = "src/tessutils/_version.py"
+
+[tool.setuptools.packages.find]
+# scanning for namespace packages is true by default in pyproject.toml, so
+# you do NOT need to include the following line.
+namespaces = true
+where = ["src"]
+
+[tool.setuptools]
+script-files = [
+    "scripts/tess",
+    "scripts/tessdb_pause", 
+    "scripts/tessdb_resume",
+    "scripts/mongo-db", 
+    "scripts/tess-db", 
+    "scripts/cross-db",
+    "scripts/auto-apply-sql", 
+]
+
+[tool.setuptools.package-data]
+"tessutils.templates" = ["*.j2"]
