@@ -28,7 +28,7 @@ from geopy.extra.rate_limiter import RateLimiter
 # local imports
 # -------------
 
-from . import  SQL_INSERT_LOCATIONS_TEMPLATE, SQL_PHOT_NEW_LOCATIONS_TEMPLATE, SQL_PHOT_UPD_LOCATIONS_TEMPLATE, SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE
+from . import  render, SQL_INSERT_LOCATIONS_TEMPLATE, SQL_PHOT_NEW_LOCATIONS_TEMPLATE, SQL_PHOT_UPD_LOCATIONS_TEMPLATE, SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE
 
 from .utils import  open_database, formatted_mac, tessify_mac
 from .dbutils import get_mongo_api_url, get_tessdb_connection_string
@@ -213,14 +213,6 @@ def quote_for_sql(row):
             row[key] = 'NULL'
     return row
 
-def render(template_path, context):
-    if not os.path.exists(template_path):
-        raise IOError("No Jinja2 template file found at {0}. Exiting ...".format(template_path))
-    path, filename = os.path.split(template_path)
-    return jinja2.Environment(
-        loader=jinja2.FileSystemLoader(path or './')
-    ).get_template(filename).render(context)
-
 def generate_csv(path, iterable, fieldnames):
     with open(path, "w") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -329,7 +321,7 @@ def generate_unknown(connection, mongodb_url, output_dir):
         context['row'] = phot
         context['i'] = i
         name = phot['name']
-        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE.as_file(), context)
+        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_unknown.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
@@ -357,7 +349,7 @@ def generate_single(connection, mongodb_url, output_dir):
         context['row'] = phot
         context['i'] = i
         name = phot['name']
-        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE.as_file(), context)
+        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
@@ -367,7 +359,7 @@ def generate_single(connection, mongodb_url, output_dir):
         context['row'] = phot
         context['i'] = i
         name = phot['name']
-        output = render(SQL_PHOT_UPD_LOCATIONS_TEMPLATE.as_file(), context)
+        output = render(SQL_PHOT_UPD_LOCATIONS_TEMPLATE, context)
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_upd_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
@@ -377,7 +369,7 @@ def generate_single(connection, mongodb_url, output_dir):
         context['row'] = phot
         context['i'] = i
         name = phot['name']
-        output = render(SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE.as_file(), context)
+        output = render(SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE, context)
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_upd_meta_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)

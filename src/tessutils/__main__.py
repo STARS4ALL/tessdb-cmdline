@@ -36,6 +36,7 @@ LOG_CHOICES = ('critical', 'error', 'warn', 'info', 'debug')
 # -----------------------
 
 log = logging.getLogger()
+package = __name__.split(".")[0]
 
 # ----------
 # Exceptions
@@ -46,7 +47,7 @@ log = logging.getLogger()
 # Module utility functions
 # ------------------------
 
-def configureLogging(options):
+def configure_logging(options):
     if options.verbose:
         level = logging.DEBUG
     elif options.quiet:
@@ -79,12 +80,12 @@ def configureLogging(options):
             logging.getLogger(module).setLevel(logging.DEBUG)
 
 
-def validfile(path):
+def valid_file(path):
     if not os.path.isfile(path):
         raise IOError(f"Not valid or existing file: {path}")
     return path
 
-def validdir(path):
+def valid_dir(path):
     if not os.path.isdir(path):
         raise IOError(f"Not valid or existing directory: {path}")
     return path
@@ -95,7 +96,7 @@ def validdir(path):
 # -----------------------
 
 
-def createParser():
+def create_parser():
     # create the top-level parser
     name = os.path.split(os.path.dirname(sys.argv[0]))[-1]
     parser    = argparse.ArgumentParser(prog=name, description='Location utilities for TESS-W')
@@ -124,7 +125,6 @@ def createParser():
     parser_zptess  = subparser.add_parser('zptess', help='zptess commands')
     parser_ida  = subparser.add_parser('idadb', help='idadb commands')
     parser_forms  = subparser.add_parser('forms', help='Google forms commands')
-
 
     # --------------------------------------
     # Create second level parsers for 'forms'
@@ -179,7 +179,7 @@ def createParser():
     locgex1.add_argument('-u', '--unknown', action='store_true', help='Update those with no repairs and no renamings and unknown location')
     locgex1.add_argument('-s', '--single', action='store_true', help='Update those with no repairs and no renamings in tessdb')
     locgex1.add_argument('-m', '--multiple', action='store_true', help='Update those with repair/renamings entries in tessdb')
-    locg.add_argument('-d', '--directory', type=validdir, required=True, help='Directory to place output SQL files')
+    locg.add_argument('-d', '--directory', type=valid_dir, required=True, help='Directory to place output SQL files')
 
     # -----------------------------------------
     # Create second level parsers for 'mongodb'
@@ -234,7 +234,7 @@ def createParser():
     mgall.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
     mgex1 = mgall.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List all MongoDB metadata')
-    mgex1.add_argument('-d', '--diff-file', type=validfile, help='Diff between Mongo and a backup input CSV file. Generates 4 files.')
+    mgex1.add_argument('-d', '--diff-file', type=valid_file, help='Diff between Mongo and a backup input CSV file. Generates 4 files.')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update all MongoDB metadata')
     mgex1.add_argument('-c', '--create', action='store_true', help='Create MongoDB photometer metadata')
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB all metadata')
@@ -261,7 +261,7 @@ def createParser():
     subparser = parser_tessdb.add_subparsers(dest='subcommand')
 
     tdloc = subparser.add_parser('locations',  help="TessDB locations metadata check")
-    tdloc.add_argument('-d', '--dbase', type=validfile, required=True, help='TessDB database file path')
+    tdloc.add_argument('-d', '--dbase', type=valid_file, required=True, help='TessDB database file path')
     tdloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
     tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata check")
@@ -317,35 +317,34 @@ def createParser():
 
 
 def main():
-    '''
+    """
     Utility entry point
-    '''
+    """
     options = argparse.Namespace()
     exit_code = 0
     try:
-        options = createParser().parse_args(sys.argv[1:], namespace=options)
-        configureLogging(options)
-        name = os.path.split(os.path.dirname(sys.argv[0]))[-1]
-        log.info(f"============== {name} {__version__} ==============")
-        package = f"{name}"
-        command  = f"{options.command}"
+        options = create_parser().parse_args(sys.argv[1:], namespace=options)
+        configure_logging(options)
+        log.info(f"============== {__name__} {__version__} ==============")
+        command = f"{options.command}"
         subcommand = f"{options.subcommand}"
-        try: 
+        try:
+            log.debug("loading command from module %s in package %s", command, package)
             command = importlib.import_module(command, package=package)
-        except ModuleNotFoundError: # when debugging module in git source tree ...
-            command  = f".{options.command}"
+        except ModuleNotFoundError:  # when debugging module in git source tree ...
+            command = f".{options.command}"
+            log.debug("retrying loading command from module %s in package %s", command, package)
             command = importlib.import_module(command, package=package)
         getattr(command, subcommand)(options)
-    except KeyboardInterrupt as e:
-        log.critical("[%s] Interrupted by user ", __name__)
-        exit_code = 1
-    except Exception as e:
-        if(options.exceptions):
+    except AttributeError:
+            log.critical("[%s] No subcommand was given ", __name__)
             traceback.print_exc()
-        log.critical("[%s] Fatal error => %s", __name__, str(e) )
-        exit_code = 1
+            exit_code = 1
+    except KeyboardInterrupt:
+        log.critical("[%s] Interrupted by user ", __name__)
+    except Exception as e:
+        log.critical("[%s] Fatal error => %s", __name__, str(e))
+        traceback.print_exc()
     finally:
         pass
     sys.exit(exit_code)
-
-main()

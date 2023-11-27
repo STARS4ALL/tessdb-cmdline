@@ -1,7 +1,0 @@
-#!/bin/bash
-# ----------------------------------------------------------------------
-# Copyright (c) 2023 Rafael Gonzalez.
-#
-# See the LICENSE file for details
-# ----------------------------------------------------------------------
-python -m tessutils --console --exceptions "$@"

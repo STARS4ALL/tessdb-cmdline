@@ -3,7 +3,7 @@ requires = ["setuptools >= 45", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tessdb-server"
+name = "tessdb-cmdline"
 dynamic = ["version"]
 description = "A package to collect measurements published by TESS instruments into a SQlite database"
 readme = "README.md"
@@ -45,8 +45,8 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/astrorafael/tessdb-server"
-Repository = "https://github.com/astrorafael/tessdb-server.git"
+Homepage = "https://github.com/astrorafael/tessdb-cmdline"
+Repository = "https://github.com/astrorafael/tessdb-cmdline.git"
 
 [project.scripts]
 tessutils = "tessutils.__main__:main"
