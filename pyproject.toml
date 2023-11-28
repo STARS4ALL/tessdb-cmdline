@@ -71,7 +71,8 @@ script-files = [
     "scripts/mongo-db", 
     "scripts/tess-db", 
     "scripts/cross-db",
-    "scripts/auto-apply-sql", 
+    "scripts/auto-apply-sql",
+    "scripts/fast-apply-sql", 
 ]
 
 [tool.setuptools.package-data]

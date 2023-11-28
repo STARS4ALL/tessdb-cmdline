@@ -15,12 +15,12 @@ import math
 import json
 import logging
 import traceback
+import functools
 
 # -------------------
 # Third party imports
 # -------------------
 
-import jinja2
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 
@@ -28,9 +28,7 @@ from geopy.extra.rate_limiter import RateLimiter
 # local imports
 # -------------
 
-from . import  render, SQL_INSERT_LOCATIONS_TEMPLATE, SQL_PHOT_NEW_LOCATIONS_TEMPLATE, SQL_PHOT_UPD_LOCATIONS_TEMPLATE, SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE
-
-from .utils import  open_database, formatted_mac, tessify_mac
+from .utils import  open_database, formatted_mac, tessify_mac, render_from
 from .dbutils import get_mongo_api_url, get_tessdb_connection_string
 from .dbutils import group_by_name, group_by_mac, common_A_B_items, in_A_not_in_B, distance
 from .mongodb import mongo_get_all_info
@@ -45,6 +43,13 @@ from .mongodb import mongo_get_all_info
 # with 1, 10, 50, 100, 150, 200 & 500 m
 NEARBY_DISTANCE = 200 # meters
 
+CREATE_LOCATIONS_TEMPLATE = 'location-create.j2'
+SQL_INSERT_LOCATIONS_TEMPLATE = 'sql-location-insert.j2'
+SQL_PHOT_NEW_LOCATIONS_TEMPLATE = 'sql-phot-new-locations.j2'
+SQL_PHOT_UPD_LOCATIONS_TEMPLATE = 'sql-phot-upd-locations.j2'
+SQL_PHOT_UPD_META_LOCATIONS_TEMPLATE = 'sql-phot-upd-locations-metadata.j2'
+
+
 # -----------------------
 # Module global variables
 # -----------------------
@@ -54,6 +59,9 @@ log = logging.getLogger(__name__)
 # -------------------------
 # Module auxiliar functions
 # -------------------------
+
+render = functools.partial(render_from, package='tessutils')
+
 '''
 
 -- Detalle de fotometros reparados

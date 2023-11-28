@@ -9,8 +9,10 @@
 # System wide imports
 # -------------------
 
+import os
 import csv
 import logging
+import functools
 
 # -------------------
 # Third party imports
@@ -20,9 +22,14 @@ import logging
 # local imports
 # -------------
 
-from .utils import open_database, formatted_mac, is_mac, is_tess_mac
-from .dbutils import get_tessdb_connection_string, by_coordinates, log_coordinates, log_coordinates_nearby, by_place, log_places, log_names
+from .utils import open_database, formatted_mac, is_mac, is_tess_mac, render_from
+from .dbutils import get_tessdb_connection_string, group_by_coordinates, log_coordinates, log_coordinates_nearby, group_by_place, log_places, log_names
 
+# ----------------
+# Module constants
+# ----------------
+
+SQL_PHOT_UPD_MAC_ADDRESS = 'sql-phot-upd-mac.j2'
 
 # -----------------------
 # Module global variables
@@ -33,6 +40,13 @@ log = logging.getLogger(__name__)
 # -------------------------
 # Module auxiliar functions
 # -------------------------
+
+render = functools.partial(render_from, 'tessutils')
+
+def _get_mac_addresses(connection):
+    cursor = connection.cursor()
+    cursor.execute('SELECT DISTINCT mac_address FROM tess_t AS t')
+    return cursor
 
 def fake_zero_points(connection):
     cursor = connection.cursor()
@@ -220,6 +234,26 @@ def check_proper_macs(connection):
             bad_formatted.append(t[2])
     log.info("%d Bad MAC addresses and %d bad formatted MAC addresses", len(bad_macs), len(bad_formatted))
 
+
+def fix_mac_addresses(connection, output_dir):
+    cursor = _get_mac_addresses(connection)
+    bad_macs=list()
+    for t in cursor:
+        if not is_tess_mac(t[0]):
+            log.warn("(MAC=%s) isn't even a good MAC", t[0])
+        elif not is_mac(t[0]):
+            good_mac = formatted_mac(t[0])
+            log.warn("(MAC=%s) should be (MAC=%s)", t[0], good_mac)
+            bad_macs.append({'mac': t[0], 'good_mac': good_mac})
+    
+    for i, item in enumerate(bad_macs, 1):
+        context = {'row': item}
+        output = render(SQL_PHOT_UPD_MAC_ADDRESS, context)
+        output_path = os.path.join(output_dir, f"{i:03d}_upd_mac.sql")
+        with open(output_path, "w") as sqlfile:
+            sqlfile.write(output)
+        
+
 # ===================
 # Module entry points
 # ===================
@@ -231,20 +265,20 @@ def check(options):
     connection = open_database(database)
     if options.places:
         log.info("Check for same place, different coordinates")
-        tessdb_places  = by_place(places_from_tessdb(connection))
+        tessdb_places  = group_by_place(places_from_tessdb(connection))
         log_places(tessdb_places)
     elif options.coords:
         log.info("Check for same coordinates, different places")
-        tessdb_coords  = by_coordinates(places_from_tessdb(connection))
+        tessdb_coords  = group_by_coordinates(places_from_tessdb(connection))
         log_coordinates(tessdb_coords)
     elif options.dupl:
         log.info("Check for same coordinates, duplicated places")
-        tessdb_coords  = by_coordinates(places_from_tessdb(connection))
+        tessdb_coords  = group_by_coordinates(places_from_tessdb(connection))
         log_duplicated_coords(connection, tessdb_coords)
         #log_detailed_impact(connection, tessdb_coords)
     elif options.nearby:
         log.info("Check for nearby places in radius %0.0f meters", options.nearby)
-        tessdb_coords  = by_coordinates(places_from_tessdb(connection))
+        tessdb_coords  = group_by_coordinates(places_from_tessdb(connection))
         log_coordinates_nearby(tessdb_coords, options.nearby)
     elif options.macs:
         log.info("Check for proper MAC addresses in tess_t")
@@ -255,6 +289,16 @@ def check(options):
     else:
         log.error("No valid input option to subcommand 'check'")
 
+def fix(options):
+    log.info(" ====================== GENERATE SQL FILES TO FIX TESSDB METADATA ======================")
+    database = get_tessdb_connection_string()
+    log.info("connecting to SQLite database %s", database)
+    connection = open_database(database)
+    if options.macs:
+        log.info("Fixing bas formatted MAC addresses")
+        fix_mac_addresses(connection, options.directory)
+    else:
+        log.error("No valid input option to subcommand 'check'")
 
 def locations(options):
     database = get_tessdb_connection_string()
@@ -262,7 +306,7 @@ def locations(options):
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
     tessdb_input_list = photometers_and_locations_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_loc  = by_place(tessdb_input_list)
+    tessdb_loc  = group_by_place(tessdb_input_list)
     log_places(tessdb_loc)
   
 

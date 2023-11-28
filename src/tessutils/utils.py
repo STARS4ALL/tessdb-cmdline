@@ -23,6 +23,7 @@ import datetime
 # Third party libraries
 # ---------------------
 
+import jinja2
 import validators
 import tabulate
 
@@ -46,6 +47,13 @@ import tabulate
 # -----------------------
 # Module global functions
 # -----------------------
+
+
+def render_from(package, template, context):
+    return jinja2.Environment(
+        loader=jinja2.PackageLoader(package, package_path='templates')
+    ).get_template(template).render(context)
+
 
 def url(string):
     if not validators.url(string):

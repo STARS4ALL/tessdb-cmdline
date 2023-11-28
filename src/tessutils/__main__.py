@@ -268,7 +268,7 @@ def create_parser():
     tdphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
 
-    tdcheck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
+    tdcheck = subparser.add_parser('check',  help="Various TESSDB metadata checks")
     tdex1 = tdcheck.add_mutually_exclusive_group(required=True)
     tdex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
     tdex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
@@ -276,6 +276,11 @@ def create_parser():
     tdex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
     tdex1.add_argument('-m', '--macs', action='store_true', help='Check for proper MACS in tess_t')
     tdex1.add_argument('-z', '--fake-zero-points', action='store_true', help='Check for proper MACS in tess_t')
+
+    tdfix = subparser.add_parser('fix',  help="Fix TessDB data/metadata")
+    tdex1 = tdfix.add_mutually_exclusive_group(required=True)
+    tdex1.add_argument('-m', '--macs', action='store_true', help='generate SQL to fix bad formatted MACS in tess_t')
+    tdfix.add_argument('-d', '--directory', type=valid_dir, required=True, help='Directory to place output SQL files')
 
     # -----------------------------------------
     # Create second level parsers for 'crossdb'
