@@ -245,13 +245,15 @@ def fix_mac_addresses(connection, output_dir):
             good_mac = formatted_mac(t[0])
             log.warn("(MAC=%s) should be (MAC=%s)", t[0], good_mac)
             bad_macs.append({'mac': t[0], 'good_mac': good_mac})
-    
-    for i, item in enumerate(bad_macs, 1):
-        context = {'row': item}
+    if len(bad_macs) > 0:
+        context = {'rows': bad_macs}
         output = render(SQL_PHOT_UPD_MAC_ADDRESS, context)
-        output_path = os.path.join(output_dir, f"{i:03d}_upd_mac.sql")
+        output_path = os.path.join(output_dir, "001_upd_mac.sql")
+        log.info("generating SQL file %s", output_path)
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
+    else:
+         log.info("No SQL file to generate")
         
 
 # ===================
