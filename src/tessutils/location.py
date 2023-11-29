@@ -60,7 +60,7 @@ log = logging.getLogger(__name__)
 # Module auxiliar functions
 # -------------------------
 
-render = functools.partial(render_from, package='tessutils')
+render = functools.partial(render_from, 'tessutils')
 
 '''
 
