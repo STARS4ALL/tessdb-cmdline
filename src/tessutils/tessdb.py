@@ -12,6 +12,7 @@
 import os
 import csv
 import logging
+import sqlite3
 import functools
 
 # -------------------
@@ -42,6 +43,26 @@ log = logging.getLogger(__name__)
 # -------------------------
 
 render = functools.partial(render_from, 'tessutils')
+
+def _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, threshold):
+    param = {'threshold': threshold}
+    cursor = connection.cursor()
+    cursor.execute('''
+        SELECT mac_address, tess_id, location_id
+        FROM tess_t AS t
+        WHERE mac_address IN (
+            SELECT mac_address FROM tess_readings_t AS r JOIN tess_t AS t USING(tess_id)
+            WHERE r.location_id = -1 GROUP BY t.mac_address HAVING COUNT(*) > :threshold
+            EXCEPT  
+            SELECT mac_address FROM name_to_mac_t WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
+            EXCEPT  
+            SELECT mac_address FROM name_to_mac_t WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
+        )
+        AND location_id >= 0
+        ORDER BY mac_address, valid_since;
+        ''', param)
+    return tuple(dict(row) for row in cursor.fetchall())
+
 
 def _get_mac_addresses(connection):
     cursor = connection.cursor()
@@ -255,6 +276,10 @@ def fix_mac_addresses(connection, output_dir):
     else:
          log.info("No SQL file to generate")
         
+def fix_location_readings(connection, output_dir):
+    result = _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, 120)
+    log.info(result)
+
 
 # ===================
 # Module entry points
@@ -296,9 +321,13 @@ def fix(options):
     database = get_tessdb_connection_string()
     log.info("connecting to SQLite database %s", database)
     connection = open_database(database)
+    connection.row_factory = sqlite3.Row
     if options.macs:
         log.info("Fixing bas formatted MAC addresses")
         fix_mac_addresses(connection, options.directory)
+    elif options.location_readings:
+        result = _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, 120)
+        log.info(result)
     else:
         log.error("No valid input option to subcommand 'check'")
 

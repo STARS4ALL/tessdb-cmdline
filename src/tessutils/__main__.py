@@ -259,10 +259,13 @@ def create_parser():
     # -----------------------------------------
 
     subparser = parser_tessdb.add_subparsers(dest='subcommand')
+   
 
     tdloc = subparser.add_parser('locations',  help="TessDB locations metadata check")
     tdloc.add_argument('-d', '--dbase', type=valid_file, required=True, help='TessDB database file path')
     tdloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+   
+
 
     tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata check")
     tdphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
@@ -280,6 +283,7 @@ def create_parser():
     tdfix = subparser.add_parser('fix',  help="Fix TessDB data/metadata")
     tdex1 = tdfix.add_mutually_exclusive_group(required=True)
     tdex1.add_argument('-m', '--macs', action='store_true', help='generate SQL to fix bad formatted MACS in tess_t')
+    tdex1.add_argument('-lr', '--location-readings', action='store_true',  help='Output SQL directory')
     tdfix.add_argument('-d', '--directory', type=valid_dir, required=True, help='Directory to place output SQL files')
 
     # -----------------------------------------
