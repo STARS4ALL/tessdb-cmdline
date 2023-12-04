@@ -1,12 +1,13 @@
--- ----------------------
--- LOCATION UPDATING PART {{ row['name']}}
--- ----------------------
-
+-- ------------------------------------------------
+-- READINGS LOCATION UPDATE FOR {{row['mac_address']}}
+-- ------------------------------------------------
+PRAGMA foreign_keys = OFF;
 BEGIN TRANSACTION;
--- Updates Location given by location_id = {{ row['location_id'] }}
-UPDATE location_t
-SET (longitude,latitude,elevation,timezone,site,location,province,state,country,organization,contact_email) = 
-({{row['longitude']}},{{row['latitude']}},{{row['masl']}},{{row['timezone']}},{{row['place']}},{{row['town']}},{{row['sub_region']}},{{row['region']}},{{row['country']}},{{row['org_name']}},{{row['org_email']}} )
-WHERE location_id = {{ row['location_id'] }};
+-- Updates -1 location_id in tess_readings_t table 
+-- knowning that the current location given in tess_t is not -1
+UPDATE tess_readings_t
+SET location_id = {{ row['location_id'] }} 
+WHERE location_id = -1 AND tess_id = {{ row['tess_id'] }};
 COMMIT;
+PRAGMA foreign_keys = ON;
 

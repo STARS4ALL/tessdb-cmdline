@@ -24,13 +24,14 @@ import functools
 # -------------
 
 from .utils import open_database, formatted_mac, is_mac, is_tess_mac, render_from
-from .dbutils import get_tessdb_connection_string, group_by_coordinates, log_coordinates, log_coordinates_nearby, group_by_place, log_places, log_names
+from .dbutils import get_tessdb_connection_string, group_by_coordinates, group_by_mac, log_coordinates, log_coordinates_nearby, group_by_place, log_places, log_names
 
 # ----------------
 # Module constants
 # ----------------
 
 SQL_PHOT_UPD_MAC_ADDRESS = 'sql-phot-upd-mac.j2'
+SQL_PHOT_UPD_READINGS_LOCATIONS = 'sql-phot-upd-readings-locations.j2'
 
 # -----------------------
 # Module global variables
@@ -277,8 +278,16 @@ def fix_mac_addresses(connection, output_dir):
          log.info("No SQL file to generate")
         
 def fix_location_readings(connection, output_dir):
-    result = _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, 120)
-    log.info(result)
+    result = _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, threshold=0)
+    unique_photometers = group_by_mac(result, column_name='mac_address')
+    log.info("%d photometers need fixing in tess_readings_t", len(unique_photometers))
+    for i, row in enumerate(result,1):
+        context = {'row': row}
+        output = render(SQL_PHOT_UPD_READINGS_LOCATIONS, context)
+        output_path = os.path.join(output_dir, f"{i:03d}_upd_unknown_readings_locations.sql")
+        log.info("Photometer %s: generating SQL file for MAC %s", row['mac_address'], output_path)
+        with open(output_path, "w") as sqlfile:
+            sqlfile.write(output)
 
 
 # ===================
@@ -286,7 +295,7 @@ def fix_location_readings(connection, output_dir):
 # ===================
 
 def check(options):
-    log.info(" ====================== ANALIZING DUPLICATES IN TESSDB METADATA ======================")
+    log.info("====================== ANALIZING DUPLICATES IN TESSDB METADATA ======================")
     database = get_tessdb_connection_string()
     log.info("connecting to SQLite database %s", database)
     connection = open_database(database)
@@ -326,8 +335,7 @@ def fix(options):
         log.info("Fixing bas formatted MAC addresses")
         fix_mac_addresses(connection, options.directory)
     elif options.location_readings:
-        result = _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, 120)
-        log.info(result)
+        fix_location_readings(connection, options.directory)
     else:
         log.error("No valid input option to subcommand 'check'")
 

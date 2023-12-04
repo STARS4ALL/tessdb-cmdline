@@ -174,8 +174,8 @@ def log_names(names_iterable):
 # Photometers MACs check
 # ----------------------
 
-def group_by_mac(iterable):
-    return group_by(iterable, 'mac')
+def group_by_mac(iterable, column_name='mac'):
+    return group_by(iterable, column_name)
 
 
 def log_macs(macs_iterable):
