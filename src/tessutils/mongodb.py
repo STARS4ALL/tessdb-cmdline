@@ -20,9 +20,14 @@ import logging
 
 import requests
 
+from lica.cli import execute
+from lica.validators import vfile, vfloat, vfloat01, valid_channels
+
 #--------------
 # local imports
 # -------------
+
+from ._version import __version__
 
 from .utils import formatted_mac, is_tess_mac, is_mac, read_csv, write_csv
 from .dbutils import group_by_place, group_by_name, group_by_mac, group_by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
@@ -726,124 +731,225 @@ def do_diff_all(url, input_file, delimiter, output_file_prefix):
 # Module entry points
 # ===================
 
-def location(options):
+def location(args):
     url = get_mongo_api_url()
-    if options.list:
-        do_list(url, options.file, options.names, LOCATION_HEADER, mongo_get_location_info)
-    elif options.update:
-        do_update_location(url, options.file, options.delimiter, options.names, simulated=False)
-    elif options.sim_update:
-        do_update_location(url, options.file, options.delimiter, options.names, simulated=True)
-    elif options.nominatim:
+    if args.list:
+        do_list(url, args.file, args.names, LOCATION_HEADER, mongo_get_location_info)
+    elif args.update:
+        do_update_location(url, args.file, args.delimiter, args.names, simulated=False)
+    elif args.sim_update:
+        do_update_location(url, args.file, args.delimiter, args.names, simulated=True)
+    elif args.nominatim:
         mongo_input_list = mongo_get_location_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
-        if options.names:
-            mongo_input_list = filter_by_names(mongo_input_list, options.names)
+        if args.names:
+            mongo_input_list = filter_by_names(mongo_input_list, args.names)
             log.info("filtered up to %d items", len(mongo_input_list))
         log.info("including Nominatim geolocalization metadata")   
         nominatim_list = geolocate(mongo_input_list)
         nominatim_list = list(map(remap_nominatim, nominatim_list))
         mongo_input_list = merge_info(mongo_input_list, nominatim_list)
-        write_csv(mongo_input_list, NOMINATIM_HEADER, options.file)
+        write_csv(mongo_input_list, NOMINATIM_HEADER, args.file)
     else:
         log.error("No valid input option to subcommand 'location'")
 
 
-def photometer(options):
+def photometer(args):
     url = get_mongo_api_url()
-    if options.list:
-        do_list(url, options.file, options.names, PHOTOMETER_HEADER, mongo_get_photometer_info)
-    elif options.create:
-        do_create_photometer(url, options.file, options.delimiter, options.names, simulated=False)
-    elif options.sim_create:
-        do_create_photometer(url, options.file, options.delimiter, options.names, simulated=True)
-    elif options.update:
-        do_update_photometer(url, options.file, options.delimiter, options.names, simulated=False)
-    elif options.sim_update:
-        do_update_photometer(url, options.file, options.delimiter, options.names, simulated=True)
+    if args.list:
+        do_list(url, args.file, args.names, PHOTOMETER_HEADER, mongo_get_photometer_info)
+    elif args.create:
+        do_create_photometer(url, args.file, args.delimiter, args.names, simulated=False)
+    elif args.sim_create:
+        do_create_photometer(url, args.file, args.delimiter, args.names, simulated=True)
+    elif args.update:
+        do_update_photometer(url, args.file, args.delimiter, args.names, simulated=False)
+    elif args.sim_update:
+        do_update_photometer(url, args.file, args.delimiter, args.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'photometer'")
 
 
-def organization(options):
+def organization(args):
     url = get_mongo_api_url()
-    if options.list:
-        do_list(url, options.file, options.names, ORGANIZATION_HEADER, mongo_get_organization_info)
-    elif options.update:
-        do_update_organization(url, options.file, options.delimiter, options.names, simulated=False)
-    elif options.sim_update:
-        do_update_organization(url, options.file, options.delimiter, options.names, simulated=True)
+    if args.list:
+        do_list(url, args.file, args.names, ORGANIZATION_HEADER, mongo_get_organization_info)
+    elif args.update:
+        do_update_organization(url, args.file, args.delimiter, args.names, simulated=False)
+    elif args.sim_update:
+        do_update_organization(url, args.file, args.delimiter, args.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'organization'")
 
 
-def contact(options):
+def contact(args):
     url = get_mongo_api_url()
-    if options.list:
-        do_list(url, options.file, options.names, CONTACT_HEADER, mongo_get_contact_info)
-    elif options.update:
-        do_update_contact(url, options.file, options.delimiter, options.names, simulated=False)
-    elif options.sim_update:
-        do_update_contact(url, options.file, options.delimiter, options.names, simulated=True)
+    if args.list:
+        do_list(url, args.file, args.names, CONTACT_HEADER, mongo_get_contact_info)
+    elif args.update:
+        do_update_contact(url, args.file, args.delimiter, args.names, simulated=False)
+    elif args.sim_update:
+        do_update_contact(url, args.file, args.delimiter, args.names, simulated=True)
     else:
         log.error("No valid input option to subcommand 'contact'")
 
 
-def all(options):
+def all_info(args):
     url = get_mongo_api_url()
-    if options.list:
-        do_list(url, options.file, options.names, ALL_HEADER, mongo_get_all_info)
-    elif options.update:
-        do_update_all(url, options.file, options.delimiter, options.names, simulated=False)
-    elif options.sim_update:
-        do_update_all(url, options.file, options.delimiter, options.names, simulated=True)
-    elif options.create:
-        do_create_all(url, options.file, options.delimiter, options.names, simulated=False)
-    elif options.sim_create:
-        do_create_all(url, options.file, options.delimiter, options.names, simulated=True)
-    elif options.diff_file:
+    if args.list:
+        do_list(url, args.file, args.names, ALL_HEADER, mongo_get_all_info)
+    elif args.update:
+        do_update_all(url, args.file, args.delimiter, args.names, simulated=False)
+    elif args.sim_update:
+        do_update_all(url, args.file, args.delimiter, args.names, simulated=True)
+    elif args.create:
+        do_create_all(url, args.file, args.delimiter, args.names, simulated=False)
+    elif args.sim_create:
+        do_create_all(url, args.file, args.delimiter, args.names, simulated=True)
+    elif args.diff_file:
         log.info("Check differences between MongoDB and a backup CSV file",)
-        do_diff_all(url, options.diff_file, options.delimiter, options.file)
+        do_diff_all(url, args.diff_file, args.delimiter, args.file)
     else:
         log.error("No valid input option to subcommand 'all'")
 
 
-def check(options):
+def check(args):
     log.info(" ====================== ANALIZING DUPLICATES IN MONGODB METADATA ======================")
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_all_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
-    if options.names:
+    if args.names:
         log.info("Check for duplicate photometer names")
         mongo_names = group_by_name(mongo_input_list)
         log_names(mongo_names)
-    elif options.macs:
+    elif args.macs:
         log.info("Check for duplicate photometer MAC addresses")
         mongo_macs =group_by_mac(mongo_input_list)
         log_macs(mongo_macs)
-    elif options.mac_format:
+    elif args.mac_format:
         log.info("Check for properly formatted MAC addresses")
         do_check_mac_format(mongo_input_list)
-    elif options.places:
+    elif args.places:
         log.info("Check for same place, different coordinates")
         mongo_places  = by_place(mongo_input_list)
         log_places(mongo_places)
-    elif options.coords:
+    elif args.coords:
         log.info("Check for same coordinates, different places")
         mongo_coords  = group_by_coordinates(mongo_input_list)
         log_coordinates(mongo_coords)
-    elif options.nearby:
-        log.info("Check for nearby places in radius %0.0f meters", options.nearby)
+    elif args.nearby:
+        log.info("Check for nearby places in radius %0.0f meters", args.nearby)
         mongo_coords  = group_by_coordinates(mongo_input_list)
-        log_coordinates_nearby(mongo_coords, options.nearby)
-    elif options.filter:
+        log_coordinates_nearby(mongo_coords, args.nearby)
+    elif args.filter:
         log.info("Check for 'UV/IR-cut default filter")
         do_check_filter(mongo_input_list)
-    elif options.utc:
+    elif args.utc:
         log.info("Check for 'ETC/UTC*' timezone")
         do_check_etc_utc(mongo_input_list)
-    elif options.zero_point:
+    elif args.zero_point:
         log.info("Check for defined zero points")
         do_check_zp(mongo_input_list)
     else:
         log.error("No valid input option to subcommand 'check'")
+
+
+def add_args(parser):
+
+    # -----------------------------------------
+    # Create second level parsers for 'mongodb'
+    # -----------------------------------------
+
+    subparser = parser.add_subparsers(dest='command')
+
+    mgloc = subparser.add_parser('location',  help="MongoDB location metadata operations")
+    mgloc.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
+    mgloc.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
+    mgloc.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
+    mgex1 = mgloc.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB location data')
+    mgex1.add_argument('-m', '--nominatim', action='store_true', help='List MongoDB location + Nominatim metadata')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB location metadata')
+    mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB location metadata')
+  
+
+    mgphot = subparser.add_parser('photometer',  help="MongoDB photometer metadata operations")
+    mgphot.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
+    mgphot.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
+    mgphot.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
+    mgex1 = mgphot.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB photometer data')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB photometer metadata')
+    mgex1.add_argument('-c', '--create', action='store_true', help='Create MongoDB photometer metadata')
+    mgex1.add_argument('-x', '--sim-create', action='store_true', help='(simulated) Create MongoDB photometer metadata')
+    mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB photometer metadata')
+    mgphot.add_argument('-m', '--mac', type=str, default=None, required=False, help='(Optional) old MAC, needed only to change MAC')
+    
+    mgorg = subparser.add_parser('organization',  help="MongoDB organiaztion metadata operations")
+    mgorg.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
+    mgorg.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
+    mgorg.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
+    mgex1 = mgorg.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB organization metadata')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB organization metadata')
+    mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB organization metadata')
+
+    mgcon = subparser.add_parser('contact',  help="MongoDB contact metadata operations")
+    mgcon.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
+    mgcon.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
+    mgcon.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
+    mgex1 = mgcon.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB contact metadata')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB contact metadata')
+    mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB contact metadata')
+
+    mgall = subparser.add_parser('all',  help="MongoDB all metadata operations")
+    mgall.add_argument('-f', '--file', type=str, required=True, help='Input (for update) / Output (for list) CSV file')
+    mgall.add_argument('-n', '--names', type=str, nargs='+', default=None, required=False, help='Optional names filter')
+    mgall.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
+    mgex1 = mgall.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-l', '--list', action='store_true', help='List all MongoDB metadata')
+    mgex1.add_argument('-d', '--diff-file', type=vfile, help='Diff between Mongo and a backup input CSV file. Generates 4 files.')
+    mgex1.add_argument('-u', '--update', action='store_true', help='Update all MongoDB metadata')
+    mgex1.add_argument('-c', '--create', action='store_true', help='Create MongoDB photometer metadata')
+    mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB all metadata')
+    mgex1.add_argument('-x', '--sim-create', action='store_true', help='(simulated) Create MongoDB photometer metadata')
+    
+    mgphck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
+    mgphck.add_argument('--delimiter', type=str,  default=';', help='Optional column delimiter for CSV I/O (semicolon by default)')
+    mgex1 = mgphck.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-n', '--names', action='store_true', help='Check for duplicate photometer names')
+    mgex1.add_argument('-m', '--macs', action='store_true', help='Check for duplicate MACs')
+    mgex1.add_argument('-a', '--mac-format', action='store_true', help='Check for properly formatted MACs')
+    mgex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
+    mgex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
+    mgex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
+    mgex1.add_argument('-u', '--utc', action='store_true', help='Check for Etc/UTC* timezone')
+    mgex1.add_argument('-i', '--filter', action='store_true', help='Check for "UV/IR-cut" string in filters')
+    mgex1.add_argument('-z', '--zero-point', action='store_true', help='Check for defined zero points')
+
+
+
+# ================
+# MAIN ENTRY POINT
+# ================
+
+ENTRY_POINT = {
+    'location': location,
+    'photometer': photometer,
+    'all': all_info,
+    'contact': contact,
+    'organization': organization,
+    'check': check,
+}
+def mongo_db(args):
+    func = ENTRY_POINT[args.command]
+    func(args)
+
+def main():
+    execute(main_func=mongo_db, 
+        add_args_func=add_args, 
+        name=__name__, 
+        version=__version__,
+        description="STARS4ALL MongoDB Utilities"
+    )
