@@ -24,9 +24,15 @@ import functools
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 
+
+from lica.cli import execute
+from lica.validators import vfile, vdir
+
 #--------------
 # local imports
 # -------------
+
+from ._version import __version__
 
 from .utils import  open_database, formatted_mac, tessify_mac, render_from
 from .dbutils import get_mongo_api_url, get_tessdb_connection_string
@@ -65,12 +71,12 @@ render = functools.partial(render_from, 'tessutils')
 '''
 
 -- Detalle de fotometros reparados
-SELECT name, mac_address, valid_since, valid_until, valid_state FROM name_to_mac_t
+SELECT name, mac_address, valid_since, valid_until, valid_region FROM name_to_mac_t
 WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
 ORDER BY name;
 
 -- Detalle de fotometros renombrados porque si
-SELECT name, mac_address, valid_since, valid_until, valid_state FROM name_to_mac_t
+SELECT name, mac_address, valid_since, valid_until, valid_region FROM name_to_mac_t
 WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
 ORDER BY mac_address;
 
@@ -78,13 +84,13 @@ ORDER BY mac_address;
 -------------------------------------------------------------------------
 -- Todos los fotometros que no han sufrido ni reparaciones ni renombrados
 -------------------------------------------------------------------------
-SELECT name, mac_address, valid_since, valid_until, valid_state  FROM name_to_mac_t
+SELECT name, mac_address, valid_since, valid_until, valid_region  FROM name_to_mac_t
 WHERE name LIKE 'stars%'
 EXCEPT
-SELECT name, mac_address, valid_since, valid_until, valid_state  FROM name_to_mac_t
+SELECT name, mac_address, valid_since, valid_until, valid_region  FROM name_to_mac_t
 WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
 EXCEPT
-SELECT name, mac_address, valid_since, valid_until, valid_state  FROM name_to_mac_t
+SELECT name, mac_address, valid_since, valid_until, valid_region  FROM name_to_mac_t
 WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
 
 
@@ -92,7 +98,7 @@ WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address
 -- Historial de ZP de los fotometros 'faciles' y que no están asignados a ningun 'place'
 ----------------------------------------------------------------------------------------
 
-SELECT mac_address, tess_id, location_id, zero_point, valid_since, valid_until, valid_state
+SELECT mac_address, tess_id, location_id, zero_point, valid_since, valid_until, valid_region
 FROM tess_t
 WHERE mac_address IN (
     SELECT mac_address  FROM name_to_mac_t
@@ -110,7 +116,7 @@ ORDER BY mac_address, valid_since
 -- Lo mismo pero incluyendo el nombre
 -------------------------------------
 
-SELECT name, t.mac_address, tess_id, location_id, zero_point, t.valid_since, t.valid_until, t.valid_state
+SELECT name, t.mac_address, tess_id, location_id, zero_point, t.valid_since, t.valid_until, t.valid_region
 FROM tess_t AS t
 JOIN name_to_mac_t USING(mac_address)
 WHERE mac_address IN (
@@ -131,8 +137,8 @@ def _easy_photometers_with_unknown_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT name, t.mac_address, tess_id, zero_point, location_id, 
-            l.site, l.location, l.province, l.state, l.country, l.timezone, l.organization, l.contact_email
+        SELECT name, t.mac_address, tess_id, zp1, location_id, 
+            l.place, l.town, l.sub_region, l.region, l.country, l.timezone, l.organization, l.contact_email
         FROM tess_t AS t
         JOIN name_to_mac_t AS n USING(mac_address)
         JOIN location_t  AS l USING(location_id)
@@ -155,8 +161,8 @@ def _easy_photometers_with_former_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT name, t.mac_address, tess_id, zero_point, location_id,
-            l.site, l.location, l.province, l.state, l.country, l.timezone, l.organization, l.contact_email
+        SELECT name, t.mac_address, tess_id, zp1, location_id,
+            l.place, l.town, l.sub_region, l.region, l.country, l.timezone, l.organization, l.contact_email
         FROM tess_t AS t
         JOIN name_to_mac_t AS n USING(mac_address)
         JOIN location_t  AS l USING(location_id)
@@ -387,14 +393,49 @@ def generate_single(connection, mongodb_url, output_dir):
 # Module entry points
 # ===================
 
-def generate(options):
+def generate(args):
     mongodb_url = get_mongo_api_url()
     tessdb_url = get_tessdb_connection_string()
     connection = open_database(tessdb_url)
     log.info("%s: LOCATIONS SCRIPT GENERATION", __name__)
-    if options.unknown:
-        generate_unknown(connection, mongodb_url, options.directory)
-    elif options.single:
-        generate_single(connection, mongodb_url, options.directory)
+    if args.unknown:
+        generate_unknown(connection, mongodb_url, args.directory)
+    elif args.single:
+        generate_single(connection, mongodb_url, args.directory)
     else:
         raise NotImplementedError("Command line option not yet implemented")
+
+# ================
+# MAIN ENTRY POINT
+# ================
+
+def add_args(parser):
+
+    # ------------------------------------------
+    # Create second level parsers for 'location'
+    # ------------------------------------------
+
+    subparser = parser.add_subparsers(dest='command')
+    
+    locg = subparser.add_parser('generate',  help="Generate SQL file with location updates from MongoDB ")
+    locgex1 = locg.add_mutually_exclusive_group(required=True)
+    locgex1.add_argument('-u', '--unknown', action='store_true', help='Update those with no repairs and no renamings and unknown location')
+    locgex1.add_argument('-s', '--single', action='store_true', help='Update those with no repairs and no renamings in tessdb')
+    locgex1.add_argument('-m', '--multiple', action='store_true', help='Update those with repair/renamings entries in tessdb')
+    locg.add_argument('-d', '--directory', type=vdir, required=True, help='Directory to place output SQL files')
+
+ENTRY_POINT = {
+    'generate': generate,
+}
+
+def location(args):
+    func = ENTRY_POINT[args.command]
+    func(args)
+
+def main():
+    execute(main_func=location, 
+        add_args_func=add_args, 
+        name=__name__, 
+        version=__version__,
+        description="STARS4ALL MongoDB Utilities"
+    )

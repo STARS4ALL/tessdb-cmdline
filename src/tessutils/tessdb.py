@@ -401,12 +401,12 @@ ENTRY_POINT = {
     'check': check,
 }
 
-def mongo_db(args):
+def tessdb_db(args):
     func = ENTRY_POINT[args.command]
     func(args)
 
 def main():
-    execute(main_func=mongo_db, 
+    execute(main_func=tessdb_db, 
         add_args_func=add_args, 
         name=__name__, 
         version=__version__,

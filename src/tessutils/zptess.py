@@ -18,9 +18,14 @@ import functools
 # Third party imports
 # -------------------
 
+from lica.cli import execute
+from lica.validators import vfile, vdir
+
 #--------------
 # local imports
 # -------------
+
+from ._version import __version__
 
 from .utils import open_database, formatted_mac, is_mac, is_tess_mac
 from .dbutils import get_tessdb_connection_string, get_zptess_connection_string, group_by_mac, common_A_B_items, in_A_not_in_B
@@ -49,7 +54,7 @@ def _photometers_from_tessdb1(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT mac_address, valid_state, zero_point, valid_since, registered
+        SELECT DISTINCT mac_address, valid_state, zp1, valid_since, registered
         FROM tess_t
         WHERE valid_state = 'Current'
         AND mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) = 1)
@@ -60,7 +65,7 @@ def _photometers_from_tessdb2(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT mac_address, valid_state, zero_point, valid_since, registered
+        SELECT DISTINCT mac_address, valid_state, zp1, valid_since, registered
         FROM tess_t
         ORDER BY mac_address, valid_since
         ''')
@@ -226,3 +231,43 @@ def generate(options):
         generate_tessdb(conn_tessdb, conn_zptess, options.historic, options.file)
     else:
         generate_zptess(conn_tessdb, conn_zptess, options.historic, options.file)
+
+
+# ================
+# MAIN ENTRY POINT
+# ================
+
+def add_args(parser):
+    # ------------------------------------------
+    # Create second level parsers for 'zptess'
+    # ------------------------------------------
+
+    subparser = parser.add_subparsers(dest='command')
+    
+    zpt = subparser.add_parser('generate',  help="Generate cross zptess/tessdb CSV comparison")
+    zpt.add_argument('-f', '--file', type=str, required=True, help='Output CSV File')
+    zpex1 = zpt.add_mutually_exclusive_group(required=True)
+    zpex1.add_argument('--common', action='store_true', help='Common MACs')
+    zpex1.add_argument('--zptess', action='store_true', help='MACs in ZPTESS not in TESSDB')
+    zpex1.add_argument('--tessdb', action='store_true', help='MACs in TESSDB not in ZPTESS')
+
+    zpex1 = zpt.add_mutually_exclusive_group(required=True)
+    zpex1.add_argument('-c', '--current', action='store_true', help='Current ZP')
+    zpex1.add_argument('-i', '--historic', action='store_true', help='Historic ZP entries')
+
+
+ENTRY_POINT = {
+    'generate': generate,
+}
+
+def zp_tess(args):
+    func = ENTRY_POINT[args.command]
+    func(args)
+
+def main():
+    execute(main_func=zp_tess, 
+        add_args_func=add_args, 
+        name=__name__, 
+        version=__version__,
+        description="STARS4ALL MongoDB Utilities"
+    )

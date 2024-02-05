@@ -168,19 +168,6 @@ def create_parser():
     zpex1.add_argument('-i', '--historic', action='store_true', help='Historic ZP entries')
 
 
-    # ------------------------------------------
-    # Create second level parsers for 'location'
-    # ------------------------------------------
-
-    subparser = parser_location.add_subparsers(dest='subcommand')
-    
-    locg = subparser.add_parser('generate',  help="Generate SQL file with location updates from MongoDB ")
-    locgex1 = locg.add_mutually_exclusive_group(required=True)
-    locgex1.add_argument('-u', '--unknown', action='store_true', help='Update those with no repairs and no renamings and unknown location')
-    locgex1.add_argument('-s', '--single', action='store_true', help='Update those with no repairs and no renamings in tessdb')
-    locgex1.add_argument('-m', '--multiple', action='store_true', help='Update those with repair/renamings entries in tessdb')
-    locg.add_argument('-d', '--directory', type=valid_dir, required=True, help='Directory to place output SQL files')
-
     # -----------------------------------------
     # Create second level parsers for 'crossdb'
     # -----------------------------------------
