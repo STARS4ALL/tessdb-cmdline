@@ -111,18 +111,12 @@ def create_parser():
     group.add_argument('-q', '--quiet',   action='store_true', help='Quiet logging output.')
     parser.add_argument('-m', '--modules', type=str, default=None, action='store', help='comma separated list of modules to activate debug level upon')
 
-
     # --------------------------
     # Create first level parsers
     # --------------------------
 
     subparser = parser.add_subparsers(dest='command')
 
-    parser_location  = subparser.add_parser('location', help='location commands')
-    parser_mongodb = subparser.add_parser('mongodb', help='MongoDB commands')
-    parser_tessdb  = subparser.add_parser('tessdb', help='TessDB commands')
-    parser_crossdb = subparser.add_parser('crossdb', help='Cross database check commands')
-    parser_zptess  = subparser.add_parser('zptess', help='zptess commands')
     parser_ida  = subparser.add_parser('idadb', help='idadb commands')
     parser_forms  = subparser.add_parser('forms', help='Google forms commands')
 
@@ -149,55 +143,6 @@ def create_parser():
     idaex1.add_argument('--common', action='store_true', help='Common MACs')
     idaex1.add_argument('--ida', action='store_true', help='MACs in IDA CSV file not in TESSDB')
     idaex1.add_argument('--tessdb', action='store_true', help='MACs in TESSDB not in IDA CSV')
-
-    # ------------------------------------------
-    # Create second level parsers for 'zptess'
-    # ------------------------------------------
-
-    subparser = parser_zptess.add_subparsers(dest='subcommand')
-    
-    zpt = subparser.add_parser('generate',  help="Generate cross zptess/tessdb CSV comparison")
-    zpt.add_argument('-f', '--file', type=str, required=True, help='Output CSV File')
-    zpex1 = zpt.add_mutually_exclusive_group(required=True)
-    zpex1.add_argument('--common', action='store_true', help='Common MACs')
-    zpex1.add_argument('--zptess', action='store_true', help='MACs in ZPTESS not in TESSDB')
-    zpex1.add_argument('--tessdb', action='store_true', help='MACs in TESSDB not in ZPTESS')
-
-    zpex1 = zpt.add_mutually_exclusive_group(required=True)
-    zpex1.add_argument('-c', '--current', action='store_true', help='Current ZP')
-    zpex1.add_argument('-i', '--historic', action='store_true', help='Historic ZP entries')
-
-
-    # -----------------------------------------
-    # Create second level parsers for 'crossdb'
-    # -----------------------------------------
-
-    subparser = parser_crossdb.add_subparsers(dest='subcommand')
-    
-    xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
-    xdbloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
-    grp = xdbloc.add_mutually_exclusive_group(required=True)
-    grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')
-    grp.add_argument('-t', '--tess', action='store_true',  help='TessDB exclusive locations')
-    grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
-
-    xdbphot = subparser.add_parser('photometers',  help="Cross DB photometers metadata operations")
-    xdbphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
-    grp = xdbphot.add_mutually_exclusive_group(required=True)
-    grp.add_argument('-s', '--sim-update-mac', action='store_true', help='Simulated update Mongo DB MAC with TESS-DB MAC value')
-    grp.add_argument('-m', '--update-mac', action='store_true',  help='Update Mongo DB MAC with TESS-DB MAC value')
-    grp.add_argument('-x', '--sim-update-zp', action='store_true', help='Simulated update Mongo DB ZP with TESS-DB ZP value')
-    grp.add_argument('-z', '--update-zp', action='store_true',  help='Update Mongo DB ZP with TESS-DB ZP value')
-
-    xdbcoord = subparser.add_parser('coordinates',  help="Cross DB photometers metadata check")
-    xdbcoord.add_argument('-f', '--file', type=str, required=True, help='CSV file to generate differences')
-    xdbcoord.add_argument('--lower', type=float, default=0.0, help='Lower limit in meters')
-    xdbcoord.add_argument('--upper', type=float, default=1000.0, help='Upper limit in meters')
-
-    mgphck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
-    mgex1 = mgphck.add_mutually_exclusive_group(required=True)
-    mgex1.add_argument('-m', '--mac', action='store_true', help="Check for common photometer's MACs")
-    mgex1.add_argument('-z', '--zero-point', action='store_true', help="Check for common photometer's Zero Points")
 
     return parser
 

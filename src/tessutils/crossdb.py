@@ -23,12 +23,18 @@ import collections
 
 import requests
 
+
+from lica.cli import execute
+from lica.validators import vfile, vdir
+
 #--------------
 # local imports
 # -------------
 
+from ._version import __version__
+
 from .utils import open_database, write_csv
-from .dbutils import by_place, group_by_name, by_coordinates,group_by_mac, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
+from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
 from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info, filter_by_names, get_mac, mongo_api_body_photometer, mongo_api_update
 from .tessdb import photometers_from_tessdb, places_from_tessdb
 
@@ -343,5 +349,59 @@ def coordinates(options):
     write_csv(output, X_HEADER, options.file)       
 
 
+def add_args(parser):
+
+    # -----------------------------------------
+    # Create second level parsers for 'crossdb'
+    # -----------------------------------------
+
+    subparser = parser.add_subparsers(dest='command')
+    
+    xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
+    xdbloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    grp = xdbloc.add_mutually_exclusive_group(required=True)
+    grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')
+    grp.add_argument('-t', '--tess', action='store_true',  help='TessDB exclusive locations')
+    grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
+
+    xdbphot = subparser.add_parser('photometers',  help="Cross DB photometers metadata operations")
+    xdbphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    grp = xdbphot.add_mutually_exclusive_group(required=True)
+    grp.add_argument('-s', '--sim-update-mac', action='store_true', help='Simulated update Mongo DB MAC with TESS-DB MAC value')
+    grp.add_argument('-m', '--update-mac', action='store_true',  help='Update Mongo DB MAC with TESS-DB MAC value')
+    grp.add_argument('-x', '--sim-update-zp', action='store_true', help='Simulated update Mongo DB ZP with TESS-DB ZP value')
+    grp.add_argument('-z', '--update-zp', action='store_true',  help='Update Mongo DB ZP with TESS-DB ZP value')
+
+    xdbcoord = subparser.add_parser('coordinates',  help="Cross DB photometers metadata check")
+    xdbcoord.add_argument('-f', '--file', type=str, required=True, help='CSV file to generate differences')
+    xdbcoord.add_argument('--lower', type=float, default=0.0, help='Lower limit in meters')
+    xdbcoord.add_argument('--upper', type=float, default=1000.0, help='Upper limit in meters')
+
+    mgphck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
+    mgex1 = mgphck.add_mutually_exclusive_group(required=True)
+    mgex1.add_argument('-m', '--mac', action='store_true', help="Check for common photometer's MACs")
+    mgex1.add_argument('-z', '--zero-point', action='store_true', help="Check for common photometer's Zero Points")
+
+# ================
+# MAIN ENTRY POINT
+# ================
+
+ENTRY_POINT = {
+    'locations': locations,
+    'photometers': photometers,
+    'coordinates': coordinates,
+    'check': check,
+}
+def cross_db(args):
+    func = ENTRY_POINT[args.command]
+    func(args)
+
+def main():
+    execute(main_func=cross_db, 
+        add_args_func=add_args, 
+        name=__name__, 
+        version=__version__,
+        description="STARS4ALL MongoDB Utilities"
+    )
 
        
