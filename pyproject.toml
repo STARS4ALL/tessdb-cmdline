@@ -52,6 +52,8 @@ Repository = "https://github.com/astrorafael/tessdb-cmdline.git"
 [project.scripts]
 tessutils = "tessutils.__main__:main"
 mongo-db = "tessutils.mongodb:main"
+tess-db = "tessutils.tessdb:main"
+
 # pyproject.toml
 # Autimatically generates a _version-py file from with Git information
 # This file shold be placed in .gitignore
@@ -69,7 +71,6 @@ script-files = [
     "scripts/tess",
     "scripts/tessdb_pause", 
     "scripts/tessdb_resume",
-    "scripts/tess-db", 
     "scripts/cross-db",
     "scripts/auto-apply-sql",
     "scripts/fast-apply-sql", 

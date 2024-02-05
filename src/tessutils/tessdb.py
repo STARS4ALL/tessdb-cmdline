@@ -19,9 +19,14 @@ import functools
 # Third party imports
 # -------------------
 
+from lica.cli import execute
+from lica.validators import vfile, vdir
+
 #--------------
 # local imports
 # -------------
+
+from ._version import __version__
 
 from .utils import open_database, formatted_mac, is_mac, is_tess_mac, render_from
 from .dbutils import get_tessdb_connection_string, group_by_coordinates, group_by_mac, log_coordinates, log_coordinates_nearby, group_by_place, log_places, log_names
@@ -73,10 +78,10 @@ def _get_mac_addresses(connection):
 def fake_zero_points(connection):
     cursor = connection.cursor()
     cursor.execute('''
-        SELECT t.mac_address, t.zero_point, n.name, n.valid_since, n.valid_until
+        SELECT t.mac_address, t.zp1, n.name, n.valid_since, n.valid_until
         FROM tess_t AS t
         JOIN name_to_mac_t AS n USING(mac_address)
-        WHERE t.zero_point < 18.5
+        WHERE t.zp1 < 18.5
         AND t.valid_state = 'Current'
         AND n.name LIKE 'stars%'
         ORDER BY mac_address
@@ -87,13 +92,13 @@ def _raw_photometers_and_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT t.tess_id, n.name, t.mac_address, t.zero_point, t.filter,
+        SELECT t.tess_id, n.name, t.mac_address, t.zp1, t.filter1,
         t.valid_since, t.valid_until, t.valid_state,
         t.location_id,
         t.model, t.firmware, t.channel, t.cover_offset, t.fov, t.azimuth, t.altitude,
         t.authorised, t.registered,
-        l.contact_name, l.organization, l.contact_email, l.site, l.longitude, l.latitude, 
-        l.elevation, l.zipcode, l.location, l.province, l.country, l.timezone
+        l.contact_name, l.organization, l.contact_email, l.place, l.longitude, l.latitude, 
+        l.elevation, l.zipcode, l.town, l.sub_region, l.country, l.timezone
         FROM tess_t AS t
         JOIN location_t AS l   USING (location_id)
         JOIN name_to_mac_t AS n USING (mac_address)
@@ -106,7 +111,7 @@ def _photometers_and_locations_from_tessdb(connection):
     cursor.execute(
         '''
         SELECT DISTINCT name, mac_address, zero_point, filter, 
-        longitude, latitude, site, location, province, country, timezone,
+        longitude, latitude, place, town, sub_region, country, timezone,
         contact_name, contact_email,
         organization
         FROM tess_v 
@@ -182,7 +187,7 @@ def places_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT longitude, latitude, site, location, province, state, country, timezone, location_id
+        SELECT longitude, latitude, place, town, sub_region, region, country, timezone, location_id
         FROM location_t 
         ''')
     result = [dict(zip(['longitude','latitude','place','town','sub_region','region','country','timezone','name'],row)) for row in cursor]
@@ -357,3 +362,53 @@ def photometers(options):
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_phot = group_by_name(tessdb_input_list)
     log_names(tessdb_phot)
+
+
+def add_args(parser):
+
+    subparser = parser.add_subparsers(dest='command')
+
+    tdloc = subparser.add_parser('locations',  help="TessDB locations metadata check")
+    tdloc.add_argument('-d', '--dbase', type=vfile, required=True, help='TessDB database file path')
+    tdloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
+    tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata check")
+    tdphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+
+    tdcheck = subparser.add_parser('check',  help="Various TESSDB metadata checks")
+    tdex1 = tdcheck.add_mutually_exclusive_group(required=True)
+    tdex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
+    tdex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
+    tdex1.add_argument('-d', '--dupl', action='store_true', help='Check same coordinates, duplicated places')
+    tdex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
+    tdex1.add_argument('-m', '--macs', action='store_true', help='Check for proper MACS in tess_t')
+    tdex1.add_argument('-z', '--fake-zero-points', action='store_true', help='Check for proper MACS in tess_t')
+
+    tdfix = subparser.add_parser('fix',  help="Fix TessDB data/metadata")
+    tdex1 = tdfix.add_mutually_exclusive_group(required=True)
+    tdex1.add_argument('-m', '--macs', action='store_true', help='generate SQL to fix bad formatted MACS in tess_t')
+    tdex1.add_argument('-lr', '--location-readings', action='store_true',  help='Output SQL directory')
+    tdfix.add_argument('-d', '--directory', type=vdir, required=True, help='Directory to place output SQL files')
+
+# ================
+# MAIN ENTRY POINT
+# ================
+
+ENTRY_POINT = {
+    'location': locations,
+    'photometer': photometers,
+    'fix': fix,
+    'check': check,
+}
+
+def mongo_db(args):
+    func = ENTRY_POINT[args.command]
+    func(args)
+
+def main():
+    execute(main_func=mongo_db, 
+        add_args_func=add_args, 
+        name=__name__, 
+        version=__version__,
+        description="STARS4ALL MongoDB Utilities"
+    )

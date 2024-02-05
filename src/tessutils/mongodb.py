@@ -21,7 +21,7 @@ import logging
 import requests
 
 from lica.cli import execute
-from lica.validators import vfile, vfloat, vfloat01, valid_channels
+from lica.validators import vfile, vdir
 
 #--------------
 # local imports
