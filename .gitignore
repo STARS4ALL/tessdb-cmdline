@@ -29,5 +29,5 @@ src/*.sh
 tess.db*
 *.sql
 sql/
-src/tessutils/_version.py
-
+src/tessdb/_version.py
+IDA/

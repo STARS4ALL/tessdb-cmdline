@@ -18,8 +18,7 @@ import datetime
 # local imports
 # -------------
 
-from ._version import get_versions
-
+from .._version import __version__
 
 # -----------------------
 # Module global variables

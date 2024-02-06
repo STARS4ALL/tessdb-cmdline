@@ -23,7 +23,6 @@ import collections
 
 import requests
 
-
 from lica.cli import execute
 from lica.validators import vfile, vdir
 
@@ -31,7 +30,7 @@ from lica.validators import vfile, vdir
 # local imports
 # -------------
 
-from ._version import __version__
+from .._version import __version__
 
 from .utils import open_database, write_csv
 from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string

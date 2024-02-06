@@ -1,0 +1,74 @@
+# Definition of the community standard for skyglow observations 1.0
+# URL: http://www.darksky.org/NSBM/sdf1.0.pdf
+# Number of header lines: 35
+# This data is released under the following license: ODbL 1.0 http://opendatacommons.org/licenses/odbl/summary/
+# Device type: {{ instrument.model }}
+# Instrument ID: {{ instrument.name }}
+# Data supplier: {{ observer.name }} / {{ observer.organization }}
+# Location name: {{ location.location }}/{{ location.province }}/{{ location.country }} - {{ location.site }}
+# Position: {{ location.latitude }}, {{ location.longitude }}, {{ location.elevation }}
+# Local timezone: {{ location.timezone }}
+# Time Synchronization: timestamp added by MQTT subscriber
+# Moving / Stationary position: STATIONARY
+# Moving / Fixed look direction: FIXED
+# Number of channels: 1
+{% if instrument.filter.changed -%}
+# Filters per channel: {{ instrument.filter.current.value }} (from {{ instrument.filter.current.valid_since }})
+{% else -%}
+# Filters per channel: {{ instrument.filter.current.value }}
+{% endif -%}
+{% if instrument.azimuth.changed or instrument.azimuth.changed -%}
+# Measurement direction per channel: {{ instrument.azimuth.current.value }}, {{ 90.0 - instrument.altitude.current.value }} (from {{ instrument.azimuth.current.valid_since }})
+{% else -%}
+# Measurement direction per channel: {{ instrument.azimuth.current.value }}, {{ 90.0 - instrument.altitude.current.value }}
+{% endif -%}
+# Field of view: {{ instrument.fov }}
+# Number of fields per line: 7
+{% if instrument.mac_address.changed -%}
+# TESS MAC address: {{ instrument.mac_address.current.value }} (from {{ instrument.mac_address.current.valid_since }})
+{% else -%}
+# TESS MAC address: {{ instrument.mac_address.current.value }}
+{% endif -%}
+# TESS firmware version: {{ instrument.firmware }}
+# TESS cover offset value: {{ instrument.cover_offset }}
+{% if instrument.zero_point.changed -%}
+# TESS zero point: {{ instrument.zero_point.current.value }} (from {{ instrument.zero_point.current.valid_since }})
+{% else -%}
+# TESS zero point: {{ instrument.zero_point.current.value }}
+{% endif -%}
+{% if instrument.zero_point.current.value == 20.50 -%}
+# Comment: This photometer may have not been calibrated
+{% else -%}
+# Comment:  
+{% endif -%}
+{% if instrument.mac_address.changed -%}
+# Comment: MAC address was {{ instrument.mac_address.previous.value }} (until {{ instrument.mac_address.previous.valid_until }})
+{% else -%}
+# Comment:
+{% endif -%}
+{% if instrument.mac_address.changed and instrument.zero_point.changed -%}
+# Comment: Previous Zero Point was {{ instrument.zero_point.previous.value }} due to MAC address change
+{% elif not instrument.mac_address.changed and instrument.zero_point.changed -%}
+# Comment: Previous Zero Point was {{ instrument.zero_point.previous.value }} (until {{ instrument.zero_point.previous.valid_until }})
+{% else -%}
+# Comment:
+{% endif -%}
+{% if instrument.filter.changed -%}
+# Comment: Previous filter was {{ instrument.filter.previous.value }} (until {{ instrument.filter.previous.valid_until }})
+{% else -%}
+# Comment:
+{% endif -%}
+{% if instrument.azimuth.changed or instrument.azimuth.changed -%}
+# Comment: previous measurement direction per channel was {{ instrument.azimuth.previous.value }}, {{ 90.0 - instrument.altitude.previous.value }} (from {{ instrument.azimuth.previous.valid_since }})
+{% else -%}
+# Comment:
+{% endif -%}
+# Comment: 
+# Comment: MSAS = ZP - 2.5*log10(Frequency)
+# blank line 30
+# blank line 31
+# blank line 32
+# UTC Date & Time, Local Date & Time, Enclosure Temperature, Sky Temperature, Frequency, MSAS, ZP
+# YYYY-MM-DDTHH:mm:ss.fff;YYYY-MM-DDTHH:mm:ss.fff;Celsius;Celsius;Hz;mag/arcsec^2;mag/arcsec^2
+# END OF HEADER
+

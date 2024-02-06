@@ -37,7 +37,10 @@ dependencies = [
     'requests',
     'validators',
     'python-decouple',
-    "lica@git+https://github.com/guaix-ucm/lica#egg=main",
+    'python-dateutil',
+    'tabulate', 
+    'pytz',
+    'lica@git+https://github.com/guaix-ucm/lica#egg=main',
 ]
 
 [project.optional-dependencies]
@@ -50,19 +53,19 @@ Homepage = "https://github.com/astrorafael/tessdb-cmdline"
 Repository = "https://github.com/astrorafael/tessdb-cmdline.git"
 
 [project.scripts]
-tessutils = "tessutils.__main__:main"
-mongo-db = "tessutils.mongodb:main"
-tess-db = "tessutils.tessdb:main"
-location = "tessutils.location:main"
-zp-tess =  "tessutils.zptess:main"
-cross-db =  "tessutils.crossdb:main"
+mongo-db = "tessdb.tools.mongodb:main"
+tess-db = "tessdb.tools.tessdb:main"
+location = "tessdb.tools.location:main"
+zp-tess =  "tessdb.tools.zptess:main"
+cross-db =  "tessdb.tools.crossdb:main"
+tess-ida = "tessdb.reports.ida:main"
 
 
 # pyproject.toml
 # Autimatically generates a _version-py file from with Git information
 # This file shold be placed in .gitignore
 [tool.setuptools_scm]
-write_to = "src/tessutils/_version.py"
+write_to = "src/tessdb/_version.py"
 
 [tool.setuptools.packages.find]
 # scanning for namespace packages is true by default in pyproject.toml, so
@@ -72,12 +75,18 @@ where = ["src"]
 
 [tool.setuptools]
 script-files = [
-    "scripts/tess",
-    "scripts/tessdb_pause", 
-    "scripts/tessdb_resume",
-    "scripts/auto-apply-sql",
-    "scripts/fast-apply-sql", 
+    "scripts/tools/tessdb-pause", 
+    "scripts/tools/tessdb-resume",
+    "scripts/tools/auto-apply-sql",
+    "scripts/tools/fast-apply-sql", 
+    "scripts/reports/tess_bulk_dump.sh",
+    "scripts/reports/tess_daily_summary.sh",
+    "scripts/reports/tess_ida_bulk_dump.sh",
+    "scripts/reports/tess_ida_bulk_dump_all.sh",
+    "scripts/reports/tess_readings_unassigned.sh",
+    "scripts/reports/tessdb_index.sh",
+
 ]
 
 [tool.setuptools.package-data]
-"tessutils.templates" = ["*.j2"]
+"tessdb.templates" = ["*.j2"]

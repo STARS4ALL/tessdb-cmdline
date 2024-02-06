@@ -27,7 +27,7 @@ from lica.validators import vfile, vdir
 # local imports
 # -------------
 
-from ._version import __version__
+from .._version import __version__
 
 from .utils import formatted_mac, is_tess_mac, is_mac, read_csv, write_csv
 from .dbutils import group_by_place, group_by_name, group_by_mac, group_by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
