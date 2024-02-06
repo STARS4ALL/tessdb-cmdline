@@ -26,7 +26,7 @@ from lica.validators import vfile, vdir
 # local imports
 # -------------
 
-from ._version import __version__
+from .._version import __version__
 
 from .utils import open_database, formatted_mac, is_mac, is_tess_mac, render_from
 from .dbutils import get_tessdb_connection_string, group_by_coordinates, group_by_mac, log_coordinates, log_coordinates_nearby, group_by_place, log_places, log_names

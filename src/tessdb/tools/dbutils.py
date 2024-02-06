@@ -15,6 +15,7 @@ import time
 import logging
 import itertools
 import collections
+import functools
 
 # -------------------
 # Third party imports
@@ -67,77 +68,88 @@ def get_zptess_connection_string():
 def get_idadb_connection_string():
    return decouple.config('IDADB_URL')
 
-def _make_remap_location(geolocator, tzfinder):
-    def _remap_location_func(row):
-        time.sleep(1) # Inserts a one seconds delay
-        location = geolocator.reverse(f"{row['latitude']}, {row['longitude']}", language="en")
-        if location is None:
-            log.error("Nominatim didn't find a location for %s (lon=%s, lat=%s)", row['name'], row['longitude'], row['latitude'])
-            return None
-        metadata = location.raw['address']
-        out_row = dict()
-        out_row['name'] = row['name'] # Photometer name (this may go away ....)
-        out_row['latitude']  = row['latitude']
-        out_row['longitude'] = row['longitude']
-        found = False
-        for place_type in ('leisure', 'amenity', 'tourism', 'building', 'road', 'hamlet',):
-            try:
-                out_row['place'] = metadata[place_type]
-            except KeyError:
-                continue   
-            else:
-                found = True
-                if place_type == 'road' and metadata.get('house_number'):
-                    out_row['place'] = metadata[place_type] + ", " + metadata['house_number']
-                    out_row['place_type'] = 'road + house_number'
-                else:
-                    out_row['place_type'] = place_type
-                break
-        if found:
-            log.info("proposal for %s: '%s' (%s)  as place name to '%s'", row['name'], metadata[place_type], place_type, row['place'])
+def remap_location(geolocator, tzfinder, row):
+    time.sleep(1) # Inserts a one seconds delay
+    location = geolocator.reverse(f"{row['latitude']}, {row['longitude']}", language="en")
+    if location is None:
+        log.error("Nominatim didn't find a location for %s (lon=%s, lat=%s)", row['name'], row['longitude'], row['latitude'])
+        return None
+    metadata = location.raw['address']
+    out_row = dict()
+    out_row['name'] = row['name'] # Photometer name (this may go away ....)
+    out_row['latitude']  = row['latitude']
+    out_row['longitude'] = row['longitude']
+    found = False
+    for place_type in ('leisure', 'amenity', 'tourism', 'building', 'road', 'hamlet',):
+        try:
+            out_row['place'] = metadata[place_type]
+        except KeyError:
+            continue   
         else:
-            out_row['place'] = None
-            out_row['place_type'] = None
-            log.warn("still without a valid place name to '%s'",row['name'])
+            found = True
+            if place_type == 'road' and metadata.get('house_number'):
+                out_row['place'] = metadata[place_type] + ", " + metadata['house_number']
+                out_row['place_type'] = 'road + house_number'
+            else:
+                out_row['place_type'] = place_type
+            break
+    if found:
+        log.info("proposal for %s: '%s' (%s)  as place name to '%s'", row['name'], metadata[place_type], place_type, row['place'])
+    else:
+        out_row['place'] = None
+        out_row['place_type'] = None
+        log.warn("still without a valid place name to '%s'",row['name'])
 
-        for location_type in ('village','town','city','municipality'):
-            try:
-                out_row['town'] = metadata[location_type]
-                out_row['town_type'] = location_type
-            except KeyError:
-                out_row['town'] = None
-                out_row['town_type'] = None
-                continue
-            else:
-                break
-        for province_type in ('state_district','province'):
-            try:
-                out_row['sub_region'] = metadata[province_type]
-                out_row['sub_region_type'] = province_type
-            except KeyError:
-                out_row['sub_region'] = None
-                out_row['sub_region_type'] = None
-                continue
-            else:
-                break
-        out_row['region']  = metadata.get('state',None)
-        out_row['region_type'] = 'state'
-        out_row['zipcode'] = metadata.get('postcode',None)
-        out_row['country'] = metadata.get('country',None)
-        out_row['timezone'] = tzfinder.timezone_at(lng=row['longitude'], lat=row['latitude'])
-        if(row['timezone'] != row['timezone']):
+    for location_type in ('village','town','city','municipality'):
+        try:
+            out_row['town'] = metadata[location_type]
+            out_row['town_type'] = location_type
+        except KeyError:
+            out_row['town'] = None
+            out_row['town_type'] = None
+            continue
+        else:
+            break
+    for province_type in ('state_district','province'):
+        try:
+            out_row['sub_region'] = metadata[province_type]
+            out_row['sub_region_type'] = province_type
+        except KeyError:
+            out_row['sub_region'] = None
+            out_row['sub_region_type'] = None
+            continue
+        else:
+            break
+    out_row['region']  = metadata.get('state',None)
+    out_row['region_type'] = 'state'
+    out_row['zipcode'] = metadata.get('postcode',None)
+    out_row['country'] = metadata.get('country',None)
+    out_row['timezone'] = tzfinder.timezone_at(lng=row['longitude'], lat=row['latitude'])
+    if(row['timezone'] != row['timezone']):
+        log.info("Proposal new timezone: %s -> %s", row['timezone'], out_row['timezone'])
+    return out_row
+  
+
+
+def remap_timezone(tzfinder, row):
+    out_row = dict(row)
+    out_row['timezone'] = tzfinder.timezone_at(lng=row['longitude'], lat=row['latitude'])
+    if(row['timezone'] != row['timezone']):
             log.info("Proposal new timezone: %s -> %s", row['timezone'], out_row['timezone'])
-        return out_row
-    return _remap_location_func
-
+    return out_row
 
 
 def geolocate(iterable):
     geolocator = Nominatim(user_agent="STARS4ALL project")
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=2)
     tzfinder   = TimezoneFinder()
-    remap_location = _make_remap_location(geolocator, tzfinder)
-    return list(map(remap_location, iterable))
+    #remap_location = _make_remap_location(geolocator, tzfinder)
+    return list(map(functools.partial(remap_location, geolocator, tzfinder), iterable))
+    
+
+def timezone(iterable):
+    tzfinder   = TimezoneFinder()
+    return list(map(functools.partial(remap_timezone, tzfinder), iterable))
 
 
 def group_by(iterable, key):

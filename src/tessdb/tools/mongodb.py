@@ -31,7 +31,7 @@ from .._version import __version__
 
 from .utils import formatted_mac, is_tess_mac, is_mac, read_csv, write_csv
 from .dbutils import group_by_place, group_by_name, group_by_mac, group_by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
-from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate, common_A_B_items, in_A_not_in_B, filter_and_flatten
+from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate, timezone, common_A_B_items, in_A_not_in_B, filter_and_flatten
 
 class ListLengthMismatchError(Exception):
     '''List length mismatch error between lists'''
@@ -75,6 +75,8 @@ ALL_HEADER = PHOTOMETER_HEADER2 + LOCATION_HEADER[1:] + ORGANIZATION_HEADER[1:] 
 NOMINATIM_HEADER = ('name', 'longitude', 'latitude', 'place', 'nominatim_place', 'nominatim_place_type', 'town', 'nominatim_town', 'nominatim_town_type',
             'sub_region', 'nominatim_sub_region', 'nominatim_sub_region_type', 'region', 'nominatim_region', 'nominatim_region_type', 
             'country', 'nominatim_country', 'timezone', 'nominatim_timezone', 'nominatim_zipcode',)
+
+TZFINDER_HEADER = ('name', 'longitude', 'latitude', 'place',  'town', 'sub_region', 'region',  'country',  'timezone', 'tzfinder_timezone')
 
 DEFAULT_LOCATION = {"longitude":0.0, "latitude":0.0, "place":None, "town": None, "sub_region": None, "region": None, "country": None}
 DEFAULT_IMG = {'urls': []}
@@ -422,14 +424,21 @@ def mongo_get_contact_info(url):
 
 def mongo_get_all_info(url):
     return list(map(mongo_flatten_all, mongo_get_all(url)))
-    
-
 
 def remap_nominatim(row):
     new_row = dict()
     keys = ("place", "place_type", "town", "town_type", "sub_region", "sub_region_type", "region", "region_type", "country", "timezone", "zipcode")
     for key in keys:
         new_row[f"nominatim_{key}"] = row[key]
+    for key in set(row.keys()) - set(keys):
+        new_row[key] = row[key]
+    return new_row
+
+def remap_tzfinder(row):
+    new_row = dict()
+    keys = ( "timezone",)
+    for key in keys:
+        new_row[f"tzfinder_{key}"] = row[key]
     for key in set(row.keys()) - set(keys):
         new_row[key] = row[key]
     return new_row
@@ -750,6 +759,17 @@ def location(args):
         nominatim_list = list(map(remap_nominatim, nominatim_list))
         mongo_input_list = merge_info(mongo_input_list, nominatim_list)
         write_csv(mongo_input_list, NOMINATIM_HEADER, args.file)
+    elif args.timezone:
+        mongo_input_list = mongo_get_location_info(url)
+        log.info("read %d items from MongoDB", len(mongo_input_list))
+        if args.names:
+            mongo_input_list = filter_by_names(mongo_input_list, args.names)
+            log.info("filtered up to %d items", len(mongo_input_list))
+        log.info("including TZFinder new metadata")   
+        timezone_list = timezone(mongo_input_list)
+        timezone_list = list(map(remap_tzfinder, timezone_list))
+        mongo_input_list = merge_info(mongo_input_list, timezone_list)
+        write_csv(timezone_list, TZFINDER_HEADER, args.file)
     else:
         log.error("No valid input option to subcommand 'location'")
 
@@ -869,6 +889,7 @@ def add_args(parser):
     mgex1 = mgloc.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-l', '--list', action='store_true', help='List MongoDB location data')
     mgex1.add_argument('-m', '--nominatim', action='store_true', help='List MongoDB location + Nominatim metadata')
+    mgex1.add_argument('-t', '--timezone', action='store_true', help='List MongoDB location + Extended TZ info based on coordinates')
     mgex1.add_argument('-u', '--update', action='store_true', help='Update MongoDB location metadata')
     mgex1.add_argument('-s', '--sim-update', action='store_true', help='(simulated) Update MongoDB location metadata')
   
