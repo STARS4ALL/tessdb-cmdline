@@ -22,6 +22,7 @@ import requests
 
 from lica.cli import execute
 from lica.validators import vfile, vdir
+from lica.csv import read_csv, write_csv
 
 #--------------
 # local imports
@@ -29,7 +30,7 @@ from lica.validators import vfile, vdir
 
 from .._version import __version__
 
-from .utils import formatted_mac, is_tess_mac, is_mac, read_csv, write_csv
+from .utils import formatted_mac, is_tess_mac, is_mac
 from .dbutils import group_by_place, group_by_name, group_by_mac, group_by_coordinates, log_places, log_names, log_macs, log_coordinates, log_coordinates_nearby
 from .dbutils import get_mongo_api_url, get_mongo_api_key, geolocate, timezone, common_A_B_items, in_A_not_in_B, filter_and_flatten
 

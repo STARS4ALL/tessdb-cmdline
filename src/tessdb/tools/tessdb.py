@@ -21,6 +21,7 @@ import functools
 
 from lica.cli import execute
 from lica.validators import vfile, vdir
+from lica.jinja2 import render_from
 
 #--------------
 # local imports
@@ -28,7 +29,7 @@ from lica.validators import vfile, vdir
 
 from .._version import __version__
 
-from .utils import open_database, formatted_mac, is_mac, is_tess_mac, render_from
+from .utils import open_database, formatted_mac, is_mac, is_tess_mac
 from .dbutils import get_tessdb_connection_string, group_by_coordinates, group_by_mac, log_coordinates, log_coordinates_nearby, group_by_place, log_places, log_names
 
 # ----------------

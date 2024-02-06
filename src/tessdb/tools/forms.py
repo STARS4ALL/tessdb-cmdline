@@ -20,11 +20,12 @@ import collections
 # Third party imports
 # -------------------
 
+from lica.csv import read_csv
+
 #--------------
 # local imports
 # -------------
 
-from .utils import read_csv
 from .dbutils import common_A_B_items, in_A_not_in_B, group_by_name, filter_and_flatten
 from .mongodb import mongo_get_all, get_mongo_api_url
 

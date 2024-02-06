@@ -27,6 +27,7 @@ from geopy.extra.rate_limiter import RateLimiter
 
 from lica.cli import execute
 from lica.validators import vfile, vdir
+from lica.jinja2 import render_from
 
 #--------------
 # local imports
@@ -34,7 +35,7 @@ from lica.validators import vfile, vdir
 
 from ._version import __version__
 
-from .utils import  open_database, formatted_mac, tessify_mac, render_from
+from .utils import  open_database, formatted_mac, tessify_mac
 from .dbutils import get_mongo_api_url, get_tessdb_connection_string
 from .dbutils import group_by_name, group_by_mac, common_A_B_items, in_A_not_in_B, distance
 from .mongodb import mongo_get_all_info
@@ -66,7 +67,8 @@ log = logging.getLogger(__name__)
 # Module auxiliar functions
 # -------------------------
 
-render = functools.partial(render_from, 'tessutils')
+package = __name__.split('.')[0]
+render = functools.partial(render_from, package)
 
 '''
 

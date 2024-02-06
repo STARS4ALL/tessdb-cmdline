@@ -25,6 +25,8 @@ import requests
 
 from lica.cli import execute
 from lica.validators import vfile, vdir
+from lica.csv import write_csv
+from lica.sqlite import open_database
 
 #--------------
 # local imports
@@ -32,7 +34,6 @@ from lica.validators import vfile, vdir
 
 from .._version import __version__
 
-from .utils import open_database, write_csv
 from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
 from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info, filter_by_names, get_mac, mongo_api_body_photometer, mongo_api_update
 from .tessdb import photometers_from_tessdb, places_from_tessdb
