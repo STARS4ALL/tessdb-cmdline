@@ -10,12 +10,8 @@
 # -------------------
 
 import os
-import csv
-import math
-import json
 import logging
-import traceback
-import collections
+import functools
 
 # -------------------
 # Third party imports
@@ -27,6 +23,7 @@ from lica.cli import execute
 from lica.validators import vfile, vdir
 from lica.csv import write_csv
 from lica.sqlite import open_database
+from lica.jinja2 import render_from
 
 #--------------
 # local imports
@@ -47,6 +44,8 @@ from .tessdb import photometers_from_tessdb, photometers_and_locations_from_tess
 # -----------------------
 
 log = logging.getLogger(__name__)
+package = __name__.split('.')[0]
+render = functools.partial(render_from, package)
 
 # -------------------------
 # Module auxiliar functions
@@ -60,7 +59,6 @@ def in_mongo_not_in_tessdb(mongo_iterable, tessdb_iterable):
 
 def in_tessdb_not_in_mongo(mongo_iterable, tessdb_iterable):
     return set(tessdb_iterable.keys()) - set(mongo_iterable.keys())
-
 
 def common_locations(mongo_iterable, tessdb_iterable):
     locations = common_items(mongo_iterable, tessdb_iterable)
@@ -273,13 +271,13 @@ def locations_by_place(args):
         log.info("%d locations (by place name) exclusive MongoDB locations",len(locations))
         flattended_mongo_places = flatten(mongo_place, locations)
         output_list = list(filter(filter_out_from_location, flattended_mongo_places))
-        suffix = "_in_mongo_not_tessdb.csv"
+        suffix = "_in_mongo_not_tessdb"
     if args.tess:
         locations = in_tessdb_not_in_mongo(mongo_place, tessdb_loc)
         log.info("%d locations locations (by place name) exclusive TessDB locations",len(locations))
         flattened_tessdb_loc = flatten(tessdb_loc, locations)
         output_list = list(filter(filter_out_from_location, flattened_tessdb_loc))
-        suffix = "_in_tessdb_not_mongo.csv"
+        suffix = "_in_tessdb_not_mongo"
     if args.common:
         locations = common_items(mongo_place, tessdb_loc)
         log.info("%d locations locations (by place name) in common between MongoDB and TessDB",len(locations))
@@ -290,8 +288,8 @@ def locations_by_place(args):
         combined_list = zip(flattended_mongo_places, flattened_tessdb_loc)
         combined_list = [j for i in zip(flattended_mongo_places, flattened_tessdb_loc) for j in i]
         output_list = list(filter(filter_out_from_location, combined_list))
-        suffix = '_common_mongo_tessdb.csv'
-    write_csv(args.output_prefix + suffix,  X_HEADER, output_list) 
+        suffix = '_common_mongo_tessdb'
+    return output_list, suffix 
     
 def locations_by_coordinates(args):
     log.info(" ====================== ANALIZING CROSS DB LOCATION METADATA ======================")
@@ -309,13 +307,13 @@ def locations_by_coordinates(args):
         log.info("%d locations (by exact coordinates) exclusive MongoDB locations",len(locations))
         flattended_mongo_places = flatten(mongo_place, locations)
         output_list = list(filter(filter_out_from_location, flattended_mongo_places))
-        suffix = "_in_mongo_not_tessdb.csv"
+        suffix = "_in_mongo_not_tessdb"
     if args.tess:
         locations = in_tessdb_not_in_mongo(mongo_place, tessdb_loc)
         log.info("%d locations (by exact coordinates) exclusive TessDB locations",len(locations))
         flattened_tessdb_loc = flatten(tessdb_loc, locations)
         output_list = list(filter(filter_out_from_location, flattened_tessdb_loc))
-        suffix = "_in_tessdb_not_mongo.csv"
+        suffix = "_in_tessdb_not_mongo"
     if args.common:
         locations = common_items(mongo_place, tessdb_loc)
         log.info("%d locations (by exact coordinates) in common between MongoDB and TessDB",len(locations))
@@ -326,14 +324,21 @@ def locations_by_coordinates(args):
         combined_list = zip(flattended_mongo_places, flattened_tessdb_loc)
         combined_list = [j for i in zip(flattended_mongo_places, flattened_tessdb_loc) for j in i]
         output_list = list(filter(filter_out_from_location, combined_list))
-        suffix = '_common_mongo_tessdb.csv'
-    write_csv(args.output_prefix + suffix,  X_HEADER, output_list) 
+        suffix = '_common_mongo_tessdb'
+    return output_list , suffix
     
 def locations(args):
     if args.place:
-        locations_by_place(args)
+        output_list, suffix = locations_by_place(args)
     else:
-        locations_by_coordinates(args)
+         output_list, suffix = locations_by_coordinates(args)
+    if args.output_prefix:
+        path = args.output_prefix + suffix + '.csv'
+        log.info("Writting to CSV file: %s", path)
+        X_HEADER = ('place', 'longitude', 'latitude',  'town', 'sub_region','region', 'country', 'timezone', 'name',)
+        write_csv(path,  X_HEADER, output_list)
+    else:
+        pass # AQUI TENGO QUE TRABAJAR
 
 
 def coordinates(args):
@@ -392,7 +397,9 @@ def add_args(parser):
     subparser = parser.add_subparsers(dest='command')
     
     xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
-    xdbloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    grp = xdbloc.add_mutually_exclusive_group(required=True)
+    grp.add_argument('-o', '--output-prefix', type=str,  help='CSV Output file prefix for the different files to generate')
+    grp.add_argument('-q', '--sql-directory', type=vdir,  help='Directory where to write SQL files for TESSDB')
     grp = xdbloc.add_mutually_exclusive_group(required=True)
     grp.add_argument('-p', '--place', action='store_true', help='By place name')
     grp.add_argument('-r', '--coords', action='store_true',  help='By coordinates')
