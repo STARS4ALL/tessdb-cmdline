@@ -34,7 +34,7 @@ from lica.sqlite import open_database
 
 from .._version import __version__
 
-from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac, log_places, log_names, distance, get_mongo_api_url, get_tessdb_connection_string
+from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac, log_places, log_names, distance, get_mongo_api_url
 from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info, filter_by_names, get_mac, mongo_api_body_photometer, mongo_api_update
 from .tessdb import photometers_from_tessdb, places_from_tessdb
 
@@ -179,8 +179,8 @@ def do_update_photometer(mongo_output_list, simulated):
 
 def check(options):
     log.info(" ====================== PERFORM CROSS DB CHEKCS ======================")
-    database = get_tessdb_connection_string()
-    connection = open_database(database)
+    
+    connection, path = open_database(None, 'TESSDB_URL')
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_photometer_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
@@ -204,8 +204,8 @@ def check(options):
 
 def photometers(options):
     log.info(" ====================== CROSS DB PHOTOMETER METADATA ======================")
-    database = get_tessdb_connection_string()
-    connection = open_database(database)
+    
+    connection, path = open_database(None, 'TESSDB_URL')
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_all_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
@@ -244,15 +244,15 @@ def photometers(options):
 
 def locations(options):
     log.info(" ====================== ANALIZING CROSS DB LOCATION METADATA ======================")
-    database = get_tessdb_connection_string()
-    connection = open_database(database)
+    
+    connection, path = open_database(None, 'TESSDB_URL')
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_location_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
-    mongo_place  = by_place(mongo_input_list)
+    mongo_place  = group_by_place(mongo_input_list)
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_loc = by_place(tessdb_input_list)
+    tessdb_loc = group_by_place(tessdb_input_list)
     if options.mongo:
         locations = in_mongo_not_in_tessdb(mongo_place, tessdb_loc)
         log.info("%d locations exclusive MongoDB locations",len(locations))
@@ -271,9 +271,9 @@ def locations(options):
 def coordinates(options):
     log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")
     url = get_mongo_api_url()
-    database = get_tessdb_connection_string()
+    
     log.info("connecting to SQLite database %s", database)
-    connection = open_database(database)
+    connection, path = open_database(None, 'TESSDB_URL')
     log.info("reading items from MongoDB")
     mongo_input_map = by_coordinates(mongo_get_location_info(url))
     log.info("reading items from TessDB")
@@ -306,9 +306,9 @@ X_HEADER = ('mongo_coords', 'tessdb_coords', 'distance', 'mongo_name','tessdb_na
 def coordinates(options):
     log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")
     url = get_mongo_api_url()
-    database = get_tessdb_connection_string()
+    
     log.info("connecting to SQLite database %s", database)
-    connection = open_database(database)
+    connection, path = open_database(None, 'TESSDB_URL')
     log.info("reading items from MongoDB")
     mongo_input_map = by_coordinates(mongo_get_location_info(url))
     log.info("reading items from TessDB")
@@ -362,7 +362,7 @@ def add_args(parser):
     grp = xdbloc.add_mutually_exclusive_group(required=True)
     grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')
     grp.add_argument('-t', '--tess', action='store_true',  help='TessDB exclusive locations')
-    grp.add_argument('-c', '--common', action='store_true',  help='TessDB exclusive locations')
+    grp.add_argument('-c', '--common', action='store_true',  help='Common locations')
 
     xdbphot = subparser.add_parser('photometers',  help="Cross DB photometers metadata operations")
     xdbphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')

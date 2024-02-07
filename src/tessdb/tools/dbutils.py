@@ -59,9 +59,6 @@ def get_mongo_api_url():
 def get_mongo_api_key():
     return decouple.config('STARS4ALL_API_KEY')
 
-def get_tessdb_connection_string():
-   return decouple.config('TESSDB_URL')
-
 def get_zptess_connection_string():
    return decouple.config('ZPTESS_URL')
 

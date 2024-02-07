@@ -22,6 +22,7 @@ import functools
 from lica.cli import execute
 from lica.validators import vfile, vdir
 from lica.jinja2 import render_from
+from lica.sqlite import open_database
 
 #--------------
 # local imports
@@ -29,8 +30,8 @@ from lica.jinja2 import render_from
 
 from .._version import __version__
 
-from .utils import open_database, formatted_mac, is_mac, is_tess_mac
-from .dbutils import get_tessdb_connection_string, group_by_coordinates, group_by_mac, log_coordinates, log_coordinates_nearby, group_by_place, log_places, log_names
+from .utils import formatted_mac, is_mac, is_tess_mac
+from .dbutils import group_by_coordinates, group_by_mac, log_coordinates, log_coordinates_nearby, group_by_place, log_places, log_names
 
 # ----------------
 # Module constants
@@ -111,7 +112,7 @@ def _photometers_and_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT name, mac_address, zero_point, filter, 
+        SELECT DISTINCT name, mac_address, zp1, filter1 
         longitude, latitude, place, town, sub_region, country, timezone,
         contact_name, contact_email,
         organization
@@ -125,7 +126,7 @@ def _photometers_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT name, mac_address, zero_point, filter
+        SELECT DISTINCT name, mac_address, zp1, filter1
         FROM tess_v 
         WHERE valid_state = 'Current'
         AND name LIKE 'stars%'
@@ -300,54 +301,54 @@ def fix_location_readings(connection, output_dir):
 # Module entry points
 # ===================
 
-def check(options):
+def check(args):
     log.info("====================== ANALIZING DUPLICATES IN TESSDB METADATA ======================")
-    database = get_tessdb_connection_string()
+    
     log.info("connecting to SQLite database %s", database)
-    connection = open_database(database)
-    if options.places:
+    connection, path = open_database(None, 'TESSDB_URL')
+    if args.places:
         log.info("Check for same place, different coordinates")
         tessdb_places  = group_by_place(places_from_tessdb(connection))
         log_places(tessdb_places)
-    elif options.coords:
+    elif args.coords:
         log.info("Check for same coordinates, different places")
         tessdb_coords  = group_by_coordinates(places_from_tessdb(connection))
         log_coordinates(tessdb_coords)
-    elif options.dupl:
+    elif args.dupl:
         log.info("Check for same coordinates, duplicated places")
         tessdb_coords  = group_by_coordinates(places_from_tessdb(connection))
         log_duplicated_coords(connection, tessdb_coords)
         #log_detailed_impact(connection, tessdb_coords)
-    elif options.nearby:
-        log.info("Check for nearby places in radius %0.0f meters", options.nearby)
+    elif args.nearby:
+        log.info("Check for nearby places in radius %0.0f meters", args.nearby)
         tessdb_coords  = group_by_coordinates(places_from_tessdb(connection))
-        log_coordinates_nearby(tessdb_coords, options.nearby)
-    elif options.macs:
+        log_coordinates_nearby(tessdb_coords, args.nearby)
+    elif args.macs:
         log.info("Check for proper MAC addresses in tess_t")
         check_proper_macs(connection);
-    elif options.fake_zero_points:
+    elif args.fake_zero_points:
         log.info("Check for fake Zero Points in tess_t")
         check_fake_zero_points(connection)
     else:
         log.error("No valid input option to subcommand 'check'")
 
-def fix(options):
+def fix(args):
     log.info(" ====================== GENERATE SQL FILES TO FIX TESSDB METADATA ======================")
-    database = get_tessdb_connection_string()
+    
     log.info("connecting to SQLite database %s", database)
-    connection = open_database(database)
+    connection, path = open_database(None, 'TESSDB_URL')
     connection.row_factory = sqlite3.Row
-    if options.macs:
+    if args.macs:
         log.info("Fixing bas formatted MAC addresses")
-        fix_mac_addresses(connection, options.directory)
-    elif options.location_readings:
-        fix_location_readings(connection, options.directory)
+        fix_mac_addresses(connection, args.directory)
+    elif args.location_readings:
+        fix_location_readings(connection, args.directory)
     else:
         log.error("No valid input option to subcommand 'check'")
 
-def locations(options):
-    database = get_tessdb_connection_string()
-    connection = open_database(database)
+def locations(args):
+    
+    connection, path = open_database(None, 'TESSDB_URL')
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
     tessdb_input_list = photometers_and_locations_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
@@ -355,9 +356,9 @@ def locations(options):
     log_places(tessdb_loc)
   
 
-def photometers(options):
-    database = get_tessdb_connection_string()
-    connection = open_database(database)
+def photometers(args):
+    
+    connection, path = open_database(None, 'TESSDB_URL')
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
     tessdb_input_list = photometers_and_locations_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
