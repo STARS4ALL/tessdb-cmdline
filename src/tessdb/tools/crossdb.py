@@ -34,7 +34,7 @@ from lica.sqlite import open_database
 
 from .._version import __version__
 
-from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac, log_places, log_names, distance, get_mongo_api_url
+from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac, log_places, log_names, distance, get_mongo_api_url, ungroup_from
 from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info, filter_by_names, get_mac, mongo_api_body_photometer, mongo_api_update
 from .tessdb import photometers_from_tessdb, photometers_and_locations_from_tessdb, places_from_tessdb
 
@@ -177,7 +177,7 @@ def do_update_photometer(mongo_output_list, simulated):
 # Module entry points
 # ===================
 
-def check(options):
+def check(args):
     log.info(" ====================== PERFORM CROSS DB CHEKCS ======================")
     
     connection, path = open_database(None, 'TESSDB_URL')
@@ -188,12 +188,12 @@ def check(options):
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_phot = group_by_name(tessdb_input_list)
-    if options.mac:
+    if args.mac:
         log.info("Check for MAC differences in common photometer names")
         photometer_names = common_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         common_mac_check(photometer_names, mongo_phot, tessdb_phot)
-    elif options.zero_point:
+    elif args.zero_point:
         log.info("Check for Zero Point differentces in common photometer names")
         photometer_names = common_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
@@ -202,7 +202,7 @@ def check(options):
         log.error("No valid input option to subcommand 'check'")
 
 
-def photometers(options):
+def photometers(args):
     log.info(" ====================== CROSS DB PHOTOMETER METADATA ======================")
     
     connection, path = open_database(None, 'TESSDB_URL')
@@ -213,7 +213,7 @@ def photometers(options):
     tessdb_input_list = photometers_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
 
-    if options.sim_update_mac:
+    if args.sim_update_mac:
         tessdb_phot = group_by_name(tessdb_input_list)
         photometer_names = common_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
@@ -221,7 +221,7 @@ def photometers(options):
         mongo_phot = group_by_name(mongo_input_list) # Again
         mongo_output_list = upd_mongo_mac(mongo_phot, tessdb_phot)
         do_update_photometer(mongo_output_list, simulated=True)
-    elif options.update_mac:
+    elif args.update_mac:
         tessdb_phot = group_by_name(tessdb_input_list)
         photometer_names = common_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
@@ -229,7 +229,7 @@ def photometers(options):
         mongo_phot = group_by_name(mongo_input_list) # Again
         mongo_output_list = upd_mongo_mac(mongo_phot, tessdb_phot)
         do_update_photometer(mongo_output_list, simulated=False)
-    if options.sim_update_zp:
+    if args.sim_update_zp:
         tessdb_input_list = filter_fake_zero_points(tessdb_input_list)
         log.info("filtered fake ZP, remaining %d items from TessDB", len(tessdb_input_list))
         tessdb_phot = group_by_name(tessdb_input_list)
@@ -241,10 +241,25 @@ def photometers(options):
         #do_update_photometer(mongo_output_list, simulated=True)
     
 
+# Nos quedamos con el primer elemento del array
+def flatten(grouped_iterable, keys):
+    return tuple( grouped_iterable[key][0] for key in keys)
 
-def locations(options):
+def filter_out_from_location(row):
+    if 'contact_name' in row: del row['contact_name']
+    if 'contact_email' in row: del row['contact_email']
+    if 'org_logo' in row: del row['org_logo']
+    if 'org_email' in row: del row['org_email']
+    if 'org_web' in row: del row['org_web']
+    if 'org_descr' in row: del row['org_descr']
+    if 'org_name' in row: del row['org_name']
+    if 'mac' in row: del row['mac']
+    return row
+  
+
+def locations_by_place(args):
     log.info(" ====================== ANALIZING CROSS DB LOCATION METADATA ======================")
-    
+    X_HEADER = ('place', 'longitude', 'latitude',  'town', 'sub_region','region', 'country', 'timezone', 'name',)
     connection, path = open_database(None, 'TESSDB_URL')
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_location_info(url)
@@ -253,61 +268,81 @@ def locations(options):
     tessdb_input_list = photometers_and_locations_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_loc = group_by_place(tessdb_input_list)
-    if options.mongo:
+    if args.mongo:
         locations = in_mongo_not_in_tessdb(mongo_place, tessdb_loc)
-        log.info("%d locations exclusive MongoDB locations",len(locations))
-    if options.tess:
+        log.info("%d locations (by place name) exclusive MongoDB locations",len(locations))
+        flattended_mongo_places = flatten(mongo_place, locations)
+        output_list = list(filter(filter_out_from_location, flattended_mongo_places))
+        suffix = "_in_mongo_not_tessdb.csv"
+    if args.tess:
         locations = in_tessdb_not_in_mongo(mongo_place, tessdb_loc)
-        log.info("%d locations exclusive TessDB locations",len(locations))
-    if options.common:
+        log.info("%d locations locations (by place name) exclusive TessDB locations",len(locations))
+        flattened_tessdb_loc = flatten(tessdb_loc, locations)
+        output_list = list(filter(filter_out_from_location, flattened_tessdb_loc))
+        suffix = "_in_tessdb_not_mongo.csv"
+    if args.common:
         locations = common_items(mongo_place, tessdb_loc)
-        log.info("%d locations in common between MongoDB and TessDB",len(locations))
+        log.info("%d locations locations (by place name) in common between MongoDB and TessDB",len(locations))
         for location in locations:
             log.debug("Location %s", location)
-
-
-
-
-def coordinates(options):
-    log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")
-    url = get_mongo_api_url()
+        flattended_mongo_places = flatten(mongo_place, locations)
+        flattened_tessdb_loc = flatten(tessdb_loc, locations)
+        combined_list = zip(flattended_mongo_places, flattened_tessdb_loc)
+        combined_list = [j for i in zip(flattended_mongo_places, flattened_tessdb_loc) for j in i]
+        output_list = list(filter(filter_out_from_location, combined_list))
+        suffix = '_common_mongo_tessdb.csv'
+    write_csv(args.output_prefix + suffix,  X_HEADER, output_list) 
     
-    log.info("connecting to SQLite database %s", database)
+def locations_by_coordinates(args):
+    log.info(" ====================== ANALIZING CROSS DB LOCATION METADATA ======================")
+    X_HEADER = ('place', 'longitude', 'latitude',  'town', 'sub_region','region', 'country', 'timezone', 'name',)
     connection, path = open_database(None, 'TESSDB_URL')
-    log.info("reading items from MongoDB")
-    mongo_input_map = by_coordinates(mongo_get_location_info(url))
-    log.info("reading items from TessDB")
-    tessdb_input_map = by_coordinates(places_from_tessdb(connection))
-    output = list()
-    for mongo_coords, mongo_item in mongo_input_map.items():
-        nearby_filter = make_nearby_filter(mongo_coords, options.lower, options.upper)
-        nearby_list = list(filter(nearby_filter, tessdb_input_map.keys()))
-        if (len(nearby_list)):
-            mongo_item['source'] = 'mongoDB'
-            output.append(mongo_item)
-            for nearby in nearby_list:
-                nearby['source'] = 'tessDB'
-                output.append(nearby)
-            log.info("Nearby to %s (Lon=%f, Lat=%f) are: %s", 
-                mongo_item['place'], 
-                mongo_item['longitude'], 
-                mongo_item['latitude'], 
-                [ (r['place'], r['longitude'], r['latitude']) for r in nearby_list]
-            )
-    similar_locations_csv(output, options.output_prefix + '.csv')
-
-
-X_HEADER = ('mongo_coords', 'tessdb_coords', 'distance', 'mongo_name','tessdb_name', 
-    'mongo_place','tessdb_place', 'mongo_town','tessdb_town', 'mongo_sub_region', 'tessdb_sub_region',
-    'mongo_region', 'tessdb_region', 'mongo_country', 'tessdb_country', 'mongo_timezone', 'tessdb_timezone')
-
-
-
-def coordinates(options):
-    log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")
     url = get_mongo_api_url()
+    mongo_input_list = mongo_get_location_info(url)
+    log.info("read %d items from MongoDB", len(mongo_input_list))
+    mongo_place  = group_by_coordinates(mongo_input_list)
+    tessdb_input_list = photometers_and_locations_from_tessdb(connection)
+    log.info("read %d items from TessDB", len(tessdb_input_list))
+    tessdb_loc = group_by_coordinates(tessdb_input_list)
+    if args.mongo:
+        locations = in_mongo_not_in_tessdb(mongo_place, tessdb_loc)
+        log.info("%d locations (by exact coordinates) exclusive MongoDB locations",len(locations))
+        flattended_mongo_places = flatten(mongo_place, locations)
+        output_list = list(filter(filter_out_from_location, flattended_mongo_places))
+        suffix = "_in_mongo_not_tessdb.csv"
+    if args.tess:
+        locations = in_tessdb_not_in_mongo(mongo_place, tessdb_loc)
+        log.info("%d locations (by exact coordinates) exclusive TessDB locations",len(locations))
+        flattened_tessdb_loc = flatten(tessdb_loc, locations)
+        output_list = list(filter(filter_out_from_location, flattened_tessdb_loc))
+        suffix = "_in_tessdb_not_mongo.csv"
+    if args.common:
+        locations = common_items(mongo_place, tessdb_loc)
+        log.info("%d locations (by exact coordinates) in common between MongoDB and TessDB",len(locations))
+        for location in locations:
+            log.debug("Location %s", location)
+        flattended_mongo_places = flatten(mongo_place, locations)
+        flattened_tessdb_loc = flatten(tessdb_loc, locations)
+        combined_list = zip(flattended_mongo_places, flattened_tessdb_loc)
+        combined_list = [j for i in zip(flattended_mongo_places, flattened_tessdb_loc) for j in i]
+        output_list = list(filter(filter_out_from_location, combined_list))
+        suffix = '_common_mongo_tessdb.csv'
+    write_csv(args.output_prefix + suffix,  X_HEADER, output_list) 
     
-    log.info("connecting to SQLite database %s", database)
+def locations(args):
+    if args.place:
+        locations_by_place(args)
+    else:
+        locations_by_coordinates(args)
+
+
+def coordinates(args):
+    '''Not being used'''
+    log.info(" ====================== ANALIZING CROSS DB COORDINATES METADATA ======================")
+    X_HEADER = ('mng_name','tdb_name', 'mng_coords', 'tdb_coords',
+    'mng_place','tdb_place', 'mng_town','tdb_town', 'mng_sub_region', 'tdb_sub_region',
+    'mng_region', 'tdb_region', 'mng_country', 'tdb_country', 'mng_timezone', 'tdb_timezone')
+    url = get_mongo_api_url()
     connection, path = open_database(None, 'TESSDB_URL')
     log.info("reading items from MongoDB")
     mongo_input_map = by_coordinates(mongo_get_location_info(url))
@@ -315,7 +350,7 @@ def coordinates(options):
     tessdb_input_map = by_coordinates(places_from_tessdb(connection))
     output = list()
     for i, (mongo_coords, mongo_items) in enumerate(mongo_input_map.items()):
-        nearby_filter = make_nearby_filter(mongo_coords, options.lower, options.upper)
+        nearby_filter = make_nearby_filter(mongo_coords, args.lower, args.upper)
         nearby_list = list(filter(nearby_filter, tessdb_input_map))
         nearby_map = dict(zip(nearby_list, [tessdb_input_map[k] for k in nearby_list]))
         for j, (tessdb_coords, tessdb_items) in enumerate(nearby_map.items()):
@@ -326,27 +361,26 @@ def coordinates(options):
                     log.info("DIST: %d, MONGO ITEM: %s TESSDB ITEM: %s", distance(mongo_coords, tessdb_coords), mongo_row, tessdb_row)
                     output.append(
                         {
-                        'mongo_coords': str(mongo_coords),
-                        'tessdb_coords': str(tessdb_coords),
+                        'mng_coords': str(mongo_coords),
+                        'tdb_coords': str(tessdb_coords),
                         'distance':  distance(mongo_coords, tessdb_coords),
-                        'mongo_name':  mongo_row['name'],
-                        'tessdb_name': tessdb_row['name'],
-                        'mongo_place':  mongo_row['place'],
-                        'tessdb_place': tessdb_row['place'],
-                        'mongo_town': mongo_row['town'],
-                        'tessdb_town': tessdb_row['town'],
-                        'mongo_sub_region': mongo_row['sub_region'],
-                        'tessdb_sub_region': tessdb_row['sub_region'],
-                        'mongo_region': mongo_row['region'],
-                        'tessdb_region': tessdb_row['region'],
-                        'mongo_country': mongo_row['country'],
-                        'tessdb_country': tessdb_row['country'],
-                        'mongo_timezone': mongo_row['timezone'],
-                        'tessdb_timezone': tessdb_row['timezone']
+                        'mng_name':  mongo_row['name'],
+                        'tdb_name': tessdb_row['name'],
+                        'mng_place':  mongo_row['place'],
+                        'tdb_place': tessdb_row['place'],
+                        'mng_town': mongo_row['town'],
+                        'tdb_town': tessdb_row['town'],
+                        'mng_sub_region': mongo_row['sub_region'],
+                        'tdb_sub_region': tessdb_row['sub_region'],
+                        'mng_region': mongo_row['region'],
+                        'tdb_region': tessdb_row['region'],
+                        'mng_country': mongo_row['country'],
+                        'tdb_country': tessdb_row['country'],
+                        'mng_timezone': mongo_row['timezone'],
+                        'tdb_timezone': tessdb_row['timezone']
                         }
                     )
-
-    write_csv(output, X_HEADER, options.file)       
+    write_csv(output, X_HEADER, args.file)       
 
 
 def add_args(parser):
@@ -359,6 +393,9 @@ def add_args(parser):
     
     xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
     xdbloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    grp = xdbloc.add_mutually_exclusive_group(required=True)
+    grp.add_argument('-p', '--place', action='store_true', help='By place name')
+    grp.add_argument('-r', '--coords', action='store_true',  help='By coordinates')
     grp = xdbloc.add_mutually_exclusive_group(required=True)
     grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')
     grp.add_argument('-t', '--tess', action='store_true',  help='TessDB exclusive locations')

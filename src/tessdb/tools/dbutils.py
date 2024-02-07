@@ -166,6 +166,9 @@ def filter_out_multidict(multidict):
     log.info("From multidict with %d entries, we have fitered %d entries out", len(multidict), len(multidict)-len(result))
     return result
 
+def ungroup_from(grouped_iterable, keys):
+    return tuple(item for key in keys for item in grouped_iterable[key])
+
 # ----------------------
 # Photometers names check
 # ----------------------
@@ -234,6 +237,12 @@ def check_place_same_coords(place, rows):
 def group_by_coordinates(iterable):
     coords = collections.defaultdict(list)
     for row in iterable:
+        if row is None:
+            log.warn("Skipping None row")
+            continue
+        if row['longitude'] is None or row['latitude'] is None:
+            log.warn("Skipping null coordinates: %s", row)
+            continue
         coords[(row['longitude'],row['latitude'])].append(row)
     log.info("From %d entries, we have extracted %d different coordinates",len(iterable), len(coords.keys()))
     return coords
