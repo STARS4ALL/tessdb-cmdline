@@ -36,7 +36,7 @@ from .._version import __version__
 
 from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac, log_places, log_names, distance, get_mongo_api_url
 from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info, filter_by_names, get_mac, mongo_api_body_photometer, mongo_api_update
-from .tessdb import photometers_from_tessdb, places_from_tessdb
+from .tessdb import photometers_from_tessdb, photometers_and_locations_from_tessdb, places_from_tessdb
 
 # ----------------
 # Module constants
@@ -250,7 +250,7 @@ def locations(options):
     mongo_input_list = mongo_get_location_info(url)
     log.info("read %d items from MongoDB", len(mongo_input_list))
     mongo_place  = group_by_place(mongo_input_list)
-    tessdb_input_list = photometers_from_tessdb(connection)
+    tessdb_input_list = photometers_and_locations_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_loc = group_by_place(tessdb_input_list)
     if options.mongo:

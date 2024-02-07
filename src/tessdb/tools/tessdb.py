@@ -112,12 +112,13 @@ def _photometers_and_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT name, mac_address, zp1, filter1 
+        SELECT DISTINCT name, mac_address, zp1, filter1,
         longitude, latitude, place, town, sub_region, country, timezone,
-        contact_name, contact_email,
-        organization
-        FROM tess_v 
-        WHERE valid_state = 'Current'
+        contact_name, contact_email, organization -- This should be removed at some point
+        FROM tess_t AS t
+        JOIN location_t USING(location_id)
+        JOIN name_to_mac_t AS n USING (mac_address) 
+        WHERE n.valid_state = 'Current'
         AND name LIKE 'stars%'
         ''')
     return cursor
@@ -127,7 +128,7 @@ def _photometers_from_tessdb(connection):
     cursor.execute(
         '''
         SELECT DISTINCT name, mac_address, zp1, filter1
-        FROM tess_v 
+        FROM tess_t
         WHERE valid_state = 'Current'
         AND name LIKE 'stars%'
         ''')
