@@ -72,6 +72,20 @@ def _get_tessid_with_unknown_locations_in_readings_but_known_current_location(co
     return tuple(dict(row) for row in cursor.fetchall())
 
 
+def _get_photometers_with_unknown_current_location(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT DISTINCT tess_id, mac_address, t.valid_since, t.valid_until
+        FROM tess_t AS t
+        WHERE t.valid_state = 'Current'
+        AND location_id = -1
+        ORDER BY mac_address
+        ''')
+    result = [dict(zip(['tess_id','mac_address','valid_since', 'valid_until'],row)) for row in cursor]
+    return result
+
+
 def _get_mac_addresses(connection):
     cursor = connection.cursor()
     cursor.execute('SELECT DISTINCT mac_address FROM tess_t AS t')
@@ -117,6 +131,8 @@ def _photometers_from_tessdb(connection):
         AND name LIKE 'stars%'
         ''')
     return cursor
+
+
 
 
 def tessdb_remap_info(row):
@@ -248,7 +264,6 @@ def check_proper_macs(connection):
             bad_formatted.append(t[2])
     log.info("%d Bad MAC addresses and %d bad formatted MAC addresses", len(bad_macs), len(bad_formatted))
 
-
 def fix_mac_addresses(connection, output_dir):
     cursor = _get_mac_addresses(connection)
     bad_macs=list()
@@ -282,6 +297,14 @@ def fix_location_readings(connection, output_dir):
             sqlfile.write(output)
 
 
+def check_photometers_with_unknown_location(connection):
+    result = _get_photometers_with_unknown_current_location(connection)
+    for item in result:
+        log.info(item)
+    log.info("%d Photometer entries in tess_t with unknown current location", len(result))
+
+
+
 # ===================
 # Module entry points
 # ===================
@@ -313,6 +336,12 @@ def check(args):
     elif args.fake_zero_points:
         log.info("Check for fake Zero Points in tess_t")
         check_fake_zero_points(connection)
+    elif args.unknown_location:
+        log.info("Check for Unknown Location in tess_t")
+        check_photometers_with_unknown_location(connection)
+    elif args.unknown_observer:
+        log.info("Check for Unknown Location in tess_t")
+        check_unknown_observer(connection)
     else:
         log.error("No valid input option to subcommand 'check'")
 
@@ -368,6 +397,8 @@ def add_args(parser):
     tdex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
     tdex1.add_argument('-m', '--macs', action='store_true', help='Check for proper MACS in tess_t')
     tdex1.add_argument('-z', '--fake-zero-points', action='store_true', help='Check for proper MACS in tess_t')
+    tdex1.add_argument('-ul', '--unknown-location', action='store_true', help='Check unknown location in tess_t')
+    tdex1.add_argument('-uo', '--unknown-observer', action='store_true', help='Check unknown observer in tess_t')
 
     tdfix = subparser.add_parser('fix',  help="Fix TessDB data/metadata")
     tdex1 = tdfix.add_mutually_exclusive_group(required=True)
