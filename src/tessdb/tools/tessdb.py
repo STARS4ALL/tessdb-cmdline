@@ -90,29 +90,13 @@ def fake_zero_points(connection):
         ''')
     return cursor
 
-def _raw_photometers_and_locations_from_tessdb(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT t.tess_id, n.name, t.mac_address, t.zp1, t.filter1,
-        t.valid_since, t.valid_until, t.valid_state,
-        t.location_id,
-        t.model, t.firmware, t.channel, t.cover_offset, t.fov, t.azimuth, t.altitude,
-        t.authorised, t.registered,
-        l.contact_name, l.organization, l.contact_email, l.place, l.longitude, l.latitude, 
-        l.elevation, l.zipcode, l.town, l.sub_region, l.country, l.timezone
-        FROM tess_t AS t
-        JOIN location_t AS l   USING (location_id)
-        JOIN name_to_mac_t AS n USING (mac_address)
-        WHERE name LIKE 'stars%' ORDER BY name ASC
-        ''')
-    return cursor
-
 def _photometers_and_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT name, mac_address, zp1, filter1,
+        SELECT DISTINCT tess_id, name, mac_address, model, firmware, 
+        nchannels, zp1, filter1, zp2, filter2, zp3, filter3, zp4, filter4,
+        cover_offset, fov, azimuth, altitude,
         longitude, latitude, place, town, sub_region, country, timezone,
         contact_name, contact_email, organization -- This should be removed at some point
         FROM tess_t AS t
@@ -251,16 +235,16 @@ def check_fake_zero_points(connection):
         log.info("Photometer %s ZP=%s [%s] (%s - %s) ", formatted_mac(mac), zp, name, valid_since, valid_until)
 
 def check_proper_macs(connection):
-    cursor = _raw_photometers_and_locations_from_tessdb(connection)
+    cursor = _photometers_and_locations_from_tessdb(connection)
     bad_macs=list()
     bad_formatted=list() 
     for t in cursor:
         if not is_tess_mac(t[2]):
-            log.warn("%d %s (MAC=%s) has not even a good MAC", t[0], t[1], t[2])
+            log.warn("Id=%d %s (MAC=%s) has not even a good MAC", t[0], t[1], t[2])
             bad_macs.append(t[2])
         elif not is_mac(t[2]):
             good_mac = formatted_mac(t[2])
-            log.warn("%d %s (MAC=%s) should be (MAC=%s)", t[0], t[1], t[2], good_mac)
+            log.warn("Id=%d %s (MAC=%s) should be (MAC=%s)", t[0], t[1], t[2], good_mac)
             bad_formatted.append(t[2])
     log.info("%d Bad MAC addresses and %d bad formatted MAC addresses", len(bad_macs), len(bad_formatted))
 
@@ -304,9 +288,8 @@ def fix_location_readings(connection, output_dir):
 
 def check(args):
     log.info("====================== ANALIZING DUPLICATES IN TESSDB METADATA ======================")
-    
-    log.info("connecting to SQLite database %s", database)
     connection, path = open_database(None, 'TESSDB_URL')
+    log.info("connecting to SQLite database %s", path)
     if args.places:
         log.info("Check for same place, different coordinates")
         tessdb_places  = group_by_place(places_from_tessdb(connection))
@@ -335,9 +318,8 @@ def check(args):
 
 def fix(args):
     log.info(" ====================== GENERATE SQL FILES TO FIX TESSDB METADATA ======================")
-    
-    log.info("connecting to SQLite database %s", database)
     connection, path = open_database(None, 'TESSDB_URL')
+    log.info("connecting to SQLite database %s", path)
     connection.row_factory = sqlite3.Row
     if args.macs:
         log.info("Fixing bas formatted MAC addresses")
@@ -348,9 +330,9 @@ def fix(args):
         log.error("No valid input option to subcommand 'check'")
 
 def locations(args):
-    
-    connection, path = open_database(None, 'TESSDB_URL')
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
+    connection, path = open_database(None, 'TESSDB_URL')
+    log.info("connecting to SQLite database %s", path)
     tessdb_input_list = photometers_and_locations_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_loc  = group_by_place(tessdb_input_list)
@@ -358,9 +340,9 @@ def locations(args):
   
 
 def photometers(args):
-    
-    connection, path = open_database(None, 'TESSDB_URL')
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
+    connection, path = open_database(None, 'TESSDB_URL')
+    log.info("connecting to SQLite database %s", path)
     tessdb_input_list = photometers_and_locations_from_tessdb(connection)
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_phot = group_by_name(tessdb_input_list)
