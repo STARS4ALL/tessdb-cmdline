@@ -852,7 +852,7 @@ def check(args):
         do_check_mac_format(mongo_input_list)
     elif args.places:
         log.info("Check for same place, different coordinates")
-        mongo_places  = by_place(mongo_input_list)
+        mongo_places  = group_by_place(mongo_input_list)
         log_places(mongo_places)
     elif args.coords:
         log.info("Check for same coordinates, different places")
