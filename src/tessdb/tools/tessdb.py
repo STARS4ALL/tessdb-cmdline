@@ -31,7 +31,7 @@ from lica.sqlite import open_database
 from .._version import __version__
 
 from .utils import formatted_mac, is_mac, is_tess_mac
-from .dbutils import group_by_coordinates, group_by_mac, log_coordinates, log_coordinates_nearby, group_by_place, log_places, log_names
+from .dbutils import group_by_coordinates, group_by_mac, group_by_name, log_coordinates, log_coordinates_nearby, group_by_place, log_places, log_names
 
 # ----------------
 # Module constants
@@ -119,17 +119,36 @@ def _photometers_and_locations_from_tessdb(connection):
         JOIN location_t USING(location_id)
         JOIN name_to_mac_t AS n USING (mac_address) 
         WHERE n.valid_state = 'Current'
+        AND t.valid_state = 'Current'
         AND name LIKE 'stars%'
         ''')
     return cursor
+
+def photometers_with_unknown_current_location(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT DISTINCT tess_id, mac_address, name, n.valid_since, n.valid_until
+        FROM tess_t AS t
+        JOIN name_to_mac_t AS n USING (mac_address)
+        WHERE t.valid_state = 'Current'
+        AND n.valid_state = 'Current'
+        AND location_id = -1
+        AND name LIKE 'stars%'
+        ORDER BY mac_address
+        ''')
+    result = [dict(zip(['tess_id','mac','name','valid_since', 'valid_until'],row)) for row in cursor]
+    return result
 
 def _photometers_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
         SELECT DISTINCT name, mac_address, zp1, filter1
-        FROM tess_t
-        WHERE valid_state = 'Current'
+        FROM tess_t AS t
+        JOIN name_to_mac_t AS n USING (mac_address) 
+        WHERE t.valid_state = 'Current'
+        AND n.valid_state = 'Current'
         AND name LIKE 'stars%'
         ''')
     return cursor
@@ -300,12 +319,12 @@ def fix_location_readings(connection, output_dir):
 
 
 def check_photometers_with_unknown_location(connection):
-    result = _get_photometers_with_unknown_current_location(connection)
-    result = group_by_mac(result)
-    for mac, values in result.items():
+    result = photometers_with_unknown_current_location(connection)
+    result = group_by_name(result)
+    for name, values in result.items():
         tess_ids = [item['tess_id'] for item in values]
-        names = [item['name'] for item in values]
-        log.info("MAC %s => %s %s", mac, names, tess_ids )
+        macs = [item['mac'] for item in values]
+        log.info("NAME %s => %s %s", name, macs, tess_ids )
     log.info("%d Photometer entries in tess_t with unknown current location", len(result))
 
 

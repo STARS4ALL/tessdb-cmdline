@@ -33,7 +33,7 @@ from .._version import __version__
 
 from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac, log_places, log_names, distance, get_mongo_api_url, ungroup_from
 from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info, filter_by_names, get_mac, mongo_api_body_photometer, mongo_api_update
-from .tessdb import photometers_from_tessdb, photometers_and_locations_from_tessdb, places_from_tessdb
+from .tessdb import photometers_from_tessdb, photometers_and_locations_from_tessdb, places_from_tessdb, photometers_with_unknown_current_location
 
 # ----------------
 # Module constants
@@ -59,21 +59,6 @@ def in_mongo_not_in_tessdb(mongo_iterable, tessdb_iterable):
 
 def in_tessdb_not_in_mongo(mongo_iterable, tessdb_iterable):
     return set(tessdb_iterable.keys()) - set(mongo_iterable.keys())
-
-def common_locations(mongo_iterable, tessdb_iterable):
-    locations = common_items(mongo_iterable, tessdb_iterable)
-    log.info("%d locations in common between MongoDB and TessDB",len(locations))
-    for location in locations:
-        log.debug("Location %s", location)
-
-def mongo_exclusive_locations(mongo_iterable, tessdb_iterable):
-    locations = in_mongo_not_in_tessdb(mongo_iterable, tessdb_iterable)
-    log.info("%d locations exclusive MongoDB locations",len(locations))
-
-def tessdb_exclusive_locations(mongo_iterable, tessdb_iterable):
-    locations = in_tessdb_not_in_mongo(mongo_iterable, tessdb_iterable)
-    log.info("%d locations exclusive TessDB locations",len(locations))
-
 
 def make_nearby_filter(tuple2, lower, upper):
     def distance_filter(tuple1):
@@ -171,13 +156,30 @@ def do_update_photometer(mongo_output_list, simulated):
         except requests.exceptions.HTTPError as e:
             log.error(f"{e}, RESP. BODY = {e.response.text}")
 
+
+def check_unknown(connection, url):
+    url = get_mongo_api_url()
+    mongo_input_list = mongo_get_all_info(url)
+    log.info("read %d items from MongoDB", len(mongo_input_list))
+    mongo_phot = group_by_name(mongo_input_list)
+    tessdb_input_list = photometers_with_unknown_current_location(connection)
+    tessdb_phot = group_by_name(tessdb_input_list)
+    log.info("read %d items from TessDB", len(tessdb_phot))
+    photometer_names = common_items(mongo_phot, tessdb_phot)
+    log.info("FOUND EXISTING LOCATIONS FOR %d entries", len(photometer_names))
+    log.info(photometer_names)
+    for name in photometer_names:
+        log.info(mongo_phot[name])
+
+
+
+
 # ===================
 # Module entry points
 # ===================
 
 def check(args):
     log.info(" ====================== PERFORM CROSS DB CHEKCS ======================")
-    
     connection, path = open_database(None, 'TESSDB_URL')
     url = get_mongo_api_url()
     mongo_input_list = mongo_get_photometer_info(url)
@@ -196,6 +198,9 @@ def check(args):
         photometer_names = common_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         common_zp_check(photometer_names, mongo_phot, tessdb_phot)
+    elif args.unknown:
+        log.info("Cross checking unknown location in TESSDB vs known locations in MongoDB")
+        check_unknown(connection, url)
     else:
         log.error("No valid input option to subcommand 'check'")
 
@@ -425,6 +430,7 @@ def add_args(parser):
     mgex1 = mgphck.add_mutually_exclusive_group(required=True)
     mgex1.add_argument('-m', '--mac', action='store_true', help="Check for common photometer's MACs")
     mgex1.add_argument('-z', '--zero-point', action='store_true', help="Check for common photometer's Zero Points")
+    mgex1.add_argument('-u', '--unknown', action='store_true', help="Photometer with unknown current location in TESSDB but with location in MongoDB")
 
 # ================
 # MAIN ENTRY POINT
