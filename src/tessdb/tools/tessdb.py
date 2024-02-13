@@ -76,13 +76,15 @@ def _get_photometers_with_unknown_current_location(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT DISTINCT tess_id, mac_address, t.valid_since, t.valid_until
+        SELECT DISTINCT tess_id, mac_address, name, n.valid_since, n.valid_until
         FROM tess_t AS t
+        JOIN name_to_mac_t AS n USING (mac_address)
         WHERE t.valid_state = 'Current'
+        AND n.valid_state = 'Current'
         AND location_id = -1
         ORDER BY mac_address
         ''')
-    result = [dict(zip(['tess_id','mac_address','valid_since', 'valid_until'],row)) for row in cursor]
+    result = [dict(zip(['tess_id','mac','name','valid_since', 'valid_until'],row)) for row in cursor]
     return result
 
 
@@ -299,8 +301,11 @@ def fix_location_readings(connection, output_dir):
 
 def check_photometers_with_unknown_location(connection):
     result = _get_photometers_with_unknown_current_location(connection)
-    for item in result:
-        log.info(item)
+    result = group_by_mac(result)
+    for mac, values in result.items():
+        tess_ids = [item['tess_id'] for item in values]
+        names = [item['name'] for item in values]
+        log.info("MAC %s => %s %s", mac, names, tess_ids )
     log.info("%d Photometer entries in tess_t with unknown current location", len(result))
 
 
