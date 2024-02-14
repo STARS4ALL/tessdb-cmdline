@@ -79,6 +79,8 @@ script-files = [
     "scripts/tools/tessdb-resume",
     "scripts/tools/auto-apply-sql",
     "scripts/tools/fast-apply-sql", 
+    "scripts/tools/create-sql-indexes",
+    "scripts/tools/delete-sql-indexes",
     "scripts/reports/tess_bulk_dump.sh",
     "scripts/reports/tess_daily_summary.sh",
     "scripts/reports/tess_ida_bulk_dump.sh",

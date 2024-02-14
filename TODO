@@ -1,3 +1,18 @@
+2024-02-14 Errores al ejecutar SQL por NULL sub_region
+
+sqlite3 /var/dbase/tess.db < sql/006_stars266_new_unknown.sql
+Error: near line 10: NOT NULL constraint failed: location_t.sub_region
+Command exited with non-zero status 1
+sqlite3 /var/dbase/tess.db < sql/008_stars884_new_unknown.sql
+Error: near line 10: NOT NULL constraint failed: location_t.sub_region
+Command exited with non-zero status 1
+sqlite3 /var/dbase/tess.db < sql/009_stars911_new_unknown.sql
+Error: near line 10: NOT NULL constraint failed: location_t.sub_region
+Command exited with non-zero status 1
+sqlite3 /var/dbase/tess.db < sql/010_stars919_new_unknown.sql
+Error: near line 10: NOT NULL constraint failed: location_t.sub_region
+Command exited with non-zero status 1
+
 ========================================================================================================
 
 ME HE QUEDADO HACIENDO UN CROSS CHECK DE PLACES ENTRE MONGO Y TESSDB

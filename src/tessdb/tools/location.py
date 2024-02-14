@@ -51,7 +51,6 @@ from .mongodb import mongo_get_all_info
 # with 1, 10, 50, 100, 150, 200 & 500 m
 NEARBY_DISTANCE = 200 # meters
 
-CREATE_LOCATIONS_TEMPLATE = 'location-create.j2'
 SQL_INSERT_LOCATIONS_TEMPLATE = 'sql-location-insert.j2'
 SQL_PHOT_NEW_LOCATIONS_TEMPLATE = 'sql-phot-new-locations.j2'
 SQL_PHOT_UPD_LOCATIONS_TEMPLATE = 'sql-phot-upd-locations.j2'
@@ -229,21 +228,6 @@ def quote_for_sql(row):
         else:
             row[key] = 'NULL'
     return row
-
-def generate_csv(path, iterable, fieldnames):
-    with open(path, "w") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        for row in iterable:
-            writer.writerow(row)
-   
-def generate_script(path, valid_coords_iterable, dbpath):
-    context = dict()
-    context['locations'] = valid_coords_iterable
-    context['database'] = dbpath
-    contents = render(CREATE_LOCATIONS_TEMPLATE, context)
-    with open(path, "w") as script:
-        script.write(contents)
 
 def same_mac_filter(mongo_db_input_dict, tessdb_input_dict):
     result = list()
