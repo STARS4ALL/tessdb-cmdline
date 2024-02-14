@@ -72,22 +72,6 @@ def _get_tessid_with_unknown_locations_in_readings_but_known_current_location(co
     return tuple(dict(row) for row in cursor.fetchall())
 
 
-def _get_photometers_with_unknown_current_location(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT DISTINCT tess_id, mac_address, name, n.valid_since, n.valid_until
-        FROM tess_t AS t
-        JOIN name_to_mac_t AS n USING (mac_address)
-        WHERE t.valid_state = 'Current'
-        AND n.valid_state = 'Current'
-        AND location_id = -1
-        ORDER BY mac_address
-        ''')
-    result = [dict(zip(['tess_id','mac','name','valid_since', 'valid_until'],row)) for row in cursor]
-    return result
-
-
 def _get_mac_addresses(connection):
     cursor = connection.cursor()
     cursor.execute('SELECT DISTINCT mac_address FROM tess_t AS t')
