@@ -707,6 +707,17 @@ def do_check_zp(mongo_input_list):
     else:
         log.info("Correct these: %s", ' '.join(names))
 
+def do_check_location_metadata(mongo_input_list):
+    names = list()
+    for item in mongo_input_list:
+        for key in ('place', 'town', 'sub_region', 'region', 'country', 'timezone'):
+            if item.get(key) is None:
+                log.warn("%s has empty %s", item['name'], key)
+                names.append(item['name'])
+    if not names:
+        log.info("All location metadata ok")
+    else:
+        log.info("Correct these: %s", ' '.join(names))
 
 def do_diff_all(url, input_file, delimiter, output_file_prefix): 
     mongo_iterable = group_by_name(mongo_get_all_info(url))
@@ -871,6 +882,9 @@ def check(args):
     elif args.zero_point:
         log.info("Check for defined zero points")
         do_check_zp(mongo_input_list)
+    elif args.location_metadata:
+        log.info("Check for defined zero points")
+        do_check_location_metadata(mongo_input_list)
     else:
         log.error("No valid input option to subcommand 'check'")
 
@@ -949,6 +963,7 @@ def add_args(parser):
     mgex1.add_argument('-u', '--utc', action='store_true', help='Check for Etc/UTC* timezone')
     mgex1.add_argument('-i', '--filter', action='store_true', help='Check for "UV/IR-cut" string in filters')
     mgex1.add_argument('-z', '--zero-point', action='store_true', help='Check for defined zero points')
+    mgex1.add_argument('-lm', '--location-metadata', action='store_true', help='Check fornon empty location metadata')
 
 
 
