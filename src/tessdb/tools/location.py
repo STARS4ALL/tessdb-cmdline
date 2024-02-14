@@ -28,15 +28,16 @@ from geopy.extra.rate_limiter import RateLimiter
 from lica.cli import execute
 from lica.validators import vfile, vdir
 from lica.jinja2 import render_from
+from lica.sqlite import open_database
 
 #--------------
 # local imports
 # -------------
 
-from ._version import __version__
+from .._version import __version__
 
-from .utils import  open_database, formatted_mac, tessify_mac
-from .dbutils import get_mongo_api_url, get_tessdb_connection_string
+from .utils import  formatted_mac, tessify_mac
+from .dbutils import get_mongo_api_url
 from .dbutils import group_by_name, group_by_mac, common_A_B_items, in_A_not_in_B, distance
 from .mongodb import mongo_get_all_info
 
@@ -397,8 +398,7 @@ def generate_single(connection, mongodb_url, output_dir):
 
 def generate(args):
     mongodb_url = get_mongo_api_url()
-    tessdb_url = get_tessdb_connection_string()
-    connection = open_database(tessdb_url)
+    connection, path = open_database(None, 'TESSDB_URL')
     log.info("%s: LOCATIONS SCRIPT GENERATION", __name__)
     if args.unknown:
         generate_unknown(connection, mongodb_url, args.directory)
