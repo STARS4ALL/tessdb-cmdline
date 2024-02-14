@@ -508,7 +508,7 @@ def do_list(url, path, names, header, mongo_get_func):
     if names:
         mongo_input_list = filter_by_names(mongo_input_list, names)
         log.info("filtered up to %d items", len(mongo_input_list))
-    write_csv(mongo_input_list, header, path)
+    write_csv(path, header, mongo_input_list)
 
 
 def do_update_location(url, path, delimiter, names, simulated):
@@ -728,13 +728,13 @@ def do_diff_all(url, input_file, delimiter, output_file_prefix):
     log.info("In CSV file, not in MongoDB => %d entries",len(keys_in_csv_file_not_in_mongo ))
     csv_not_in_mongo = filter_and_flatten(csv_iterable, keys_in_csv_file_not_in_mongo)
     path_1 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_in_file_not_in_mongo.csv")
-    write_csv(csv_not_in_mongo, ALL_HEADER, path_1)
+    write_csv(path_1, ALL_HEADER, csv_not_in_mongo)
 
     keys_in_mongo_not_in_csv_file = in_A_not_in_B(mongo_iterable, csv_iterable) 
     log.info("In MongoDB file, not in CSV => %d entries",len(keys_in_mongo_not_in_csv_file ))
     mongo_not_in_csv = filter_and_flatten(mongo_iterable, keys_in_mongo_not_in_csv_file)
     path_2 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_in_mongo_not_in_file.csv")
-    write_csv(csv_not_in_mongo, ALL_HEADER, path_2)
+    write_csv(path_2, ALL_HEADER, csv_not_in_mongo)
 
     in_both_keys = common_A_B_items(mongo_iterable, csv_iterable)
     log.info("Common in MongoDB and in CSV file, => %d entries", len(in_both_keys) )
@@ -742,10 +742,10 @@ def do_diff_all(url, input_file, delimiter, output_file_prefix):
     common_entries_file = filter_and_flatten(csv_iterable, in_both_keys)
 
     path_3 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_common_file.csv")
-    write_csv(common_entries_file, ALL_HEADER, path_3)
+    write_csv(path_3, ALL_HEADER, csv_not_in_mongo)
 
     path_4 = os.path.join(os.path.dirname(input_file), f"{output_file_prefix}_common_mongo.csv")
-    write_csv(common_entries_mongo, ALL_HEADER, path_4)
+    write_csv(path_4, ALL_HEADER, csv_not_in_mongo)
 
 
 # ===================
@@ -770,7 +770,7 @@ def location(args):
         nominatim_list = geolocate(mongo_input_list)
         nominatim_list = list(map(remap_nominatim, nominatim_list))
         mongo_input_list = merge_info(mongo_input_list, nominatim_list)
-        write_csv(mongo_input_list, NOMINATIM_HEADER, args.file)
+        write_csv(args.file, NOMINATIM_HEADER, mongo_input_list)
     elif args.timezone:
         mongo_input_list = mongo_get_location_info(url)
         log.info("read %d items from MongoDB", len(mongo_input_list))
@@ -781,7 +781,7 @@ def location(args):
         timezone_list = timezone(mongo_input_list)
         timezone_list = list(map(remap_tzfinder, timezone_list))
         mongo_input_list = merge_info(mongo_input_list, timezone_list)
-        write_csv(timezone_list, TZFINDER_HEADER, args.file)
+        write_csv(args.file, TZFINDER_HEADER,  timezone_list)
     else:
         log.error("No valid input option to subcommand 'location'")
 
