@@ -16,7 +16,7 @@ if [ "$?" -ne "0" ]; then
 fi
 
 echo "Creating SQLite Index tess_id_readings_i on Database ${DATABASE} table tess_readings_t"
-sqlite3 ${DATABASE} <<EOF
+nice -n 19 sqlite3 ${DATABASE} <<EOF
 	CREATE INDEX IF NOT EXISTS tess_id_readings_i ON tess_readings_t(tess_id);
 	CREATE INDEX IF NOT EXISTS tess_id_readings4c_i ON tess_readings4c_t(tess_id);
 EOF
@@ -36,13 +36,13 @@ done
 
 
 echo "Deleting SQLite Index tess_id_readings_i on Database ${DATABASE}"
-sqlite3 ${DATABASE} <<EOF
+nice -n 19 sqlite3 ${DATABASE} <<EOF
 	DROP INDEX IF EXISTS tess_id_readings_i;
 	DROP INDEX IF EXISTS tess_id_readings4c_i;
 EOF
 
 echo "Compacting database ${DATABASE}"
-sqlite3 ${DATABASE} <<EOF
+nice -n 19 sqlite3 ${DATABASE} <<EOF
 	VACUUM;
 EOF
 echo "Processing database ${DATABASE} ended!"
