@@ -11,11 +11,11 @@ INSERT INTO location_t (longitude,latitude,elevation,timezone,place,town,sub_reg
 VALUES ({{row['longitude']}},{{row['latitude']}},{{row['masl']}},{{row['timezone']}},{{row['place']}},{{row['town']}},{{row['sub_region']}},{{row['region']}},{{row['country']}},{{row['org_name']}},{{row['org_email']}});
 -- Updates photometer's current location from former location_id = {{ row['location_id'] }}
 UPDATE tess_t
-SET location_id = last_insert_rowid()
+SET location_id = (SELECT location_id FROM location_t WHERE longitude = {{row['longitude']}} AND latitude = {{row['latitude']}})
 WHERE mac_address = '{{row['mac']}}';
 -- Updates past readings with the former location id
 UPDATE tess_readings_t
-SET location_id = last_insert_rowid()
+SET location_id = (SELECT location_id FROM location_t WHERE longitude = {{row['longitude']}} AND latitude = {{row['latitude']}})
 WHERE tess_id IN ({{ ','.join(row['tess_ids']) }});
 COMMIT;
 PRAGMA foreign_keys = ON;
