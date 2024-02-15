@@ -91,11 +91,11 @@ def remap_location(geolocator, tzfinder, row):
                 out_row['place_type'] = place_type
             break
     if found:
-        log.info("proposal for %s: '%s' (%s)  as place name to '%s'", row['name'], metadata[place_type], place_type, row['place'])
+        log.info("proposal for %s: '%s' (%s)  as Nominatim place name to '%s'", row['name'], metadata[place_type], place_type, row['place'])
     else:
         out_row['place'] = None
         out_row['place_type'] = None
-        log.warn("still without a valid place name to '%s'",row['name'])
+        log.warn("still without a valid Nominatim place name to suggest for '%s'",row['name'])
 
     for location_type in ('village','town','city','municipality'):
         try:
