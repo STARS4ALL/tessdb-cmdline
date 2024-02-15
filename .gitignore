@@ -31,3 +31,5 @@ tess.db*
 sql/
 src/tessdb/_version.py
 IDA/
+*.csv
+
