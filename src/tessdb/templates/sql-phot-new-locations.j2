@@ -7,7 +7,7 @@ PRAGMA foreign_keys = OFF;
 -- {{ i }}
 BEGIN TRANSACTION;
 -- Inserts new Location
-INSERT INTO location_t (longitude,latitude,elevation,timezone,place,town,sub_region,region,country,organization,contact_email)
+INSERT OR IGNORE INTO location_t (longitude,latitude,elevation,timezone,place,town,sub_region,region,country,organization,contact_email)
 VALUES ({{row['longitude']}},{{row['latitude']}},{{row['masl']}},{{row['timezone']}},{{row['place']}},{{row['town']}},{{row['sub_region']}},{{row['region']}},{{row['country']}},{{row['org_name']}},{{row['org_email']}});
 -- Updates photometer's current location from former location_id = {{ row['location_id'] }}
 UPDATE tess_t
