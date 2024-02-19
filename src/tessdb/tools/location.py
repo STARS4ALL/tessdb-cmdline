@@ -159,6 +159,25 @@ def _easy_photometers_with_unknown_locations_from_tessdb(connection):
         ''')
     return cursor
 
+def _repaired_photometers_with_unknown_locations_from_tessdb(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT name, t.mac_address, tess_id, zp1, location_id, 
+            l.place, l.town, l.sub_region, l.region, l.country, l.timezone, l.organization, l.contact_email,
+            n.valid_since, n.valid_until, n.valid_state
+        FROM tess_t AS t
+        JOIN name_to_mac_t AS n USING(mac_address)
+        JOIN location_t  AS l USING(location_id)
+        WHERE mac_address IN (
+            -- Photometers with repairs
+            SELECT mac_address FROM name_to_mac_t
+            WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1))
+        AND location_id = -1
+        ORDER BY mac_address, n.valid_since, t.valid_since
+        ''')
+    return cursor
+
 def _easy_photometers_with_former_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
@@ -210,7 +229,30 @@ def tessdb_remap_location_info(row):
     new_row['country'] =row[9]
     new_row['timezone'] =row[10]
     new_row['org_name'] =row[11]
-    new_row['org_email'] =row[11]
+    new_row['org_email'] =row[12]
+    return new_row
+
+def tessdb_remap_location_info2(row):
+    new_row = dict()
+    new_row['name'] = row[0]
+    try:
+        new_row['mac'] = formatted_mac(row[1])
+    except ValueError:
+        return None
+    new_row['tess_id'] = row[2]
+    new_row['zero_point'] =row[3]
+    new_row['location_id'] =row[4]
+    new_row['place'] =row[5]
+    new_row['town'] =row[6]
+    new_row['sub_region'] =row[7]
+    new_row['region'] =row[8]
+    new_row['country'] =row[9]
+    new_row['timezone'] =row[10]
+    new_row['org_name'] =row[11]
+    new_row['org_email'] =row[12]
+    new_row['valid_since'] = row[13] # valid period in names_to_mac table
+    new_row['valid_until'] = row[14]
+    new_row['valid_state'] = row[15]
     return new_row
 
 
@@ -220,6 +262,9 @@ def easy_photometers_with_unknown_locations_from_tessdb(connection):
 
 def easy_photometers_with_former_locations_from_tessdb(connection):
     return list(map(tessdb_remap_location_info, _easy_photometers_with_former_locations_from_tessdb(connection)))
+
+def repaired_photometers_with_unknown_locations_from_tessdb(connection):
+    return list(map(tessdb_remap_location_info2, _repaired_photometers_with_unknown_locations_from_tessdb(connection)))
 
 def quote_for_sql(row):
     for key in ('timezone', 'place', 'town', 'sub_region', 'region', 'country', 'org_name', 'org_email'):
@@ -364,7 +409,7 @@ def generate_single(connection, mongodb_url, output_dir):
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_upd_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
-    photometers_with_upd_metadata_locations = list(map(quote_for_sql,location_metadata_upd))
+    photometers_with_upd_metadata_locations = list(map(quoteblock_for_sql,location_metadata_upd))
     for i, phot in enumerate(location_metadata_upd, 1):
         context = dict()
         context['row'] = phot
@@ -374,7 +419,47 @@ def generate_single(connection, mongodb_url, output_dir):
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_upd_meta_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
+
+def filter_contiguous(values):
+    for i in range(len(values)-1):
+        if values[i]['valid_until'] != values[i+1]['valid_since']:
+            return False 
+    return True
+
+def generate_repaired(connection, mongodb_url, output_dir):
+    log.info("Accesing TESSDB database")
+    tessdb_input_list = repaired_photometers_with_unknown_locations_from_tessdb(connection)
+    tessdb_input_dict = group_by_name(tessdb_input_list)
+    log.info("Repaired photometer entries with unknown locations: %d", len(tessdb_input_dict))
+    valid_names = list()
+    for key, values in tessdb_input_dict.items():
+        log.info("KEY = %s , LEN VALUES = %d", key, len(values))
+        if filter_contiguous(values):
+            valid_names.append(key)
+    tessdb_input_dict = {key: tessdb_input_dict[key] for key in valid_names }
+    log.info("After detecting true pure repairs, the list has %d entries", len(tessdb_input_dict))
+    log.info("Accesing MongoDB database")
+    mongodb_input_list = mongo_get_all_info(mongodb_url)
+    mongo_db_input_dict = group_by_name(mongodb_input_list)
+    common_names = common_A_B_items(tessdb_input_dict, mongo_db_input_dict)
+    log.info("Photometer names that must be updated with MongoDB location: %d", len(common_names))
+    mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
+    tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
+    #log.info(tessdb_input_dict)
     
+
+    # mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
+    # tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
+    # photometers_with_new_locations = list(map(quote_for_sql, new_photometer_location(mongo_db_input_dict, tessdb_input_dict)))
+    # for i, phot in enumerate(new_photometer_location(mongo_db_input_dict, tessdb_input_dict), 1):
+    #     context = dict()
+    #     context['row'] = phot
+    #     context['i'] = i
+    #     name = phot['name']
+    #     output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
+    #     output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_unknown.sql")
+    #     with open(output_path, "w") as sqlfile:
+    #         sqlfile.write(output)
 
 # ===================
 # Module entry points
@@ -388,6 +473,8 @@ def generate(args):
         generate_unknown(connection, mongodb_url, args.directory)
     elif args.single:
         generate_single(connection, mongodb_url, args.directory)
+    elif args.repaired:
+        generate_repaired(connection, mongodb_url, args.directory)
     else:
         raise NotImplementedError("Command line option not yet implemented")
 
@@ -407,7 +494,7 @@ def add_args(parser):
     locgex1 = locg.add_mutually_exclusive_group(required=True)
     locgex1.add_argument('-u', '--unknown', action='store_true', help='Update those with no repairs and no renamings and unknown location')
     locgex1.add_argument('-s', '--single', action='store_true', help='Update those with no repairs and no renamings in tessdb')
-    locgex1.add_argument('-m', '--multiple', action='store_true', help='Update those with repair/renamings entries in tessdb')
+    locgex1.add_argument('-rp', '--repaired', action='store_true', help='Update those with true repaired entries and unknown location in tessdb')
     locg.add_argument('-d', '--directory', type=vdir, required=True, help='Directory to place output SQL files')
 
 ENTRY_POINT = {
