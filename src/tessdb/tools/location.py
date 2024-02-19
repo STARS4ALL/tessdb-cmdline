@@ -36,7 +36,7 @@ from lica.sqlite import open_database
 
 from .._version import __version__
 
-from .utils import  formatted_mac, tessify_mac
+from .utils import  formatted_mac
 from .dbutils import get_mongo_api_url
 from .dbutils import group_by_name, group_by_mac, common_A_B_items, in_A_not_in_B, distance
 from .mongodb import mongo_get_all_info
@@ -247,7 +247,7 @@ def new_photometer_location(mongo_db_input_dict, tessdb_input_dict):
         assert len(value) == 1
         row = value[0]
         row['masl'] = 0.0
-        row['mac'] = tessify_mac(row['mac'])
+        row['mac'] = formatted_mac(row['mac'])
         row['tess_ids'] = tuple( str(item['tess_id']) for item in tessdb_input_dict[name])
         log.debug("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
         photometers.append(row)
@@ -274,7 +274,7 @@ def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connect
         assert len(value) == 1
         row = value[0]
         row['masl'] = 0.0
-        row['mac'] = tessify_mac(row['mac'])
+        row['mac'] = formatted_mac(row['mac'])
         row['tess_ids'] = tuple( str(item['tess_id']) for item in tessdb_input_dict[name])
         locations = tuple( item['location_id'] for item in tessdb_input_dict[name])
         assert all(loc == locations[0] for loc in locations)

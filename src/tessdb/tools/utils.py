@@ -80,10 +80,6 @@ def is_mac(mac):
     '''Strict MAC address check'''
     return is_tess_mac(mac) and len(mac) == 17
 
-def tessify_mac(mac):
-    '''This is needed for SQL comparison in tessdb'''
-    return ':'.join(f"{int(x,16):X}" for x in mac.split(':'))
-
 # ==============
 # DATABASE STUFF
 # ==============
