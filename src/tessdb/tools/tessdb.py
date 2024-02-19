@@ -137,7 +137,29 @@ def _photometers_from_tessdb(connection):
         ''')
     return cursor
 
+def photometers_repaired(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT name, mac_address, valid_since, valid_until, valid_state 
+        FROM name_to_mac_t 
+        WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
+        ORDER BY name, valid_since
+    ''')
+    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
+    return result
 
+def photometers_renamed(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT name, mac_address, valid_since, valid_until, valid_state 
+        FROM name_to_mac_t 
+        WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
+        ORDER BY mac_address, valid_since
+    ''')
+    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
+    return result
 
 
 def tessdb_remap_info(row):
@@ -269,6 +291,21 @@ def check_proper_macs(connection):
             bad_formatted.append(t[2])
     log.info("%d Bad MAC addresses and %d bad formatted MAC addresses", len(bad_macs), len(bad_formatted))
 
+def check_repaired(connection):
+    repaired = photometers_repaired(connection)
+    log.info("Showing repaired photometers: %d total", len(repaired))
+    repaired_names = group_by_name(repaired)
+    for name, macs in repaired_names.items():
+        log.info("%s => %s", name, macs)
+
+def check_renamings(connection):
+    renamed = photometers_renamed(connection)
+    log.info("Showing renamed photometers: %d total", len(renamed))
+    renamed_macs = group_by_mac(renamed)
+    for mac, names in renamed_macs.items():
+        log.info("%s => %s", mac, names)
+
+
 def fix_mac_addresses(connection, output_dir):
     cursor = _get_mac_addresses(connection)
     bad_macs=list()
@@ -350,6 +387,12 @@ def check(args):
     elif args.unknown_observer:
         log.info("Check for Unknown Location in tess_t")
         check_unknown_observer(connection)
+    elif args.renamings:
+        log.info("Check for Unknown Location in tess_t")
+        check_renamings(connection)
+    elif args.repaired:
+        log.info("Check for Unknown Location in tess_t")
+        check_repaired(connection)
     else:
         log.error("No valid input option to subcommand 'check'")
 
@@ -407,6 +450,8 @@ def add_args(parser):
     tdex1.add_argument('-z', '--fake-zero-points', action='store_true', help='Check for proper MACS in tess_t')
     tdex1.add_argument('-ul', '--unknown-location', action='store_true', help='Check unknown location in tess_t')
     tdex1.add_argument('-uo', '--unknown-observer', action='store_true', help='Check unknown observer in tess_t')
+    tdex1.add_argument('-rn', '--renamings', action='store_true', help='Check renamed photometers')
+    tdex1.add_argument('-rp', '--repaired', action='store_true', help='Check reparied photometers')
 
     tdfix = subparser.add_parser('fix',  help="Fix TessDB data/metadata")
     tdex1 = tdfix.add_mutually_exclusive_group(required=True)
