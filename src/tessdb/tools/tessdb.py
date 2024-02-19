@@ -23,6 +23,7 @@ from lica.cli import execute
 from lica.validators import vfile, vdir
 from lica.jinja2 import render_from
 from lica.sqlite import open_database
+from lica.csv import write_csv
 
 #--------------
 # local imports
@@ -157,6 +158,27 @@ def photometers_renamed(connection):
         FROM name_to_mac_t 
         WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
         ORDER BY mac_address, valid_since
+    ''')
+    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
+    return result
+
+def photometers_easy(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT name, mac_address, valid_since, valid_until, valid_state
+        FROM name_to_mac_t
+        WHERE mac_address IN (
+            -- Photometers with no repairs and no renamings
+            SELECT mac_address  FROM name_to_mac_t
+            WHERE name LIKE 'stars%'
+            EXCEPT -- this is the photometer substitution/repair part
+            SELECT mac_address FROM name_to_mac_t
+            WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
+            EXCEPT -- This is the renamings part
+            SELECT mac_address FROM name_to_mac_t
+            WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1))
+        ORDER BY name, valid_since
     ''')
     result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
     return result
@@ -423,11 +445,21 @@ def photometers(args):
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
     connection, path = open_database(None, 'TESSDB_URL')
     log.info("connecting to SQLite database %s", path)
-    tessdb_input_list = photometers_and_locations_from_tessdb(connection)
-    log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_phot = group_by_name(tessdb_input_list)
-    log_names(tessdb_phot)
-
+    if args.repaired:
+        output = photometers_repaired(connection)
+        log.info("Getting %d photometers repaired entries", len(output))
+        HEADER = ('name','mac','valid_since','valid_until','valid_state')
+    elif args.renamed:
+        output = photometers_renamed(connection)
+        log.info("Getting %d photometers renamed entries", len(output))
+        HEADER = ('mac','name','valid_since','valid_until','valid_state')
+    elif args.easy:
+        output = photometers_easy(connection)
+        log.info("Getting %d photometers not repaired nor renamed entries", len(output))
+        HEADER = ('name','mac','valid_since','valid_until','valid_state')
+    else:
+        raise ValueError("Unkown option")
+    write_csv(args.output_file, HEADER, output)
 
 def add_args(parser):
 
@@ -438,7 +470,12 @@ def add_args(parser):
     tdloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
     tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata check")
-    tdphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
+    tdphot.add_argument('-o', '--output-file', type=str, required=True, help='Output file prefix for the different files to generate')
+    tdex0 = tdphot.add_mutually_exclusive_group(required=True)
+    tdex0.add_argument('-rn', '--renamed', action='store_true', help='List renamed photometers to CSV')
+    tdex0.add_argument('-rp', '--repaired', action='store_true',  help='List repaired photometers to CSV')
+    tdex0.add_argument('-e', '--easy', action='store_true',  help='List not repaired or renamed photometers to CSV')
+ 
 
     tdcheck = subparser.add_parser('check',  help="Various TESSDB metadata checks")
     tdex1 = tdcheck.add_mutually_exclusive_group(required=True)
