@@ -40,6 +40,7 @@ from .utils import  formatted_mac
 from .dbutils import get_mongo_api_url
 from .dbutils import group_by_name, group_by_mac, common_A_B_items, in_A_not_in_B, distance
 from .mongodb import mongo_get_all_info
+from .tessdb import photometers_repaired, photometers_renamed, tess_id_from_mac
 
 # ----------------
 # Module constants
@@ -159,25 +160,6 @@ def _easy_photometers_with_unknown_locations_from_tessdb(connection):
         ''')
     return cursor
 
-def _repaired_photometers_with_unknown_locations_from_tessdb(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT name, t.mac_address, tess_id, zp1, location_id, 
-            l.place, l.town, l.sub_region, l.region, l.country, l.timezone, l.organization, l.contact_email,
-            n.valid_since, n.valid_until, n.valid_state
-        FROM tess_t AS t
-        JOIN name_to_mac_t AS n USING(mac_address)
-        JOIN location_t  AS l USING(location_id)
-        WHERE mac_address IN (
-            -- Photometers with repairs
-            SELECT mac_address FROM name_to_mac_t
-            WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1))
-        AND location_id = -1
-        ORDER BY mac_address, n.valid_since, t.valid_since
-        ''')
-    return cursor
-
 def _easy_photometers_with_former_locations_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
@@ -263,8 +245,8 @@ def easy_photometers_with_unknown_locations_from_tessdb(connection):
 def easy_photometers_with_former_locations_from_tessdb(connection):
     return list(map(tessdb_remap_location_info, _easy_photometers_with_former_locations_from_tessdb(connection)))
 
-def repaired_photometers_with_unknown_locations_from_tessdb(connection):
-    return list(map(tessdb_remap_location_info2, _repaired_photometers_with_unknown_locations_from_tessdb(connection)))
+def repaired_photometers_with_locations_from_tessdb(connection):
+    return list(map(tessdb_remap_location_info2, _repaired_photometers_with_locations_from_tessdb(connection)))
 
 def quote_for_sql(row):
     for key in ('timezone', 'place', 'town', 'sub_region', 'region', 'country', 'org_name', 'org_email'):
@@ -428,14 +410,15 @@ def filter_contiguous(values):
 
 def generate_repaired(connection, mongodb_url, output_dir):
     log.info("Accesing TESSDB database")
-    tessdb_input_list = repaired_photometers_with_unknown_locations_from_tessdb(connection)
+    tessdb_input_list = photometers_repaired(connection)
     tessdb_input_dict = group_by_name(tessdb_input_list)
-    log.info("Repaired photometer entries with unknown locations: %d", len(tessdb_input_dict))
+    log.info("Repaired photometers: %d", len(tessdb_input_dict))
     valid_names = list()
     for key, values in tessdb_input_dict.items():
-        log.info("KEY = %s , LEN VALUES = %d", key, len(values))
-        if filter_contiguous(values):
+        accepted = filter_contiguous(values)
+        if accepted:
             valid_names.append(key)
+        log.debug("KEY = %s , LEN VALUES = %d, ACCEPTED = %s", key, len(values), accepted)
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in valid_names }
     log.info("After detecting true pure repairs, the list has %d entries", len(tessdb_input_dict))
     log.info("Accesing MongoDB database")
@@ -446,11 +429,18 @@ def generate_repaired(connection, mongodb_url, output_dir):
     mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
     #log.info(tessdb_input_dict)
-    
+    for key, values in tessdb_input_dict.items():
+        log.info("-"*64)
+        for item in values:
+            mac = item['mac']
+            cursor = tess_id_from_mac(connection, mac)
+            result = tuple(zip(*cursor))
+            log.info("NAME: %s MAC: %s, IDS=%s",key, mac, result)
+            item['tess_ids'] = result[0]
+            item['location_ids'] = result[1]
+            item['observer_ids'] = result[2]
 
-    # mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
-    # tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
-    # photometers_with_new_locations = list(map(quote_for_sql, new_photometer_location(mongo_db_input_dict, tessdb_input_dict)))
+    photometers_with_new_locations = list(map(quote_for_sql, new_photometer_location(mongo_db_input_dict, tessdb_input_dict)))
     # for i, phot in enumerate(new_photometer_location(mongo_db_input_dict, tessdb_input_dict), 1):
     #     context = dict()
     #     context['row'] = phot

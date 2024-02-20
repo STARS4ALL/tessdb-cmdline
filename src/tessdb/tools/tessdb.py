@@ -183,6 +183,15 @@ def photometers_easy(connection):
     result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
     return result
 
+def tess_id_from_mac(connection, mac_address):
+    params = {'mac_address': mac_address}
+    cursor = connection.cursor()
+    cursor.execute('''
+        SELECT tess_id, location_id, observer_id
+        FROM tess_t
+        WHERE mac_address = :mac_address
+    ''', params)
+    return cursor
 
 def tessdb_remap_info(row):
     new_row = dict()
