@@ -193,6 +193,17 @@ def tess_id_from_mac(connection, mac_address):
     ''', params)
     return cursor
 
+
+def filter_contiguous(values):
+    return all(values[i]['valid_until'] == values[i+1]['valid_since'] for i in range(len(values)-1))
+
+def filter_all_unknown_id(name, values, item_key):
+    return not all(  all(ide == -1 for ide in value[item_key]) for value in values)
+
+def filter_any_unknown_id(name, values, item_key):
+    return any(  all(ide == -1 for ide in value[item_key]) for value in values)
+
+
 def tessdb_remap_info(row):
     new_row = dict()
     try:
@@ -323,11 +334,44 @@ def check_proper_macs(connection):
     log.info("%d Bad MAC addresses and %d bad formatted MAC addresses", len(bad_macs), len(bad_formatted))
 
 def check_repaired(connection):
-    repaired = photometers_repaired(connection)
-    log.info("Showing repaired photometers: %d total", len(repaired))
-    repaired_names = group_by_name(repaired)
-    for name, macs in repaired_names.items():
-        log.info("%s => %s", name, macs)
+    log.info("Accesing TESSDB database")
+    tessdb_input_list = photometers_repaired(connection)
+    tessdb_input_dict = group_by_name(tessdb_input_list)
+    log.info("Repaired photometers: %d", len(tessdb_input_dict))
+    valid_names = list()
+    for key, values in tessdb_input_dict.items():
+        accepted = filter_contiguous(values)
+        if accepted:
+            valid_names.append(key)
+        log.debug("KEY = %s , LEN VALUES = %d, ACCEPTED = %s", key, len(values), accepted)
+    # Filter based on true good repairs
+    tessdb_input_dict = {key: tessdb_input_dict[key] for key in valid_names}
+    log.info("After detecting true pure repairs, the list has %d entries", len(tessdb_input_dict))
+    for key, values in tessdb_input_dict.items():
+        log.info("---------------------- %s ----------------------", key)
+        for item in values:
+            mac = item['mac']
+            cursor = tess_id_from_mac(connection, mac)
+            result = tuple(zip(*cursor))
+            item['tess_ids'] = result[0]
+            item['location_ids'] = result[1]
+            log.info("MAC: %s, TESS IDS: %s LOCATION_IDS: %s", mac, item['tess_ids'], item['location_ids'])
+            item['observer_ids'] = result[2]
+    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_all_unknown_id(key, values, 'location_ids')}
+    log.info("After purgin all -1 loation_ids, the list has %d entries", len(tessdb_input_dict))
+    log.info("="*64)
+    for key, values in tessdb_input_dict.items():
+        log.info("---------------------- %s ----------------------", key)
+        for item in values:
+            mac = item['mac']
+            log.info("MAC: %s, TESS IDS: %s LOCATION_IDS: %s", mac, item['tess_ids'], item['location_ids'])
+    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_any_unknown_id(key, values, 'location_ids')}
+    log.info("="*64)
+    for key, values in tessdb_input_dict.items():
+        log.info("---------------------- %s ----------------------", key)
+        for item in values:
+            mac = item['mac']
+            log.info("MAC: %s, TESS IDS: %s LOCATION_IDS: %s", mac, item['tess_ids'], item['location_ids'])
 
 def check_renamings(connection):
     renamed = photometers_renamed(connection)
@@ -498,6 +542,7 @@ def add_args(parser):
     tdex1.add_argument('-uo', '--unknown-observer', action='store_true', help='Check unknown observer in tess_t')
     tdex1.add_argument('-rn', '--renamings', action='store_true', help='Check renamed photometers')
     tdex1.add_argument('-rp', '--repaired', action='store_true', help='Check reparied photometers')
+    tdex1.add_argument('-e', '--easy', action='store_true', help='Check "easy" photometers')
 
     tdfix = subparser.add_parser('fix',  help="Fix TessDB data/metadata")
     tdex1 = tdfix.add_mutually_exclusive_group(required=True)

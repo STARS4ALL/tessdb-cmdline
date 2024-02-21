@@ -402,11 +402,6 @@ def generate_single(connection, mongodb_url, output_dir):
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
 
-def filter_contiguous(values):
-    for i in range(len(values)-1):
-        if values[i]['valid_until'] != values[i+1]['valid_since']:
-            return False 
-    return True
 
 def generate_repaired(connection, mongodb_url, output_dir):
     log.info("Accesing TESSDB database")
@@ -430,26 +425,15 @@ def generate_repaired(connection, mongodb_url, output_dir):
     tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
     #log.info(tessdb_input_dict)
     for key, values in tessdb_input_dict.items():
-        log.info("-"*64)
+        log.info("---------------------- %s ----------------------", key)
         for item in values:
             mac = item['mac']
             cursor = tess_id_from_mac(connection, mac)
             result = tuple(zip(*cursor))
-            log.info("NAME: %s MAC: %s, IDS=%s",key, mac, result)
             item['tess_ids'] = result[0]
             item['location_ids'] = result[1]
+            log.info("MAC: %s, TESS IDS: %s LOCATION_IDS: %s", mac, item['tess_ids'], item['location_ids'])
             item['observer_ids'] = result[2]
-
-    photometers_with_new_locations = list(map(quote_for_sql, new_photometer_location(mongo_db_input_dict, tessdb_input_dict)))
-    # for i, phot in enumerate(new_photometer_location(mongo_db_input_dict, tessdb_input_dict), 1):
-    #     context = dict()
-    #     context['row'] = phot
-    #     context['i'] = i
-    #     name = phot['name']
-    #     output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
-    #     output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_unknown.sql")
-    #     with open(output_path, "w") as sqlfile:
-    #         sqlfile.write(output)
 
 # ===================
 # Module entry points
