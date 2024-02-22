@@ -40,7 +40,7 @@ from .utils import  formatted_mac
 from .dbutils import get_mongo_api_url
 from .dbutils import group_by_name, group_by_mac, common_A_B_items, in_A_not_in_B, distance
 from .mongodb import mongo_get_all_info
-from .tessdb import photometers_repaired, photometers_renamed, tess_id_from_mac, filter_contiguous
+from .tessdb import photometers_repaired, photometers_renamed, tess_id_from_mac, filter_contiguous, photometers_easy, filter_any_unknown_id
 
 # ----------------
 # Module constants
@@ -263,7 +263,7 @@ def same_mac_filter(mongo_db_input_dict, tessdb_input_dict):
         mongo_mac = mongo_db_input_dict[name][0]['mac']
         tessdb_mac = tessdb_input_dict[name][0]['mac']
         if mongo_mac  != tessdb_mac:
-            log.debug("Excluding photometer %s with different MACs: MongoDB (%s) , TESSDB (%s)", name, mongo_mac, tessdb_mac)
+            log.info("Excluding photometer %s with different MACs: MongoDB (%s) , TESSDB (%s)", name, mongo_mac, tessdb_mac)
         else:
             result.append(name)
     return result
@@ -327,6 +327,27 @@ def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connect
 # Second level functions
 # ======================
 
+def check_easy(connection):
+    log.info("Accesing TESSDB database")
+    tessdb_input_list = photometers_easy(connection)
+    tessdb_input_dict = group_by_name(tessdb_input_list)
+    log.info("Easy photometers: %d", len(tessdb_input_dict))
+    for key, values in tessdb_input_dict.items():
+        for item in values:
+            mac = item['mac']
+            cursor = tess_id_from_mac(connection, mac)
+            result = tuple(zip(*cursor))
+            item['tess_ids'] = result[0]
+            item['location_ids'] = result[1]
+            log.info("%s MAC: %s, TESS IDS: %s LOCATION_IDS: %s",key, mac, item['tess_ids'], item['location_ids'])
+            item['observer_ids'] = result[2]
+    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_any_unknown_id(values, 'location_ids')}
+    log.info("="*64)
+    for key, values in tessdb_input_dict.items():
+        for item in values:
+            mac = item['mac']
+            log.info("%s MAC: %s, TESS IDS: %s LOCATION_IDS: %s", key, mac, item['tess_ids'], item['location_ids'])
+
 def generate_unknown(connection, mongodb_url, output_dir):
     log.info("Accesing TESSDB database")
     tessdb_input_list = easy_photometers_with_unknown_locations_from_tessdb(connection)
@@ -353,6 +374,9 @@ def generate_unknown(connection, mongodb_url, output_dir):
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_unknown.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
+
+
+
 
 def generate_single(connection, mongodb_url, output_dir):
     log.info("Accesing TESSDB database")
@@ -391,7 +415,7 @@ def generate_single(connection, mongodb_url, output_dir):
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_upd_single.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
-    photometers_with_upd_metadata_locations = list(map(quoteblock_for_sql,location_metadata_upd))
+    photometers_with_upd_metadata_locations = list(map(quote_for_sql,location_metadata_upd))
     for i, phot in enumerate(location_metadata_upd, 1):
         context = dict()
         context['row'] = phot
