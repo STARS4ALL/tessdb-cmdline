@@ -1,4 +1,5 @@
 PRAGMA foreign_keys = OFF;
+.echo on
 BEGIN TRANSACTION;
 {% for row in rows -%}
 -- Updates Bad formatted MAC address from {{ row['mac'] }} to {{ row['good_mac'] }}
