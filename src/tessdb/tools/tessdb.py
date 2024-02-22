@@ -392,7 +392,7 @@ def check_easy(connection):
             item['location_ids'] = result[1]
             log.info("%s MAC: %s, TESS IDS: %s LOCATION_IDS: %s",key, mac, item['tess_ids'], item['location_ids'])
             item['observer_ids'] = result[2]
-    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_any_unknown_id(key, values, 'location_ids')}
+    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_any_unknown_id(values, 'location_ids')}
     log.info("="*64)
     for key, values in tessdb_input_dict.items():
         for item in values:
