@@ -40,7 +40,7 @@ from .utils import  formatted_mac
 from .dbutils import get_mongo_api_url
 from .dbutils import group_by_name, group_by_mac, common_A_B_items, in_A_not_in_B, distance
 from .mongodb import mongo_get_all_info
-from .tessdb import photometers_repaired, photometers_renamed, tess_id_from_mac
+from .tessdb import photometers_repaired, photometers_renamed, tess_id_from_mac, filter_contiguous
 
 # ----------------
 # Module constants

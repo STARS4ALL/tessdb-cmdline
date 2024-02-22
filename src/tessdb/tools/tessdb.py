@@ -195,12 +195,16 @@ def tess_id_from_mac(connection, mac_address):
 
 
 def filter_contiguous(values):
-    return all(values[i]['valid_until'] == values[i+1]['valid_since'] for i in range(len(values)-1))
+    result = all(values[i]['valid_until'] == values[i+1]['valid_since'] for i in range(len(values)-1))
+    # Makes sure that we end-up the chain in the far future
+    result = result and values[-1]['valid_until'] == '2999-12-31 23:59:59+00:00' 
+    return result
+   
 
-def filter_all_unknown_id(name, values, item_key):
+def filter_all_unknown_id(values, item_key):
     return not all(  all(ide == -1 for ide in value[item_key]) for value in values)
 
-def filter_any_unknown_id(name, values, item_key):
+def filter_any_unknown_id(values, item_key):
     return any(  all(ide == -1 for ide in value[item_key]) for value in values)
 
 
@@ -357,15 +361,15 @@ def check_repaired(connection):
             item['location_ids'] = result[1]
             log.info("MAC: %s, TESS IDS: %s LOCATION_IDS: %s", mac, item['tess_ids'], item['location_ids'])
             item['observer_ids'] = result[2]
-    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_all_unknown_id(key, values, 'location_ids')}
-    log.info("After purgin all -1 loation_ids, the list has %d entries", len(tessdb_input_dict))
+    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_all_unknown_id(values, 'location_ids')}
+    log.info("After purging all -1 location_ids, the list has %d entries", len(tessdb_input_dict))
     log.info("="*64)
     for key, values in tessdb_input_dict.items():
         log.info("---------------------- %s ----------------------", key)
         for item in values:
             mac = item['mac']
             log.info("MAC: %s, TESS IDS: %s LOCATION_IDS: %s", mac, item['tess_ids'], item['location_ids'])
-    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_any_unknown_id(key, values, 'location_ids')}
+    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_any_unknown_id(values, 'location_ids')}
     log.info("="*64)
     for key, values in tessdb_input_dict.items():
         log.info("---------------------- %s ----------------------", key)
@@ -373,12 +377,63 @@ def check_repaired(connection):
             mac = item['mac']
             log.info("MAC: %s, TESS IDS: %s LOCATION_IDS: %s", mac, item['tess_ids'], item['location_ids'])
 
+
+def check_easy(connection):
+    log.info("Accesing TESSDB database")
+    tessdb_input_list = photometers_easy(connection)
+    tessdb_input_dict = group_by_name(tessdb_input_list)
+    log.info("Easy photometers: %d", len(tessdb_input_dict))
+    for key, values in tessdb_input_dict.items():
+        for item in values:
+            mac = item['mac']
+            cursor = tess_id_from_mac(connection, mac)
+            result = tuple(zip(*cursor))
+            item['tess_ids'] = result[0]
+            item['location_ids'] = result[1]
+            log.info("%s MAC: %s, TESS IDS: %s LOCATION_IDS: %s",key, mac, item['tess_ids'], item['location_ids'])
+            item['observer_ids'] = result[2]
+    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_any_unknown_id(key, values, 'location_ids')}
+    log.info("="*64)
+    for key, values in tessdb_input_dict.items():
+        for item in values:
+            mac = item['mac']
+            log.info("%s MAC: %s, TESS IDS: %s LOCATION_IDS: %s", key, mac, item['tess_ids'], item['location_ids'])
+   
+
+
 def check_renamings(connection):
-    renamed = photometers_renamed(connection)
-    log.info("Showing renamed photometers: %d total", len(renamed))
-    renamed_macs = group_by_mac(renamed)
-    for mac, names in renamed_macs.items():
-        log.info("%s => %s", mac, names)
+    log.info("Accesing TESSDB database")
+    tessdb_input_list = photometers_renamed(connection)
+    tessdb_input_dict = group_by_mac(tessdb_input_list)
+    log.info("Renamed photometers: %d", len(tessdb_input_dict))
+    valid_macs = list()
+    for key, values in tessdb_input_dict.items():
+        accepted = filter_contiguous(values)
+        if accepted:
+            valid_macs.append(key)
+        log.debug("KEY = %s , LEN VALUES = %d, ACCEPTED = %s", key, len(values), accepted)
+    # Filter based on true good renamings
+    tessdb_input_dict = {key: tessdb_input_dict[key] for key in valid_macs}
+    log.info("After detecting true pure renamings, the list has %d entries", len(tessdb_input_dict))
+    for key, values in tessdb_input_dict.items():
+        log.info("---------------------- %s ----------------------", key)
+        for item in values:
+            name = item['name']
+            cursor = tess_id_from_mac(connection, key)
+            result = tuple(zip(*cursor))
+            item['tess_ids'] = result[0]
+            item['location_ids'] = result[1]
+            log.info("NAME: %s, TESS IDS: %s LOCATION_IDS: %s", name, item['tess_ids'], item['location_ids'])
+            item['observer_ids'] = result[2]
+    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_any_unknown_id(values, 'location_ids')}
+    log.info("="*64)
+    for key, values in tessdb_input_dict.items():
+        log.info("---------------------- %s ----------------------", key)
+        for item in values:
+            name = item['name']
+            log.info("NAME: %s, TESS IDS: %s LOCATION_IDS: %s", name, item['tess_ids'], item['location_ids'])
+   
+
 
 
 def fix_mac_addresses(connection, output_dir):
@@ -468,6 +523,9 @@ def check(args):
     elif args.repaired:
         log.info("Check for Unknown Location in tess_t")
         check_repaired(connection)
+    elif args.easy:
+        log.info("Check for Unknown Location in tess_t")
+        check_easy(connection)
     else:
         log.error("No valid input option to subcommand 'check'")
 
