@@ -284,11 +284,11 @@ def check_same_location_metadata(mongo_row, tessdb_sequence):
     # We have already checked that all locations in the sereral tessdb_sequence are the same
     tessdb_row = tessdb_sequence[0]
     same = (mongo_row['place'] == tessdb_row['place']) and (mongo_row['town'] == tessdb_row['town']) and \
-    (mongo_row['sub_region'] == tessdb_row['sub_region']) and (mongo_row['region'] == tessdb_row['region']) #and \
-    (mongo_row['country'] == tessdb_row['country']) and (mongo_row['timezone'] == tessdb_row['timezone']) and \
-    (mongo_row['org_name'] == tessdb_row['org_name']) and (mongo_row['org_email'] == tessdb_row['org_email'])
+    (mongo_row['sub_region'] == tessdb_row['sub_region']) and (mongo_row['region'] == tessdb_row['region']) and \
+    (mongo_row['country'] == tessdb_row['country']) and (mongo_row['timezone'] == tessdb_row['timezone']) #and \
+    #(mongo_row['org_name'] == tessdb_row['org_name']) and (mongo_row['org_email'] == tessdb_row['org_email'])
     if not same:
-        log.debug("METADATA DIFFERENCE Mongo %s \n TessDB %s", mongo_row, tessdb_row)
+        log.info("METADATA DIFFERENCE Mongo %s \n TessDB %s", mongo_row, tessdb_row)
     return same
     
 
@@ -306,7 +306,7 @@ def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connect
         locations = tuple( item['location_id'] for item in tessdb_input_dict[name])
         assert all(loc == locations[0] for loc in locations)
         row['location_id'] = locations[0]
-        log.debug("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
+        #log.info("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
         tessdb_coords = _coordinates_from_id(connection, row['location_id'])
         mongodb_coords = (row['longitude'], row['latitude'])
         dist = distance ( mongodb_coords, tessdb_coords)
