@@ -31,6 +31,7 @@ from lica.jinja2 import render_from
 
 from .._version import __version__
 
+from .dbutils import common_A_B_items, in_A_not_in_B, filter_and_flatten
 from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac, log_places, log_names, distance, get_mongo_api_url, ungroup_from
 from .mongodb import mongo_get_location_info, mongo_get_all_info, mongo_get_photometer_info, filter_by_names, get_mac, mongo_api_body_photometer, mongo_api_update
 from .tessdb import photometers_from_tessdb, photometers_and_locations_from_tessdb, places_from_tessdb, photometers_with_unknown_current_location
@@ -50,15 +51,6 @@ render = functools.partial(render_from, package)
 # -------------------------
 # Module auxiliar functions
 # -------------------------
-
-def common_items(mongo_iterable, tessdb_iterable):
-    return set(mongo_iterable.keys()).intersection(set(tessdb_iterable.keys()))
-
-def in_mongo_not_in_tessdb(mongo_iterable, tessdb_iterable):
-    return set(mongo_iterable.keys()) - set(tessdb_iterable.keys())
-
-def in_tessdb_not_in_mongo(mongo_iterable, tessdb_iterable):
-    return set(tessdb_iterable.keys()) - set(mongo_iterable.keys())
 
 def make_nearby_filter(tuple2, lower, upper):
     def distance_filter(tuple1):
@@ -165,7 +157,7 @@ def check_unknown(connection, url):
     tessdb_input_list = photometers_with_unknown_current_location(connection)
     tessdb_phot = group_by_name(tessdb_input_list)
     log.info("read %d items from TessDB", len(tessdb_phot))
-    photometer_names = common_items(mongo_phot, tessdb_phot)
+    photometer_names = common_A_B_items(mongo_phot, tessdb_phot)
     log.info("FOUND EXISTING LOCATIONS FOR %d entries", len(photometer_names))
     log.info(photometer_names)
     for name in photometer_names:
@@ -190,12 +182,12 @@ def check(args):
     tessdb_phot = group_by_name(tessdb_input_list)
     if args.mac:
         log.info("Check for MAC differences in common photometer names")
-        photometer_names = common_items(mongo_phot, tessdb_phot)
+        photometer_names = common_A_B_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         common_mac_check(photometer_names, mongo_phot, tessdb_phot)
     elif args.zero_point:
         log.info("Check for Zero Point differentces in common photometer names")
-        photometer_names = common_items(mongo_phot, tessdb_phot)
+        photometer_names = common_A_B_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         common_zp_check(photometer_names, mongo_phot, tessdb_phot)
     elif args.unknown:
@@ -218,7 +210,7 @@ def photometers(args):
 
     if args.sim_update_mac:
         tessdb_phot = group_by_name(tessdb_input_list)
-        photometer_names = common_items(mongo_phot, tessdb_phot)
+        photometer_names = common_A_B_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         mongo_input_list = filter_by_names(mongo_input_list, photometer_names)
         mongo_phot = group_by_name(mongo_input_list) # Again
@@ -226,7 +218,7 @@ def photometers(args):
         do_update_photometer(mongo_output_list, simulated=True)
     elif args.update_mac:
         tessdb_phot = group_by_name(tessdb_input_list)
-        photometer_names = common_items(mongo_phot, tessdb_phot)
+        photometer_names = common_A_B_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         mongo_input_list = filter_by_names(mongo_input_list, photometer_names)
         mongo_phot = group_by_name(mongo_input_list) # Again
@@ -236,7 +228,7 @@ def photometers(args):
         tessdb_input_list = filter_fake_zero_points(tessdb_input_list)
         log.info("filtered fake ZP, remaining %d items from TessDB", len(tessdb_input_list))
         tessdb_phot = group_by_name(tessdb_input_list)
-        photometer_names = common_items(mongo_phot, tessdb_phot)
+        photometer_names = common_A_B_items(mongo_phot, tessdb_phot)
         log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
         mongo_input_list = filter_by_names(mongo_input_list, photometer_names)
         mongo_phot = group_by_name(mongo_input_list) # Again
@@ -272,19 +264,19 @@ def locations_by_place(args):
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_loc = group_by_place(tessdb_input_list)
     if args.mongo:
-        locations = in_mongo_not_in_tessdb(mongo_place, tessdb_loc)
+        locations = in_A_not_in_B(mongo_place, tessdb_loc)
         log.info("%d locations (by place name) exclusive MongoDB locations",len(locations))
         flattended_mongo_places = flatten(mongo_place, locations)
         output_list = list(filter(filter_out_from_location, flattended_mongo_places))
         suffix = "_in_mongo_not_tessdb"
     if args.tess:
-        locations = in_tessdb_not_in_mongo(mongo_place, tessdb_loc)
+        locations = in_A_not_in_B(tessdb_loc, mongo_place)
         log.info("%d locations locations (by place name) exclusive TessDB locations",len(locations))
         flattened_tessdb_loc = flatten(tessdb_loc, locations)
         output_list = list(filter(filter_out_from_location, flattened_tessdb_loc))
         suffix = "_in_tessdb_not_mongo"
     if args.common:
-        locations = common_items(mongo_place, tessdb_loc)
+        locations = common_A_B_items(mongo_place, tessdb_loc)
         log.info("%d locations locations (by place name) in common between MongoDB and TessDB",len(locations))
         for location in locations:
             log.debug("Location %s", location)
@@ -308,19 +300,19 @@ def locations_by_coordinates(args):
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_loc = group_by_coordinates(tessdb_input_list)
     if args.mongo:
-        locations = in_mongo_not_in_tessdb(mongo_place, tessdb_loc)
+        locations = in_A_not_in_B(mongo_place, tessdb_loc)
         log.info("%d locations (by exact coordinates) exclusive MongoDB locations",len(locations))
         flattended_mongo_places = flatten(mongo_place, locations)
         output_list = list(filter(filter_out_from_location, flattended_mongo_places))
         suffix = "_in_mongo_not_tessdb"
     if args.tess:
-        locations = in_tessdb_not_in_mongo(mongo_place, tessdb_loc)
+        locations = in_A_not_in_B(tessdb_loc, mongo_place)
         log.info("%d locations (by exact coordinates) exclusive TessDB locations",len(locations))
         flattened_tessdb_loc = flatten(tessdb_loc, locations)
         output_list = list(filter(filter_out_from_location, flattened_tessdb_loc))
         suffix = "_in_tessdb_not_mongo"
     if args.common:
-        locations = common_items(mongo_place, tessdb_loc)
+        locations = common_A_B_items(mongo_place, tessdb_loc)
         log.info("%d locations (by exact coordinates) in common between MongoDB and TessDB",len(locations))
         for location in locations:
             log.debug("Location %s", location)
@@ -392,6 +384,114 @@ def coordinates(args):
                     )
     write_csv(output, X_HEADER, args.file)       
 
+### ###################### ###
+### ---------------------- ---
+### NEW REFACTORED SECTION 
+### ---------------------- ---
+### ###################### ###
+
+SQL_PHOT_NEW_LOCATIONS_TEMPLATE = 'sql-phot-new-locations.j2'
+
+def quote_for_sql(row):
+    for key in ('timezone', 'place', 'town', 'sub_region', 'region', 'country', 'org_name', 'org_email'):
+        if row.get(key) is not None:
+            row[key] = "'" + row[key].replace("'","''") + "'"
+        else:
+            row[key] = 'NULL'
+    return row
+
+def same_mac_filter(mongo_db_input_dict, tessdb_input_dict):
+    result = list()
+    names = mongo_db_input_dict.keys()
+    for name in sorted(names):
+        mongo_mac = mongo_db_input_dict[name][0]['mac']
+        tessdb_mac = tessdb_input_dict[name][0]['mac']
+        if mongo_mac  != tessdb_mac:
+            log.info("Excluding photometer %s with different MACs: MongoDB (%s), TESSDB (%s)", name, mongo_mac, tessdb_mac)
+        else:
+            result.append(name)
+    return result
+
+def _common_location_unknown(connection, mongo_input_list):
+    mongo_phot_dict = group_by_name(mongo_input_list)
+    tessdb_input_list = photometers_with_unknown_current_location(connection)
+    tessdb_phot_dict = group_by_name(tessdb_input_list)
+    log.info("Read %d items from TessDB", len(tessdb_phot_dict))
+    photometer_names = common_A_B_items(mongo_phot_dict, tessdb_phot_dict)
+    log.info("Found %d common location entries", len(photometer_names))
+    mongo_phot_dict  = {name: mongo_phot_dict[name] for name in photometer_names}
+    tessdb_phot = {name: tessdb_phot_dict[name] for name in photometer_names}
+    return mongo_phot_dict, tessdb_phot_dict
+
+def _update_tessdb_location_with_mongodb(tessdb_phot_dict, mongo_phot_dict):
+    for name, values in tessdb_phot_dict.items():
+        N = len(values)
+        if N > 1:
+            log.info("Updating %d copies of %s", N, name)
+        for i in range(len(values)):
+            for field in ('longitude', 'latitude', 'place', 'town', 'sub_region', 'region', 'country', 'timezone', 'org_name', 'org_email'):
+                values[i][field] = mongo_phot_dict[name][0][field]
+    
+def location_check_unknown(connection, mongo_input_list): 
+    mongo_phot_dict, tessdb_phot_dict = _common_location_unknown(connection, mongo_input_list)
+    log.info("Must update %s", " ".join(sorted(mongo_phot.keys())))
+
+
+def location_generate_unknown(connection, mongo_input_list, output_dir):
+    mongo_phot_dict, tessdb_phot_dict = _common_location_unknown(connection, mongo_input_list)
+    common_names = same_mac_filter(mongo_phot_dict, tessdb_phot_dict)
+    log.info("Reduced list of only %d names after MAC exclusion", len(common_names))
+    mongo_phot_dict = {key: mongo_phot_dict[key] for key in common_names }
+    tessdb_phot_dict = {key: tessdb_phot_dict[key] for key in common_names }
+    _update_tessdb_location_with_mongodb(tessdb_phot_dict, mongo_phot_dict)
+    tessdb_phot_list = filter_and_flatten(tessdb_phot_dict)
+    tessdb_phot_list = list(map(quote_for_sql,tessdb_phot_list))
+    for i, phot in enumerate(tessdb_phot_list, start=1):
+        context = dict()
+        context['row'] = phot
+        context['i'] = i
+        name = phot['name']
+        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
+        output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_unknown.sql")
+        with open(output_path, "w") as sqlfile:
+            sqlfile.write(output)
+
+
+    # photometers_with_new_locations = list(map(quote_for_sql, new_photometer_location(mongo_db_input_dict, tessdb_input_dict)))
+    # for i, phot in enumerate(new_photometer_location(mongo_db_input_dict, tessdb_input_dict), 1):
+    #     context = dict()
+    #     context['row'] = phot
+    #     context['i'] = i
+    #     name = phot['name']
+    #     output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
+    #     output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_unknown.sql")
+    #     with open(output_path, "w") as sqlfile:
+    #         sqlfile.write(output)
+
+def location_check(args):
+    log.info(" ====================== PERFORM CROSS DB LOCATION CHECKS ======================")
+    connection, path = open_database(None, 'TESSDB_URL')
+    url = get_mongo_api_url()
+    mongo_input_list = mongo_get_location_info(url)
+    log.info("Read %d items from MongoDB", len(mongo_input_list))
+    if args.unknown:
+        location_check_unknown(connection, mongo_input_list)
+
+
+def location_generate(args):
+    log.info(" ====================== PERFORM CROSS DB SQL LOCATION GENERATION ======================")
+    connection, path = open_database(None, 'TESSDB_URL')
+    url = get_mongo_api_url()
+    mongo_input_list = mongo_get_all_info(url) # W need the MAC address for safety reasons
+    log.info("Read %d items from MongoDB", len(mongo_input_list))
+    if args.unknown:
+        location_generate_unknown(connection, mongo_input_list, args.directory)
+    
+
+def photometer_generate(args):
+    pass
+
+
 
 def add_args(parser):
 
@@ -399,59 +499,53 @@ def add_args(parser):
     # Create second level parsers for 'crossdb'
     # -----------------------------------------
 
-    subparser = parser.add_subparsers(dest='command')
-    
-    xdbloc = subparser.add_parser('locations',  help="Cross DB locations metadata check")
-    grp = xdbloc.add_mutually_exclusive_group(required=True)
-    grp.add_argument('-o', '--output-prefix', type=str,  help='CSV Output file prefix for the different files to generate')
-    grp.add_argument('-q', '--sql-directory', type=vdir,  help='Directory where to write SQL files for TESSDB')
-    grp = xdbloc.add_mutually_exclusive_group(required=True)
-    grp.add_argument('-p', '--place', action='store_true', help='By place name')
-    grp.add_argument('-r', '--coords', action='store_true',  help='By coordinates')
-    grp = xdbloc.add_mutually_exclusive_group(required=True)
-    grp.add_argument('-m', '--mongo', action='store_true', help='MongoDB exclusive locations')
-    grp.add_argument('-t', '--tess', action='store_true',  help='TessDB exclusive locations')
-    grp.add_argument('-c', '--common', action='store_true',  help='Common locations')
+    cmd_subparser = parser.add_subparsers(dest='command')
+    parser_location = cmd_subparser.add_parser('location', help='location commands')
+    parser_photometer = cmd_subparser.add_parser('photometer', help='photometer commands')
 
-    xdbphot = subparser.add_parser('photometers',  help="Cross DB photometers metadata operations")
-    xdbphot.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
-    grp = xdbphot.add_mutually_exclusive_group(required=True)
-    grp.add_argument('-s', '--sim-update-mac', action='store_true', help='Simulated update Mongo DB MAC with TESS-DB MAC value')
-    grp.add_argument('-m', '--update-mac', action='store_true',  help='Update Mongo DB MAC with TESS-DB MAC value')
-    grp.add_argument('-x', '--sim-update-zp', action='store_true', help='Simulated update Mongo DB ZP with TESS-DB ZP value')
-    grp.add_argument('-z', '--update-zp', action='store_true',  help='Update Mongo DB ZP with TESS-DB ZP value')
+    # --------------------
+    # Location subcommands
+    # --------------------
 
-    xdbcoord = subparser.add_parser('coordinates',  help="Cross DB photometers metadata check")
-    xdbcoord.add_argument('-f', '--file', type=str, required=True, help='CSV file to generate differences')
-    xdbcoord.add_argument('--lower', type=float, default=0.0, help='Lower limit in meters')
-    xdbcoord.add_argument('--upper', type=float, default=1000.0, help='Upper limit in meters')
+    subparser = parser_location.add_subparsers(dest='subcommand')
+    check = subparser.add_parser('check',  help="Cross DB locations metadata check")
+    grp = check.add_mutually_exclusive_group(required=True)
+    grp.add_argument('-u', '--unknown',  action='store_true',  help='Unknown TessDB locations vs known MongoDB locations')
 
-    mgphck = subparser.add_parser('check',  help="Various MongoDB metadata checks")
-    mgex1 = mgphck.add_mutually_exclusive_group(required=True)
-    mgex1.add_argument('-m', '--mac', action='store_true', help="Check for common photometer's MACs")
-    mgex1.add_argument('-z', '--zero-point', action='store_true', help="Check for common photometer's Zero Points")
-    mgex1.add_argument('-u', '--unknown', action='store_true', help="Photometer with unknown current location in TESSDB but with location in MongoDB")
+    gene = subparser.add_parser('generate',  help="Cross DB SQL patch generation")
+    gene.add_argument('-d', '--directory', type=vdir, required=True, help='Directory to place output SQL files')
+    grp = gene.add_mutually_exclusive_group(required=True)
+    grp.add_argument('-u', '--unknown', action='store_true', help='Update Unknown TessDB locations')
+    grp.add_argument('-s', '--single', action='store_true',  help='Update "easy" photometers with new location')
+    grp.add_argument('-rp', '--repaired', action='store_true',  help='Update "repaired" photometers with new location')
+    grp.add_argument('-rn', '--renamed', action='store_true',  help='Update "renamed" photometers with new location')
+
+    # ---------------------
+    # Photometer subcommands
+    # ----------------------
+
+    subparser = parser_photometer.add_subparsers(dest='subcommand')
+
+    check = subparser.add_parser('check',  help="Cross DB photometer metadata check")
+    grp = check.add_mutually_exclusive_group(required=True)
+    grp.add_argument('-m', '--mac', action='store_true', help="Check for common photometer's MACs")
+    grp.add_argument('-z', '--zero-point', action='store_true', help="Check for common photometer's Zero Points")
+
 
 # ================
 # MAIN ENTRY POINT
 # ================
 
-ENTRY_POINT = {
-    'locations': locations,
-    'photometers': photometers,
-    'coordinates': coordinates,
-    'check': check,
-}
 def cross_db(args):
-    func = ENTRY_POINT[args.command]
-    func(args)
+    func = args.command + '_' + args.subcommand
+    globals()[func](args)
 
 def main():
     execute(main_func=cross_db, 
         add_args_func=add_args, 
         name=__name__, 
         version=__version__,
-        description="STARS4ALL MongoDB Utilities"
+        description="STARS4ALL Cross TESSDB-MongoDB Utilities"
     )
 
        
