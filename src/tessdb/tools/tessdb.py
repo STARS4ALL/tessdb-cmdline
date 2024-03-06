@@ -53,6 +53,48 @@ log = logging.getLogger(__name__)
 
 render = functools.partial(render_from, 'tessutils')
 
+
+def is_easy_photometer(connection, name=None, mac=None):
+    assert name is not None or mac is not None, f"either name={name} or mac={mac} is None"
+    cursor = connection.cursor()
+    cursor.execute('''
+        SELECT DISTINCT name, mac_address  FROM name_to_mac_t
+        EXCEPT
+        SELECT name, mac_address  FROM name_to_mac_t
+        WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
+        EXCEPT
+        SELECT name, mac_address FROM name_to_mac_t
+        WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
+    ''')
+    result = cursor.fetchall()
+    names = tuple(item[0] for item in result)
+    mac_addresses = tuple(item[1] for item in result)
+    return name in names if name is not None else mac in mac_addresses
+
+
+def is_repaired_photometer(connection, name):
+    cursor = connection.cursor()
+    cursor.execute('''
+        SELECT DISTINCT name FROM name_to_mac_t
+        WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
+    ''')
+    result = cursor.fetchall()
+    names = tuple(item[0] for item in result)
+    return name in names 
+
+
+def is_renamed_photometer(connection, mac):
+    cursor = connection.cursor()
+    cursor.execute('''
+        SELECT name, mac_address FROM name_to_mac_t
+        WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
+        ORDER BY mac_address;
+    ''')
+    result = cursor.fetchall()
+    names = tuple(item[0] for item in result)
+    mac_addresses = tuple(item[1] for item in result)
+
+
 def _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, threshold):
     param = {'threshold': threshold}
     cursor = connection.cursor()
