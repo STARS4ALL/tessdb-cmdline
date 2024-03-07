@@ -73,9 +73,7 @@ def photometer_history(connection, name=None, mac=None):
         ''', params)
     history = cursor.fetchall()
     contiguous = all(history[i][3] == history[i+1][2] for i in range(len(history)-1))
-    truncated = history[-1][3] != '2999-12-31 23:59:59+00:00' 
-    if not truncated:
-        assert  history[-1][4] == 'Current'
+    truncated = history[-1][4] == 'Expired'
     return history, contiguous, truncated
 
 
