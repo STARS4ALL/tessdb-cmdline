@@ -434,7 +434,7 @@ def _update_tessdb_location_with_mongodb(tessdb_phot_dict, mongo_phot_dict):
     
 def location_check_unknown(connection, mongo_input_list): 
     mongo_phot_dict, tessdb_phot_dict = _common_location_unknown(connection, mongo_input_list)
-    log.info("Must update %s", " ".join(sorted(mongo_phot.keys())))
+    log.info("Must update %s", " ".join(sorted(mongo_phot_dict.keys())))
 
 
 def location_generate_unknown(connection, mongo_input_list, output_dir):
@@ -455,18 +455,6 @@ def location_generate_unknown(connection, mongo_input_list, output_dir):
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_unknown.sql")
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
-
-
-    # photometers_with_new_locations = list(map(quote_for_sql, new_photometer_location(mongo_db_input_dict, tessdb_input_dict)))
-    # for i, phot in enumerate(new_photometer_location(mongo_db_input_dict, tessdb_input_dict), 1):
-    #     context = dict()
-    #     context['row'] = phot
-    #     context['i'] = i
-    #     name = phot['name']
-    #     output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
-    #     output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_unknown.sql")
-    #     with open(output_path, "w") as sqlfile:
-    #         sqlfile.write(output)
 
 def location_check(args):
     log.info(" ====================== PERFORM CROSS DB LOCATION CHECKS ======================")

@@ -20,7 +20,7 @@ import functools
 # -------------------
 
 from lica.cli import execute
-from lica.validators import vfile, vdir
+from lica.validators import vfile, vdir, vmac
 from lica.jinja2 import render_from
 from lica.sqlite import open_database
 from lica.csv import write_csv
@@ -53,46 +53,30 @@ log = logging.getLogger(__name__)
 
 render = functools.partial(render_from, 'tessutils')
 
-
-def is_easy_photometer(connection, name=None, mac=None):
+def photometer_history(connection, name=None, mac=None):
     assert name is not None or mac is not None, f"either name={name} or mac={mac} is None"
+    params = {'name': name, 'mac': mac}
     cursor = connection.cursor()
-    cursor.execute('''
-        SELECT DISTINCT name, mac_address  FROM name_to_mac_t
-        EXCEPT
-        SELECT name, mac_address  FROM name_to_mac_t
-        WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
-        EXCEPT
-        SELECT name, mac_address FROM name_to_mac_t
-        WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
-    ''')
-    result = cursor.fetchall()
-    names = tuple(item[0] for item in result)
-    mac_addresses = tuple(item[1] for item in result)
-    return name in names if name is not None else mac in mac_addresses
-
-
-def is_repaired_photometer(connection, name):
-    cursor = connection.cursor()
-    cursor.execute('''
-        SELECT DISTINCT name FROM name_to_mac_t
-        WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
-    ''')
-    result = cursor.fetchall()
-    names = tuple(item[0] for item in result)
-    return name in names 
-
-
-def is_renamed_photometer(connection, mac):
-    cursor = connection.cursor()
-    cursor.execute('''
-        SELECT name, mac_address FROM name_to_mac_t
-        WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
-        ORDER BY mac_address;
-    ''')
-    result = cursor.fetchall()
-    names = tuple(item[0] for item in result)
-    mac_addresses = tuple(item[1] for item in result)
+    if name is not None:
+        cursor.execute('''
+            SELECT name, mac_address, valid_since, valid_until, valid_state
+            FROM name_to_mac_t
+            WHERE name = :name
+            ORDER BY valid_since
+        ''', params)
+    else:
+        cursor.execute('''
+            SELECT mac_address, name, valid_since, valid_until, valid_state
+            FROM name_to_mac_t
+            WHERE mac_address = :mac
+            ORDER BY valid_since
+        ''', params)
+    history = cursor.fetchall()
+    contiguous = all(history[i][3] == history[i+1][2] for i in range(len(history)-1))
+    truncated = history[-1][3] != '2999-12-31 23:59:59+00:00' 
+    if not truncated:
+        assert  history[-1][4] == 'Current'
+    return history, contiguous, truncated
 
 
 def _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, threshold):
@@ -614,6 +598,23 @@ def photometers(args):
         raise ValueError("Unkown option")
     write_csv(args.output_file, HEADER, output)
 
+def history(args):
+    connection, path = open_database(None, 'TESSDB_URL')
+    name = args.name ; mac = args.mac
+    history, contiguous, truncated = photometer_history(connection, name=name, mac=mac)
+    for item in history:
+        log.info(item)
+    log.info("(%s, %s) history behaviour: Orderly changes = %s, Truncated changes = %s", name, mac, contiguous, truncated)
+    if len(history) == 1 and contiguous and not truncated:
+        log.info("(%s, %s) is an 'easy' photometer", name, mac)
+    elif len(history) > 1 and mac is None and contiguous and not truncated:
+        log.info("(%s, %s) is a well behaved repaired/substituted photometer", name, mac)
+    elif len(history) > 1 and name is None and contiguous and not truncated:
+        log.info("(%s, %s) is a well behaved renamed photometer", name, mac)
+    else:
+        log.info("(%s, %s) has a complicated history with renamings and substituion or lost changes", name, mac)
+
+
 def add_args(parser):
 
     subparser = parser.add_subparsers(dest='command')
@@ -650,6 +651,13 @@ def add_args(parser):
     tdex1.add_argument('-lr', '--location-readings', action='store_true',  help='Output SQL directory')
     tdfix.add_argument('-d', '--directory', type=vdir, required=True, help='Directory to place output SQL files')
 
+    tdis = subparser.add_parser('history',  help="Single TESSDB photometer history")
+    grp = tdis.add_mutually_exclusive_group(required=True)
+    grp.add_argument('-n', '--name', type=str, help='Photometer name')
+    grp.add_argument('-m', '--mac', type=vmac, help='Photometer MAC Address')
+  
+    
+
 # ================
 # MAIN ENTRY POINT
 # ================
@@ -659,6 +667,7 @@ ENTRY_POINT = {
     'photometer': photometers,
     'fix': fix,
     'check': check,
+    'history': history,
 }
 
 def tessdb_db(args):
