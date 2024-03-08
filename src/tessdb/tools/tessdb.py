@@ -662,25 +662,30 @@ def history(args):
     uncertain_history2, next_history = photometer_next_related_history(connection, end_tstamp)
 
     if prev_history and uncertain_history1:
-        log.info("-------- UNCERTAIN PREVIOUS RELATED HISTORY --------")
-        for item in prev_history: log.info(item)
+        tag = "UNCERTAIN"
     elif prev_history:
-        log.info("----------------------------------------- PREVIOUS RELATED HISTORY ------------------------------------")
-        for item in prev_history: log.info(item)
+        tag = ""
     else:
-        log.info("----------------------------------------- NO PREVIOUS RELATED HISTORY ---------------------------------")
-    log.info("----------------------------------------- HISTORY BEGINS ----------------------------------------------")
+        tag = "NO"
+    log.info("----------------------------------------- %s PREVIOUS RELATED HISTORY ---------------------------------", tag)
+    for item in prev_history: log.info(item)
+    
+    if contiguous:
+        tag = "MONOTONIC"
+    else:
+        tag = "NON MONOTONIC"
+    log.info("----------------------------------------- %s HISTORY BEGINS ----------------------------------------------", tag)
     for item in history: log.info(item)
-    log.info("----------------------------------------- HISTORY ENDS   ----------------------------------------------")
+    log.info("----------------------------------------- %s HISTORY ENDS   ----------------------------------------------", tag)
     
     if next_history and uncertain_history2:
-        log.info("-------- UNCERTAIN NEXT RELATED HISTORY --------")
-        for item in next_history: log.info(item)
+        tag = "UNCERTAIN"
     elif next_history:
-        log.info("----------------------------------------- NEXT RELATED HISTORY ------------------------------------")
-        for item in next_history: log.info(item)
+        tag = ""
     else:
-        log.info("----------------------------------------- NO NEXT RELATED HISTORY -------------------------------------")
+        tag = "NO"
+    log.info("----------------------------------------- %s NEXT RELATED HISTORY ------------------------------------", tag)
+    for item in next_history: log.info(item)
 
 
 def add_args(parser):
