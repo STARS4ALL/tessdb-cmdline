@@ -53,6 +53,61 @@ log = logging.getLogger(__name__)
 
 render = functools.partial(render_from, 'tessutils')
 
+def photometer_previous_related_history(connection, start_tstamp):
+    cursor = connection.cursor()
+    history = list()
+    uncertain_history = False
+    params = {'tstamp': start_tstamp}
+    while True:
+        cursor.execute('''
+            SELECT name, mac_address, valid_since, valid_until, valid_state
+            FROM name_to_mac_t
+            WHERE valid_until = :tstamp
+            ORDER BY valid_since
+        ''', params)
+        fragment = cursor.fetchall()
+        L = len(fragment)
+        if L == 0:
+            break
+        elif L > 1:
+            uncertain_history = True
+            history.extend(fragment)
+            break
+        else:
+            history.extend(fragment)
+            tstamp =  fragment[0][2]
+            params = {'tstamp': tstamp} 
+    history.reverse()
+    return uncertain_history, history
+
+
+def photometer_next_related_history(connection, end_tstamp):
+    cursor = connection.cursor()
+    history = list()
+    uncertain_history = False
+    params = {'tstamp': end_tstamp}
+    while True:
+        cursor.execute('''
+            SELECT name, mac_address, valid_since, valid_until, valid_state
+            FROM name_to_mac_t
+            WHERE valid_since = :tstamp
+            ORDER BY valid_since
+        ''', params)
+        fragment = cursor.fetchall()
+        L = len(fragment)
+        if L == 0:
+            break
+        elif L > 1:
+            uncertain_history = True
+            history.extend(fragment)
+            break
+        else:
+            history.extend(fragment)
+            tstamp =  fragment[0][3]
+            params = {'tstamp': tstamp} 
+    return uncertain_history, history
+      
+
 def photometer_history(connection, name=None, mac=None):
     assert name is not None or mac is not None, f"either name={name} or mac={mac} is None"
     params = {'name': name, 'mac': mac}
@@ -74,6 +129,7 @@ def photometer_history(connection, name=None, mac=None):
     history = cursor.fetchall()
     contiguous = all(history[i][3] == history[i+1][2] for i in range(len(history)-1))
     truncated = history[-1][4] == 'Expired'
+
     return history, contiguous, truncated
 
 
@@ -600,17 +656,31 @@ def history(args):
     connection, path = open_database(None, 'TESSDB_URL')
     name = args.name ; mac = args.mac
     history, contiguous, truncated = photometer_history(connection, name=name, mac=mac)
-    for item in history:
-        log.info(item)
-    log.info("(%s, %s) history behaviour: Orderly changes = %s, Truncated changes = %s", name, mac, contiguous, truncated)
-    if len(history) == 1 and contiguous and not truncated:
-        log.info("(%s, %s) is an 'easy' photometer", name, mac)
-    elif len(history) > 1 and mac is None and contiguous and not truncated:
-        log.info("(%s, %s) is a well behaved repaired/substituted photometer", name, mac)
-    elif len(history) > 1 and name is None and contiguous and not truncated:
-        log.info("(%s, %s) is a well behaved renamed photometer", name, mac)
+    start_tstamp = history[0][2]
+    end_tstamp = history[-1][3]
+    uncertain_history1, prev_history = photometer_previous_related_history(connection, start_tstamp)
+    uncertain_history2, next_history = photometer_next_related_history(connection, end_tstamp)
+
+    if prev_history and uncertain_history1:
+        log.info("-------- UNCERTAIN PREVIOUS RELATED HISTORY --------")
+        for item in prev_history: log.info(item)
+    elif prev_history:
+        log.info("----------------------------------------- PREVIOUS RELATED HISTORY ------------------------------------")
+        for item in prev_history: log.info(item)
     else:
-        log.info("(%s, %s) has a complicated history with renamings and substituion or lost changes", name, mac)
+        log.info("----------------------------------------- NO PREVIOUS RELATED HISTORY ---------------------------------")
+    log.info("----------------------------------------- HISTORY BEGINS ----------------------------------------------")
+    for item in history: log.info(item)
+    log.info("----------------------------------------- HISTORY ENDS   ----------------------------------------------")
+    
+    if next_history and uncertain_history2:
+        log.info("-------- UNCERTAIN NEXT RELATED HISTORY --------")
+        for item in next_history: log.info(item)
+    elif next_history:
+        log.info("----------------------------------------- NEXT RELATED HISTORY ------------------------------------")
+        for item in next_history: log.info(item)
+    else:
+        log.info("----------------------------------------- NO NEXT RELATED HISTORY -------------------------------------")
 
 
 def add_args(parser):
