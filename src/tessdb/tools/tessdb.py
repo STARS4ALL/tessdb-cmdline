@@ -681,9 +681,9 @@ def history(args):
     for item in prev_history: log.info(item)
     
     if len(break_tstamps) == 0:
-        tag = "MONOTONIC"
+        tag = "CONTIGUOUS"
     else:
-        tag = "NON MONOTONIC"
+        tag = "NON CONTIGUOUS"
     log.info("----------------------------------------- %s HISTORY BEGINS ----------------------------------------------", tag)
     for item in history: log.info(item)
     log.info("----------------------------------------- %s HISTORY ENDS   ----------------------------------------------", tag)
