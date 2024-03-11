@@ -133,13 +133,15 @@ def photometer_history(connection, name=None, mac=None):
             ORDER BY valid_since
         ''', params)
     history = [list(item) for item in cursor.fetchall()]
-    break_tstamps = list()
+    break_end_tstamps = list()
+    break_start_tstamps = list()
     for i in range(len(history)-1):
         if history[i][3] != history[i+1][2]:
             history[i][4] = '-'
-            break_tstamps.append(history[i][3])
+            break_end_tstamps.append(history[i][3])
+            break_start_tstamps.append(history[i+1][2])
     truncated = history[-1][5] == 'Expired'
-    return history, break_tstamps, truncated
+    return history, break_end_tstamps, break_start_tstamps, truncated
 
 
 def _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, threshold):
@@ -663,8 +665,9 @@ def photometers(args):
 
 def history(args):
     connection, path = open_database(None, 'TESSDB_URL')
-    name = args.name ; mac = args.mac
-    history, break_tstamps, truncated = photometer_history(connection, name=name, mac=mac)
+    name = args.name ; 
+    mac = args.mac
+    history, break_end_tstamps, break_start_tstamps, truncated = photometer_history(connection, name=name, mac=mac)
     start_tstamp = history[0][2]
     end_tstamp = history[-1][3]
 
@@ -677,16 +680,16 @@ def history(args):
         tag = ""
     else:
         tag = "NO"
-    log.info("----------------------------------------- %s PREVIOUS RELATED HISTORY ---------------------------------", tag)
+    log.info("------------------------------- %s PREVIOUS RELATED HISTORY " + "-"*75, tag)
     for item in prev_history: log.info(item)
     
-    if len(break_tstamps) == 0:
+    if len(break_end_tstamps) == 0:
         tag = "CONTIGUOUS"
     else:
         tag = "NON CONTIGUOUS"
-    log.info("----------------------------------------- %s HISTORY BEGINS ----------------------------------------------", tag)
+    log.info("=============================== %s %9s HISTORY BEGINS " + "="*63, tag, name)
     for item in history: log.info(item)
-    log.info("----------------------------------------- %s HISTORY ENDS   ----------------------------------------------", tag)
+    log.info("=============================== %s %9s HISTORY ENDS   " + "="*63, tag, name)
 
 
     
@@ -696,13 +699,18 @@ def history(args):
         tag = ""
     else:
         tag = "NO"
-    log.info("----------------------------------------- %s NEXT RELATED HISTORY ------------------------------------", tag)
+    log.info("------------------------------- %s NEXT RELATED HISTORY " + "-"*79, tag)
     for item in next_history: log.info(item)
 
-    for break_tstamp in break_tstamps:
-        log.info("------------------------------ %s BROKEN RELATED HISTORY ------------------------------------", break_tstamp)
+    for break_tstamp in break_end_tstamps:
+        log.info("------------------------------- %s BROKEN END TIMESTAMP RELATED HISTORY " + "-"*40, break_tstamp)
         uncertain_history, middle_history = photometer_next_related_history(connection, break_tstamp)
         for item in middle_history: log.info(item)
+    for break_tstamp in break_start_tstamps:
+        log.info("------------------------------- %s BROKEN START TIMESTAMP RELATED HISTORY " + "-"*38, break_tstamp)
+        uncertain_history, middle_history = photometer_next_related_history(connection, break_tstamp)
+        for item in middle_history: log.info(item)
+
 
 
 def add_args(parser):
