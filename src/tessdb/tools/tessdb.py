@@ -522,21 +522,30 @@ def photometers(args):
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
     connection, path = open_database(None, 'TESSDB_URL')
     log.info("connecting to SQLite database %s", path)
+    to_console = args.output_file is None
     if args.repaired:
         output = photometers_repaired(connection)
-        log.info("Getting %d photometers repaired entries", len(output))
+        if to_console: 
+            for item in output: log.info(item)
+        log.info("Got %d photometers repaired entries", len(output))
         HEADER = ('name','mac','valid_since','valid_until','valid_state')
     elif args.renamed:
         output = photometers_renamed(connection)
-        log.info("Getting %d photometers renamed entries", len(output))
+        if to_console: 
+            for item in output: log.info(item)
+        log.info("Got %d photometers renamed entries", len(output))
         HEADER = ('mac','name','valid_since','valid_until','valid_state')
     elif args.easy:
         output = photometers_easy(connection)
-        log.info("Getting %d photometers not repaired nor renamed entries", len(output))
+        if to_console: 
+            for item in output: log.info(item)
+        log.info("Got %d 'easy' photometers (not repaired, nor renamed entries)", len(output))
         HEADER = ('name','mac','valid_since','valid_until','valid_state')
     else:
         raise ValueError("Unkown option")
-    write_csv(args.output_file, HEADER, output)
+    if args.output_file:
+        write_csv(args.output_file, HEADER, output)
+
 
 def photometers_repaired(connection):
     cursor = connection.cursor()
@@ -757,14 +766,6 @@ def add_args(parser):
     tdloc.add_argument('-d', '--dbase', type=vfile, required=True, help='TessDB database file path')
     tdloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
-    tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata check")
-    tdphot.add_argument('-o', '--output-file', type=str, required=True, help='Output file prefix for the different files to generate')
-    tdex0 = tdphot.add_mutually_exclusive_group(required=True)
-    tdex0.add_argument('-rn', '--renamed', action='store_true', help='List renamed photometers to CSV')
-    tdex0.add_argument('-rp', '--repaired', action='store_true',  help='List repaired photometers to CSV')
-    tdex0.add_argument('-ea', '--easy', action='store_true',  help='List not repaired or renamed photometers to CSV')
- 
-
     tdcheck = subparser.add_parser('check',  help="Various TESSDB metadata checks")
     tdex1 = tdcheck.add_mutually_exclusive_group(required=True)
     tdex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
@@ -784,6 +785,13 @@ def add_args(parser):
     tdex1.add_argument('-m', '--macs', action='store_true', help='generate SQL to fix bad formatted MACS in tess_t')
     tdex1.add_argument('-lr', '--location-readings', action='store_true',  help='Output SQL directory')
     tdfix.add_argument('-d', '--directory', type=vdir, required=True, help='Directory to place output SQL files')
+
+    tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata check")
+    tdphot.add_argument('-o', '--output-file', type=str,  help='Optional output file prefix for the different files to generate')
+    tdex0 = tdphot.add_mutually_exclusive_group(required=True)
+    tdex0.add_argument('-rn', '--renamed', action='store_true', help='List renamed photometers to CSV')
+    tdex0.add_argument('-rp', '--repaired', action='store_true',  help='List repaired photometers to CSV')
+    tdex0.add_argument('-ea', '--easy', action='store_true',  help='List not repaired or renamed photometers to CSV')
 
     tdis = subparser.add_parser('history',  help="Single TESSDB photometer history")
     grp = tdis.add_mutually_exclusive_group(required=True)
