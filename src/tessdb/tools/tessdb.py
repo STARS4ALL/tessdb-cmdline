@@ -57,18 +57,65 @@ log = logging.getLogger(__name__)
 
 render = functools.partial(render_from, 'tessutils')
 
-def photometer_previous_related_history(connection, start_tstamp):
-    cursor = connection.cursor()
-    history = list()
-    uncertain_history = False
-    params = {'tstamp': start_tstamp}
-    while True:
-        cursor.execute('''
-            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, timediff(valid_until, valid_since)
+def photometer_current_history_sql(name):
+    if name is not None:
+        sql = '''
+            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE name = :name
+            ORDER BY valid_since
+        '''
+    else:
+        sql = '''
+            SELECT mac_address, name, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE mac_address = :mac
+            ORDER BY valid_since
+        '''
+    return sql
+
+def photometer_previous_related_history_sql(name):
+    if name is not None:
+        sql = '''
+            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
             FROM name_to_mac_t
             WHERE valid_until = :tstamp
             ORDER BY valid_since
-        ''', params)
+        '''
+    else:
+        sql = '''
+            SELECT mac_address, name, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE valid_until = :tstamp
+            ORDER BY valid_since
+        '''
+    return sql
+
+def photometer_next_related_history_sql(name):
+    if name is not None:
+        sql = '''
+            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE valid_since = :tstamp
+            ORDER BY valid_since
+        '''
+    else:
+        sql = '''
+            SELECT mac_address, name, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE valid_since = :tstamp
+            ORDER BY valid_since
+        '''
+    return sql
+        
+def photometer_previous_related_history(connection, start_tstamp, name, mac):
+    cursor = connection.cursor()
+    history = list()
+    uncertain_history = False
+    params = {'tstamp': start_tstamp, 'name': name, 'mac': mac}
+    sql = photometer_previous_related_history_sql(name)
+    while True:
+        cursor.execute(sql, params)
         fragment = cursor.fetchall()
         L = len(fragment)
         if L == 0:
@@ -86,18 +133,14 @@ def photometer_previous_related_history(connection, start_tstamp):
     return uncertain_history, history
 
 
-def photometer_next_related_history(connection, end_tstamp):
+def photometer_next_related_history(connection, end_tstamp, name, mac):
     cursor = connection.cursor()
     history = list()
     uncertain_history = False
-    params = {'tstamp': end_tstamp}
+    params = {'tstamp': end_tstamp, 'name': name, 'mac': mac}
+    sql = photometer_next_related_history_sql(name)
     while True:
-        cursor.execute('''
-            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, timediff(valid_until, valid_since)
-            FROM name_to_mac_t
-            WHERE valid_since = :tstamp
-            ORDER BY valid_since
-        ''', params)
+        cursor.execute(sql, params)
         fragment = cursor.fetchall()
         L = len(fragment)
         if L == 0:
@@ -114,24 +157,12 @@ def photometer_next_related_history(connection, end_tstamp):
     return uncertain_history, history
       
 
-def photometer_history(connection, name=None, mac=None):
+def photometer_history(connection, name, mac):
     assert name is not None or mac is not None, f"either name={name} or mac={mac} is None"
     params = {'name': name, 'mac': mac}
     cursor = connection.cursor()
-    if name is not None:
-        cursor.execute('''
-            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, timediff(valid_until, valid_since)
-            FROM name_to_mac_t
-            WHERE name = :name
-            ORDER BY valid_since
-        ''', params)
-    else:
-        cursor.execute('''
-            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, timediff(valid_until, valid_since)
-            FROM name_to_mac_t
-            WHERE mac_address = :mac
-            ORDER BY valid_since
-        ''', params)
+    sql = photometer_current_history_sql(name)
+    cursor.execute(sql, params)
     history = [list(item) for item in cursor.fetchall()]
     break_end_tstamps = list()
     break_start_tstamps = list()
@@ -667,12 +698,12 @@ def history(args):
     connection, path = open_database(None, 'TESSDB_URL')
     name = args.name ; 
     mac = args.mac
-    history, break_end_tstamps, break_start_tstamps, truncated = photometer_history(connection, name=name, mac=mac)
+    history, break_end_tstamps, break_start_tstamps, truncated = photometer_history(connection, name, mac)
     start_tstamp = history[0][2]
     end_tstamp = history[-1][3]
 
-    uncertain_history1, prev_history = photometer_previous_related_history(connection, start_tstamp)
-    uncertain_history2, next_history = photometer_next_related_history(connection, end_tstamp)
+    uncertain_history1, prev_history = photometer_previous_related_history(connection, start_tstamp, name, mac)
+    uncertain_history2, next_history = photometer_next_related_history(connection, end_tstamp, name, mac)
 
     if prev_history and uncertain_history1:
         tag = "UNCERTAIN"
@@ -704,11 +735,11 @@ def history(args):
 
     for break_tstamp in break_end_tstamps:
         log.info("------------------------------- %s BROKEN END TIMESTAMP RELATED HISTORY " + "-"*40, break_tstamp)
-        uncertain_history, middle_history = photometer_next_related_history(connection, break_tstamp)
+        uncertain_history, middle_history = photometer_next_related_history(connection, break_tstamp, name, mac)
         for item in middle_history: log.info(item)
     for break_tstamp in break_start_tstamps:
         log.info("------------------------------- %s BROKEN START TIMESTAMP RELATED HISTORY " + "-"*38, break_tstamp)
-        uncertain_history, middle_history = photometer_next_related_history(connection, break_tstamp)
+        uncertain_history, middle_history = photometer_next_related_history(connection, break_tstamp, name, mac)
         for item in middle_history: log.info(item)
 
 
