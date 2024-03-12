@@ -57,122 +57,7 @@ log = logging.getLogger(__name__)
 
 render = functools.partial(render_from, 'tessutils')
 
-def photometer_current_history_sql(name):
-    if name is not None:
-        sql = '''
-            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
-            FROM name_to_mac_t
-            WHERE name = :name
-            ORDER BY valid_since
-        '''
-    else:
-        sql = '''
-            SELECT mac_address, name, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
-            FROM name_to_mac_t
-            WHERE mac_address = :mac
-            ORDER BY valid_since
-        '''
-    return sql
 
-def photometer_previous_related_history_sql(name):
-    if name is not None:
-        sql = '''
-            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
-            FROM name_to_mac_t
-            WHERE valid_until = :tstamp
-            ORDER BY valid_since
-        '''
-    else:
-        sql = '''
-            SELECT mac_address, name, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
-            FROM name_to_mac_t
-            WHERE valid_until = :tstamp
-            ORDER BY valid_since
-        '''
-    return sql
-
-def photometer_next_related_history_sql(name):
-    if name is not None:
-        sql = '''
-            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
-            FROM name_to_mac_t
-            WHERE valid_since = :tstamp
-            ORDER BY valid_since
-        '''
-    else:
-        sql = '''
-            SELECT mac_address, name, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
-            FROM name_to_mac_t
-            WHERE valid_since = :tstamp
-            ORDER BY valid_since
-        '''
-    return sql
-        
-def photometer_previous_related_history(connection, start_tstamp, name, mac):
-    cursor = connection.cursor()
-    history = list()
-    uncertain_history = False
-    params = {'tstamp': start_tstamp, 'name': name, 'mac': mac}
-    sql = photometer_previous_related_history_sql(name)
-    while True:
-        cursor.execute(sql, params)
-        fragment = cursor.fetchall()
-        L = len(fragment)
-        if L == 0:
-            break
-        elif L > 1:
-            uncertain_history = True
-            history.extend(fragment)
-            break
-        else:
-            history.extend(fragment)
-            tstamp =  fragment[0][2]
-            params = {'tstamp': tstamp} 
-    history.reverse()
-    history = [list(item) for item in history]
-    return uncertain_history, history
-
-
-def photometer_next_related_history(connection, end_tstamp, name, mac):
-    cursor = connection.cursor()
-    history = list()
-    uncertain_history = False
-    params = {'tstamp': end_tstamp, 'name': name, 'mac': mac}
-    sql = photometer_next_related_history_sql(name)
-    while True:
-        cursor.execute(sql, params)
-        fragment = cursor.fetchall()
-        L = len(fragment)
-        if L == 0:
-            break
-        elif L > 1:
-            uncertain_history = True
-            history.extend(fragment)
-            break
-        else:
-            history.extend(fragment)
-            tstamp =  fragment[0][3]
-            params = {'tstamp': tstamp}
-    history = [list(item) for item in history]
-    return uncertain_history, history
-      
-
-def photometer_history(connection, name, mac):
-    assert name is not None or mac is not None, f"either name={name} or mac={mac} is None"
-    params = {'name': name, 'mac': mac}
-    cursor = connection.cursor()
-    sql = photometer_current_history_sql(name)
-    cursor.execute(sql, params)
-    history = [list(item) for item in cursor.fetchall()]
-    break_end_tstamps = list()
-    break_start_tstamps = list()
-    for i in range(len(history)-1):
-        if history[i][3] != history[i+1][2]:
-            history[i][4] = '-'
-            break_end_tstamps.append(history[i][3])
-            break_start_tstamps.append(history[i+1][2])
-    truncated = history[-1][5] == 'Expired'
-    return history, break_end_tstamps, break_start_tstamps, truncated
 
 
 def _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, threshold):
@@ -260,50 +145,6 @@ def _photometers_from_tessdb(connection):
         ''')
     return cursor
 
-def photometers_repaired(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT name, mac_address, valid_since, valid_until, valid_state 
-        FROM name_to_mac_t 
-        WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
-        ORDER BY name, valid_since
-    ''')
-    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
-    return result
-
-def photometers_renamed(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT name, mac_address, valid_since, valid_until, valid_state 
-        FROM name_to_mac_t 
-        WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
-        ORDER BY mac_address, valid_since
-    ''')
-    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
-    return result
-
-def photometers_easy(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT name, mac_address, valid_since, valid_until, valid_state
-        FROM name_to_mac_t
-        WHERE mac_address IN (
-            -- Photometers with no repairs and no renamings
-            SELECT mac_address  FROM name_to_mac_t
-            WHERE name LIKE 'stars%'
-            EXCEPT -- this is the photometer substitution/repair part
-            SELECT mac_address FROM name_to_mac_t
-            WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
-            EXCEPT -- This is the renamings part
-            SELECT mac_address FROM name_to_mac_t
-            WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1))
-        ORDER BY name, valid_since
-    ''')
-    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
-    return result
 
 def tess_id_from_mac(connection, mac_address):
     params = {'mac_address': mac_address}
@@ -672,7 +513,10 @@ def locations(args):
     log.info("read %d items from TessDB", len(tessdb_input_list))
     tessdb_loc  = group_by_place(tessdb_input_list)
     log_places(tessdb_loc)
-  
+
+# ===============================
+# PHOTOMETER 'photometer' COMMAND
+# ===============================
 
 def photometers(args):
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
@@ -694,6 +538,172 @@ def photometers(args):
         raise ValueError("Unkown option")
     write_csv(args.output_file, HEADER, output)
 
+def photometers_repaired(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT name, mac_address, valid_since, valid_until, valid_state 
+        FROM name_to_mac_t 
+        WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
+        ORDER BY name, valid_since
+    ''')
+    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
+    return result
+
+def photometers_renamed(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT name, mac_address, valid_since, valid_until, valid_state 
+        FROM name_to_mac_t 
+        WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
+        ORDER BY mac_address, valid_since
+    ''')
+    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
+    return result
+
+def photometers_easy(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT name, mac_address, valid_since, valid_until, valid_state
+        FROM name_to_mac_t
+        WHERE mac_address IN (
+            -- Photometers with no repairs and no renamings
+            SELECT mac_address  FROM name_to_mac_t
+            WHERE name LIKE 'stars%'
+            EXCEPT -- this is the photometer substitution/repair part
+            SELECT mac_address FROM name_to_mac_t
+            WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
+            EXCEPT -- This is the renamings part
+            SELECT mac_address FROM name_to_mac_t
+            WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1))
+        ORDER BY name, valid_since
+    ''')
+    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
+    return result
+
+# ============================
+# PHOTOMETER 'history' COMMAND
+# ============================
+
+def photometer_current_history_sql(name):
+    if name is not None:
+        sql = '''
+            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE name = :name
+            ORDER BY valid_since
+        '''
+    else:
+        sql = '''
+            SELECT mac_address, name, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE mac_address = :mac
+            ORDER BY valid_since
+        '''
+    return sql
+
+def photometer_previous_related_history_sql(name):
+    if name is not None:
+        sql = '''
+            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE valid_until = :tstamp
+            ORDER BY valid_since
+        '''
+    else:
+        sql = '''
+            SELECT mac_address, name, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE valid_until = :tstamp
+            ORDER BY valid_since
+        '''
+    return sql
+
+def photometer_next_related_history_sql(name):
+    if name is not None:
+        sql = '''
+            SELECT name, mac_address, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE valid_since = :tstamp
+            ORDER BY valid_since
+        '''
+    else:
+        sql = '''
+            SELECT mac_address, name, valid_since, valid_until, '+', valid_state, julianday(valid_until) - julianday(valid_since)
+            FROM name_to_mac_t
+            WHERE valid_since = :tstamp
+            ORDER BY valid_since
+        '''
+    return sql
+        
+def photometer_previous_related_history(connection, start_tstamp, name, mac):
+    cursor = connection.cursor()
+    history = list()
+    uncertain_history = False
+    params = {'tstamp': start_tstamp, 'name': name, 'mac': mac}
+    sql = photometer_previous_related_history_sql(name)
+    while True:
+        cursor.execute(sql, params)
+        fragment = cursor.fetchall()
+        L = len(fragment)
+        if L == 0:
+            break
+        elif L > 1:
+            uncertain_history = True
+            history.extend(fragment)
+            break
+        else:
+            history.extend(fragment)
+            tstamp =  fragment[0][2]
+            params = {'tstamp': tstamp} 
+    history.reverse()
+    history = [list(item) for item in history]
+    return uncertain_history, history
+
+
+def photometer_next_related_history(connection, end_tstamp, name, mac):
+    cursor = connection.cursor()
+    history = list()
+    uncertain_history = False
+    params = {'tstamp': end_tstamp, 'name': name, 'mac': mac}
+    sql = photometer_next_related_history_sql(name)
+    while True:
+        cursor.execute(sql, params)
+        fragment = cursor.fetchall()
+        L = len(fragment)
+        if L == 0:
+            break
+        elif L > 1:
+            uncertain_history = True
+            history.extend(fragment)
+            break
+        else:
+            history.extend(fragment)
+            tstamp =  fragment[0][3]
+            params = {'tstamp': tstamp}
+    history = [list(item) for item in history]
+    return uncertain_history, history
+      
+
+def photometer_history(connection, name, mac):
+    assert name is not None or mac is not None, f"either name={name} or mac={mac} is None"
+    params = {'name': name, 'mac': mac}
+    cursor = connection.cursor()
+    sql = photometer_current_history_sql(name)
+    cursor.execute(sql, params)
+    history = [list(item) for item in cursor.fetchall()]
+    break_end_tstamps = list()
+    break_start_tstamps = list()
+    for i in range(len(history)-1):
+        if history[i][3] != history[i+1][2]:
+            history[i][4] = '-'
+            break_end_tstamps.append(history[i][3])
+            break_start_tstamps.append(history[i+1][2])
+    truncated = history[-1][5] == 'Expired'
+    return history, break_end_tstamps, break_start_tstamps, truncated
+
 def history(args):
     connection, path = open_database(None, 'TESSDB_URL')
     name = args.name ; 
@@ -701,10 +711,8 @@ def history(args):
     history, break_end_tstamps, break_start_tstamps, truncated = photometer_history(connection, name, mac)
     start_tstamp = history[0][2]
     end_tstamp = history[-1][3]
-
     uncertain_history1, prev_history = photometer_previous_related_history(connection, start_tstamp, name, mac)
     uncertain_history2, next_history = photometer_next_related_history(connection, end_tstamp, name, mac)
-
     if prev_history and uncertain_history1:
         tag = "UNCERTAIN"
     elif prev_history:
@@ -713,7 +721,6 @@ def history(args):
         tag = "NO"
     log.info("------------------------------- %s PREVIOUS RELATED HISTORY " + "-"*75, tag)
     for item in prev_history: log.info(item)
-    
     if len(break_end_tstamps) == 0:
         tag = "CONTIGUOUS"
     else:
@@ -721,9 +728,6 @@ def history(args):
     log.info("=============================== %s %9s HISTORY BEGINS " + "="*63, tag, name)
     for item in history: log.info(item)
     log.info("=============================== %s %9s HISTORY ENDS   " + "="*63, tag, name)
-
-
-    
     if next_history and uncertain_history2:
         tag = "UNCERTAIN"
     elif next_history:
@@ -732,7 +736,6 @@ def history(args):
         tag = "NO"
     log.info("------------------------------- %s NEXT RELATED HISTORY " + "-"*79, tag)
     for item in next_history: log.info(item)
-
     for break_tstamp in break_end_tstamps:
         log.info("------------------------------- %s BROKEN END TIMESTAMP RELATED HISTORY " + "-"*40, break_tstamp)
         uncertain_history, middle_history = photometer_next_related_history(connection, break_tstamp, name, mac)
@@ -742,7 +745,9 @@ def history(args):
         uncertain_history, middle_history = photometer_next_related_history(connection, break_tstamp, name, mac)
         for item in middle_history: log.info(item)
 
-
+# ============================
+# PARSER AND MAIN ENTRY POINTS
+# ============================
 
 def add_args(parser):
 
@@ -757,7 +762,7 @@ def add_args(parser):
     tdex0 = tdphot.add_mutually_exclusive_group(required=True)
     tdex0.add_argument('-rn', '--renamed', action='store_true', help='List renamed photometers to CSV')
     tdex0.add_argument('-rp', '--repaired', action='store_true',  help='List repaired photometers to CSV')
-    tdex0.add_argument('-e', '--easy', action='store_true',  help='List not repaired or renamed photometers to CSV')
+    tdex0.add_argument('-ea', '--easy', action='store_true',  help='List not repaired or renamed photometers to CSV')
  
 
     tdcheck = subparser.add_parser('check',  help="Various TESSDB metadata checks")
@@ -772,7 +777,7 @@ def add_args(parser):
     tdex1.add_argument('-uo', '--unknown-observer', action='store_true', help='Check unknown observer in tess_t')
     tdex1.add_argument('-rn', '--renamings', action='store_true', help='Check renamed photometers')
     tdex1.add_argument('-rp', '--repaired', action='store_true', help='Check reparied photometers')
-    tdex1.add_argument('-e', '--easy', action='store_true', help='Check "easy" photometers')
+    tdex1.add_argument('-ea', '--easy', action='store_true', help='Check "easy" photometers')
 
     tdfix = subparser.add_parser('fix',  help="Fix TessDB data/metadata")
     tdex1 = tdfix.add_mutually_exclusive_group(required=True)
