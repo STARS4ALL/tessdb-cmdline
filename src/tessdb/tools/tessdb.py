@@ -45,6 +45,8 @@ SQL_PHOT_UPD_READINGS_LOCATIONS = 'sql-phot-upd-readings-locations.j2'
 
 TSTAMP_FMT = '%Y-%m-%d %H:%M:%S+00:00'
 
+PHOTOMETER_TYPE = ('easy', 'repaired', 'renamed', 'complicated')
+
 # -----------------------
 # Module global variables
 # -----------------------
@@ -447,6 +449,34 @@ def check_photometers_with_unknown_location(connection):
 # Module entry points
 # ===================
 
+
+
+def fix(args):
+    log.info(" ====================== GENERATE SQL FILES TO FIX TESSDB METADATA ======================")
+    connection, path = open_database(None, 'TESSDB_URL')
+    log.info("connecting to SQLite database %s", path)
+    connection.row_factory = sqlite3.Row
+    if args.macs:
+        log.info("Fixing bas formatted MAC addresses")
+        fix_mac_addresses(connection, args.directory)
+    elif args.location_readings:
+        fix_location_readings(connection, args.directory)
+    else:
+        log.error("No valid input option to subcommand 'check'")
+
+def locations(args):
+    log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
+    connection, path = open_database(None, 'TESSDB_URL')
+    log.info("connecting to SQLite database %s", path)
+    tessdb_input_list = photometers_and_locations_from_tessdb(connection)
+    log.info("read %d items from TessDB", len(tessdb_input_list))
+    tessdb_loc  = group_by_place(tessdb_input_list)
+    log_places(tessdb_loc)
+
+# ===============================
+# PHOTOMETER 'check' COMMAND
+# ===============================
+
 def check(args):
     log.info("====================== ANALIZING DUPLICATES IN TESSDB METADATA ======================")
     connection, path = open_database(None, 'TESSDB_URL')
@@ -478,41 +508,70 @@ def check(args):
         log.info("Check for Unknown Location in tess_t")
         check_photometers_with_unknown_location(connection)
     elif args.unknown_observer:
-        log.info("Check for Unknown Location in tess_t")
+        log.info("Check for Unknown Observer in tess_t")
         check_unknown_observer(connection)
-    elif args.renamings:
-        log.info("Check for Unknown Location in tess_t")
-        check_renamings(connection)
-    elif args.repaired:
-        log.info("Check for Unknown Location in tess_t")
-        check_repaired(connection)
-    elif args.easy:
-        log.info("Check for Unknown Location in tess_t")
-        check_easy(connection)
     else:
         log.error("No valid input option to subcommand 'check'")
 
-def fix(args):
-    log.info(" ====================== GENERATE SQL FILES TO FIX TESSDB METADATA ======================")
-    connection, path = open_database(None, 'TESSDB_URL')
-    log.info("connecting to SQLite database %s", path)
-    connection.row_factory = sqlite3.Row
-    if args.macs:
-        log.info("Fixing bas formatted MAC addresses")
-        fix_mac_addresses(connection, args.directory)
-    elif args.location_readings:
-        fix_location_readings(connection, args.directory)
-    else:
-        log.error("No valid input option to subcommand 'check'")
+def photometers_from_type(connection, args):
+    if args.easy:
+        return photometers_easy(connection)
+    if args.renamed:
+        return photometers_renamed(connection)
+    if args.repaired:
+        return photometers_repaired(connection)
+    return photometers_complicated(connection)
 
-def locations(args):
-    log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
-    connection, path = open_database(None, 'TESSDB_URL')
-    log.info("connecting to SQLite database %s", path)
-    tessdb_input_list = photometers_and_locations_from_tessdb(connection)
-    log.info("read %d items from TessDB", len(tessdb_input_list))
-    tessdb_loc  = group_by_place(tessdb_input_list)
-    log_places(tessdb_loc)
+def check_photometers_with_unknown_location(connection):
+    phot_list = photometers_easy(connection)
+    result = photometers_location(connection, phot_list, location_id=-1)
+    result_grouped = group_by_mac(result)
+    log.info("Must update location in %d easy photometers (%d entries)", len(result_grouped), len(result))
+
+    phot_list = photometers_renamed(connection)
+    result = photometers_location(connection, phot_list, location_id=-1)
+    result_grouped = group_by_mac(result)
+    log.info("Must update location in %d renamed photometers (%d entries)", len(result_grouped), len(result))
+    
+    phot_list = photometers_repaired(connection)
+    result = photometers_location(connection, phot_list, location_id=-1)
+    result_grouped = group_by_mac(result)
+    log.info("Must update location in %d repaired photometers (%d entries)", len(result_grouped), len(result))
+    
+def photometers_location(connection, phot_list, location_id):
+    cursor = connection.cursor()
+    result = list()
+    for row in phot_list:
+        params = {'name': row['name'], 'mac': row['mac'], 'location_id': location_id}
+        cursor.execute('''
+            SELECT :name, mac_address, tess_id, location_id 
+            FROM tess_t
+            WHERE mac_address = :mac
+            AND location_id = :location_id
+            ORDER BY mac_address
+            ''', params)
+        temp = [dict(zip(['name','mac','tess_id','location_id'],row)) for row in cursor]
+        result.extend(temp)
+    return result
+
+def photometers_observer(connection, phot_list, observer_id):
+    cursor = connection.cursor()
+    result = list()
+    for row in phot_list:
+        params = {'name': row['name'], 'mac': row['mac'], 'observer_id': observer_id}
+        cursor.execute('''
+            SELECT :name, mac_address, tess_id, observer_id 
+            FROM tess_t
+            WHERE mac_address = :mac
+            AND observer_id = :observer_id
+            ORDER BY mac_address
+            ''', params)
+        temp = [dict(zip(['name','mac','tess_id','observer_id'],row)) for row in cursor]
+        result.extend(temp)
+    return result
+
+
+    
 
 # ===============================
 # PHOTOMETER 'photometer' COMMAND
@@ -809,18 +868,21 @@ def add_args(parser):
     tdloc.add_argument('-o', '--output-prefix', type=str, required=True, help='Output file prefix for the different files to generate')
 
     tdcheck = subparser.add_parser('check',  help="Various TESSDB metadata checks")
+    tdex0 = tdcheck.add_mutually_exclusive_group(required=True)
+    tdex0.add_argument('-rn', '--renamed', action='store_true', help='renamed photometers only')
+    tdex0.add_argument('-rp', '--repaired', action='store_true',  help='repaired photometers only')
+    tdex0.add_argument('-ea', '--easy', action='store_true',  help='"easy" (not repaired nor renamed photometers)')
+    tdex0.add_argument('-co', '--complicated', action='store_true',  help='complicated photometers (with repairs AND renamings)')
     tdex1 = tdcheck.add_mutually_exclusive_group(required=True)
     tdex1.add_argument('-p', '--places', action='store_true', help='Check same places, different coordinates')
     tdex1.add_argument('-c', '--coords', action='store_true', help='Check same coordinates, different places')
     tdex1.add_argument('-d', '--dupl', action='store_true', help='Check same coordinates, duplicated places')
     tdex1.add_argument('-b', '--nearby', type=float, default=0, help='Check for nearby places, distance in meters')
     tdex1.add_argument('-m', '--macs', action='store_true', help='Check for proper MACS in tess_t')
-    tdex1.add_argument('-z', '--fake-zero-points', action='store_true', help='Check for proper MACS in tess_t')
+    tdex1.add_argument('-z', '--fake-zero-points', action='store_true', help='Check for fake zero points tess_t')
     tdex1.add_argument('-ul', '--unknown-location', action='store_true', help='Check unknown location in tess_t')
     tdex1.add_argument('-uo', '--unknown-observer', action='store_true', help='Check unknown observer in tess_t')
-    tdex1.add_argument('-rn', '--renamings', action='store_true', help='Check renamed photometers')
-    tdex1.add_argument('-rp', '--repaired', action='store_true', help='Check reparied photometers')
-    tdex1.add_argument('-ea', '--easy', action='store_true', help='Check "easy" photometers')
+   
 
     tdfix = subparser.add_parser('fix',  help="Fix TessDB data/metadata")
     tdex1 = tdfix.add_mutually_exclusive_group(required=True)
@@ -828,13 +890,13 @@ def add_args(parser):
     tdex1.add_argument('-lr', '--location-readings', action='store_true',  help='Output SQL directory')
     tdfix.add_argument('-d', '--directory', type=vdir, required=True, help='Directory to place output SQL files')
 
-    tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata check")
-    tdphot.add_argument('-o', '--output-file', type=str,  help='Optional output file prefix for the different files to generate')
+    tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata list")
+    tdphot.add_argument('-o', '--output-file', type=str,  help='Optional output CSV file for output')
     tdex0 = tdphot.add_mutually_exclusive_group(required=True)
-    tdex0.add_argument('-rn', '--renamed', action='store_true', help='List renamed photometers to CSV')
-    tdex0.add_argument('-rp', '--repaired', action='store_true',  help='List repaired photometers to CSV')
-    tdex0.add_argument('-ea', '--easy', action='store_true',  help='List "easy" (not repaired or renamed photometers) to CSV')
-    tdex0.add_argument('-co', '--complicated', action='store_true',  help='List really complicated photometers to CSV')
+    tdex0.add_argument('-rn', '--renamed', action='store_true', help='renamed photometers only')
+    tdex0.add_argument('-rp', '--repaired', action='store_true',  help='repaired photometers only')
+    tdex0.add_argument('-ea', '--easy', action='store_true',  help='"easy" (not repaired nor renamed photometers)')
+    tdex0.add_argument('-co', '--complicated', action='store_true',  help='complicated photometers (with repairs AND renamings)')
 
     tdis = subparser.add_parser('history',  help="Single TESSDB photometer history")
     grp = tdis.add_mutually_exclusive_group(required=True)
