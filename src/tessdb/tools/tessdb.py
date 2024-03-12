@@ -525,14 +525,16 @@ def photometers(args):
     to_console = args.output_file is None
     if args.repaired:
         output = photometers_repaired(connection)
+        output_grp = group_by_name(output)
         if to_console: 
-            for item in output: log.info(item)
+            for name, values in output_grp.items(): log.info("%s => %d entries", name, len(values))
         log.info("Got %d photometers repaired entries", len(output))
         HEADER = ('name','mac','valid_since','valid_until','valid_state')
     elif args.renamed:
         output = photometers_renamed(connection)
-        if to_console: 
-            for item in output: log.info(item)
+        output_grp = group_by_mac(output)
+        if to_console:
+            for name, values in output_grp.items(): log.info("%s => %d entries", name, len(values))
         log.info("Got %d photometers renamed entries", len(output))
         HEADER = ('mac','name','valid_since','valid_until','valid_state')
     elif args.easy:
@@ -541,35 +543,16 @@ def photometers(args):
             for item in output: log.info(item)
         log.info("Got %d 'easy' photometers (not repaired, nor renamed entries)", len(output))
         HEADER = ('name','mac','valid_since','valid_until','valid_state')
+    elif args.complicated:
+        output = photometers_complicated(connection)
+        if to_console: 
+            for item in output: log.info(item)
+        log.info("Got %d really 'complicated' photometers entries (with repairs and renaming entries)", len(output))
+        HEADER = ('name','mac','valid_since','valid_until','valid_state')
     else:
-        raise ValueError("Unkown option")
+        raise ValueError("Unknown option")
     if args.output_file:
         write_csv(args.output_file, HEADER, output)
-
-
-def photometers_repaired(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT name, mac_address, valid_since, valid_until, valid_state 
-        FROM name_to_mac_t 
-        WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
-        ORDER BY name, valid_since
-    ''')
-    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
-    return result
-
-def photometers_renamed(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT name, mac_address, valid_since, valid_until, valid_state 
-        FROM name_to_mac_t 
-        WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
-        ORDER BY mac_address, valid_since
-    ''')
-    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
-    return result
 
 def photometers_easy(connection):
     cursor = connection.cursor()
@@ -591,6 +574,65 @@ def photometers_easy(connection):
     ''')
     result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
     return result
+
+def photometers_not_easy(connection):
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT name, mac_address, valid_since, valid_until, valid_state
+        FROM name_to_mac_t
+        WHERE mac_address IN (
+            -- Photometers with with substitution
+            SELECT mac_address FROM name_to_mac_t
+            WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
+            UNION -- This is the renamings part
+            SELECT mac_address FROM name_to_mac_t
+            WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1))
+        ORDER BY name, valid_since
+    ''')
+    result = [dict(zip(['name','mac','valid_since', 'valid_until','valid_state'],row)) for row in cursor]
+    return result
+
+def photometers_repaired(connection):
+    output = list()
+    for row in photometers_not_easy(connection):
+        name = row['name']
+        history, break_end_tstamps, break_start_tstamps, truncated = photometer_history(connection, name, mac=None)
+        start_tstamp = history[0][2]
+        end_tstamp = history[-1][3]
+        uncertain_history1, prev_history = photometer_previous_related_history(connection, start_tstamp, name, mac=None)
+        uncertain_history2, next_history = photometer_next_related_history(connection, end_tstamp, name, mac=None)
+        pure_repair = len(history) > 1 and len(break_end_tstamps) == 0 and len(prev_history) == 0 and len(next_history) == 0
+        if pure_repair:
+            output.append(row)
+    return output
+
+def photometers_renamed(connection):
+    output = list()
+    for row in photometers_not_easy(connection):
+        mac = row['mac']
+        history, break_end_tstamps, break_start_tstamps, truncated = photometer_history(connection, name=None, mac=mac)
+        start_tstamp = history[0][2]
+        end_tstamp = history[-1][3]
+        uncertain_history1, prev_history = photometer_previous_related_history(connection, start_tstamp, name=None, mac=mac)
+        uncertain_history2, next_history = photometer_next_related_history(connection, end_tstamp, name=None, mac=mac)
+        pure_renaming = len(history) > 1 and len(break_end_tstamps) == 0 and len(prev_history) == 0 and len(next_history) == 0
+        if pure_renaming:
+            output.append(row)
+    return output
+
+def photometers_complicated(connection):
+    total = photometers_not_easy(connection)
+    only_repaired = photometers_repaired(connection)
+    only_renamed = photometers_renamed(connection)
+    keys = total[0].keys()
+    total = set( list(zip(*item.items()))[1] for item in total)
+    only_repaired = set( list(zip(*item.items()))[1] for item in only_repaired)
+    only_renamed = set( list(zip(*item.items()))[1] for item in only_renamed)
+    total = list(total - only_repaired - only_renamed)
+    output = [ dict(zip(keys, item)) for item in total]
+    return output
+
 
 # ============================
 # PHOTOMETER 'history' COMMAND
@@ -791,7 +833,8 @@ def add_args(parser):
     tdex0 = tdphot.add_mutually_exclusive_group(required=True)
     tdex0.add_argument('-rn', '--renamed', action='store_true', help='List renamed photometers to CSV')
     tdex0.add_argument('-rp', '--repaired', action='store_true',  help='List repaired photometers to CSV')
-    tdex0.add_argument('-ea', '--easy', action='store_true',  help='List not repaired or renamed photometers to CSV')
+    tdex0.add_argument('-ea', '--easy', action='store_true',  help='List "easy" (not repaired or renamed photometers) to CSV')
+    tdex0.add_argument('-co', '--complicated', action='store_true',  help='List really complicated photometers to CSV')
 
     tdis = subparser.add_parser('history',  help="Single TESSDB photometer history")
     grp = tdis.add_mutually_exclusive_group(required=True)
