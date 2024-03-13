@@ -9,4 +9,3 @@ SET (longitude,latitude,elevation,timezone,place,town,sub_region,region,country,
 ({{row['longitude']}},{{row['latitude']}},{{row['masl']}},{{row['timezone']}},{{row['place']}},{{row['town']}},{{row['sub_region']}},{{row['region']}},{{row['country']}},{{row['org_name']}},{{row['org_email']}} )
 WHERE location_id = {{ row['location_id'] }};
 COMMIT;
-

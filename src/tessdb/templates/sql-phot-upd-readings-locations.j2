@@ -1,6 +1,6 @@
--- ------------------------------------------------
--- READINGS LOCATION UPDATE FOR {{row['mac_address']}}
--- ------------------------------------------------
+-- ----------------------------------------------------------
+-- READINGS LOCATION UPDATE FOR {{row['mac']}} ({{row['name']}})
+-- ----------------------------------------------------------
 .echo on
 PRAGMA foreign_keys = OFF;
 BEGIN TRANSACTION;
@@ -11,4 +11,3 @@ SET location_id = {{ row['location_id'] }}
 WHERE location_id = -1 AND tess_id = {{ row['tess_id'] }};
 COMMIT;
 PRAGMA foreign_keys = ON;
-

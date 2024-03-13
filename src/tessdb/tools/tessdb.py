@@ -54,20 +54,20 @@ HEADER_MAC  = ('mac', 'name', 'valid_since', 'valid_until', 'contiguous_flag', '
 # Module global variables
 # -----------------------
 
+package = __name__.split('.')[0]
 log = logging.getLogger(__name__)
 
 # -------------------------
 # Module auxiliar functions
 # -------------------------
 
-render = functools.partial(render_from, 'tessutils')
-
+render = functools.partial(render_from, package)
 
 # ================================ BEGIN GOOD REUSABLE FUNCTIONS ============================
 
+# This takes so much time that we converted it to a generator
 def readings_unknown_location(connection, name_mac_list, known_flag, threshold=0):
     cursor = connection.cursor()
-    result = list()
     for row in name_mac_list:
         params = {'name': row['name'], 'mac': row['mac'], 'threshold': threshold}
         if known_flag:
@@ -91,15 +91,14 @@ def readings_unknown_location(connection, name_mac_list, known_flag, threshold=0
                 GROUP BY tess_id
                 HAVING cnt > :threshold
                 ''', params)
-        temp = [dict(zip(['name','mac','tess_id','location_id','count'],row)) for row in cursor]
-        for row in temp: 
+        result = [dict(zip(['name','mac','tess_id','location_id','count'],row)) for row in cursor]
+        for row in result: 
             log.info("Unknown location in readings for %s",row)
-        result.extend(temp)
-    return result
+        yield result
 
+# This takes so much time that we converted it to a generator
 def readings_unknown_observer(connection, name_mac_list, known_flag, threshold=0):
     cursor = connection.cursor()
-    result = list()
     for row in name_mac_list:
         params = {'name': row['name'], 'mac': row['mac'], }
         if known_flag:
@@ -123,11 +122,10 @@ def readings_unknown_observer(connection, name_mac_list, known_flag, threshold=0
                 GROUP BY tess_id
                 HAVING cnt > :threshold
                 ''', params)
-        temp = [dict(zip(['name','mac','tess_id','observer_id','count'],row)) for row in cursor]
-        for row in temp: 
+        result = [dict(zip(['name','mac','tess_id','observer_id','count'],row)) for row in cursor]
+        for row in result: 
             log.info("Unknown observer in readings for %s",row)
-        result.extend(temp)
-    return result
+        yield result
 
 def photometers_fake_zero_points(connection, name_mac_list, threshold=18.5):
     cursor = connection.cursor()
@@ -589,7 +587,7 @@ def fix_location_readings(connection, output_dir):
         context = {'row': row}
         output = render(SQL_PHOT_UPD_READINGS_LOCATIONS, context)
         output_path = os.path.join(output_dir, f"{i:03d}_upd_unknown_readings_locations.sql")
-        log.info("Photometer %s: generating SQL file for MAC %s", row['mac_address'], output_path)
+        log.info("Photometer %s (%s): generating SQL file for MAC %s", row['mac'], row['name'], output_path)
         with open(output_path, "w") as sqlfile:
             sqlfile.write(output)
 
@@ -600,13 +598,25 @@ def fix_location_readings(connection, output_dir):
 
 def fix(args):
     log.info(" ====================== GENERATE SQL FILES TO FIX TESSDB METADATA ======================")
+    classification = photometer_classification(args)
     connection, path = open_database(None, 'TESSDB_URL')
-    log.info("connecting to SQLite database %s", path)
-    connection.row_factory = sqlite3.Row
-    if args.location_readings:
-        fix_location_readings(connection, args.directory)
+    log.info("Connecting to SQLite database %s", path)
+    name_mac_list = selected_name_mac_list(connection, classification)
+    if args.unknown_location:
+        generator = readings_unknown_location
+    elif args.unknown_observer:
+        generator = readings_unknown_observer
     else:
         log.error("No valid input option to command 'fix'")
+    for items in generator(connection, name_mac_list, known_flag=True, threshold=args.threshold):
+        for i, row in enumerate(items, start=1):
+            context = {'row': row}
+            output = render(SQL_PHOT_UPD_READINGS_LOCATIONS, context)
+            output_path = os.path.join(args.directory, f"{row['name']}_{i:03d}_upd_{generator.__name__}.sql")
+            log.info("Photometer '%s', %s (%s): generating SQL file '%s'", classification, row['mac'], row['name'], output_path)
+            with open(output_path, "w") as sqlfile:
+                sqlfile.write(output)
+  
 
 # =============================
 # PHOTOMETER 'readings' COMMAND
@@ -616,16 +626,20 @@ def readings(args):
     log.info("====================== CHECKING PHOTOMETERS METADATA IN TESSDB ======================")
     classification = photometer_classification(args)
     connection, path = open_database(None, 'TESSDB_URL')
-    log.info("connecting to SQLite database %s", path)
+    log.info("Connecting to SQLite database %s", path)
     name_mac_list = selected_name_mac_list(connection, classification)
+    result = list()
     if args.unknown_location:
-        result = readings_unknown_location(connection, name_mac_list, args.known)
-        log.info("Found %d photometer entries with unknown location in readings and %s location in tess_t", len(result), args.known)
+        generator = readings_unknown_location
     elif args.unknown_observer:
-        result = readings_unknown_observer(connection, name_mac_list, args.known)
-        log.info("Found %d photometer entries with unknown observer in readings and %s observer in tess_t", len(result), args.known)
+        generator = readings_unknown_observer
     else:
-        log.error("Not implemented option to command 'readings'")
+        log.error("No valid input option to command 'fix'")
+    for items in generator(connection, name_mac_list, args.known):
+        if items:
+            result.extend(items)
+    log.info("Detected %d items to update", len(result))
+    
 
 # ==========================
 # PHOTOMETER 'check' COMMAND
@@ -635,7 +649,7 @@ def check(args):
     log.info("====================== CHECKING PHOTOMETERS METADATA IN TESSDB ======================")
     classification = photometer_classification(args)
     connection, path = open_database(None, 'TESSDB_URL')
-    log.info("connecting to SQLite database %s", path)
+    log.info("Connecting to SQLite database %s", path)
     if args.places:
         log.info("Check for same place, different coordinates")
         tessdb_places  = group_by_place(places_from_tessdb(connection))
@@ -701,7 +715,7 @@ def check_proper_macs(connection, classification):
 def photometers(args):
     log.info(" ====================== ANALIZING TESSDB LOCATION METADATA ======================")
     connection, path = open_database(None, 'TESSDB_URL')
-    log.info("connecting to SQLite database %s", path)
+    log.info("Connecting to SQLite database %s", path)
     to_console = args.output_file is None
     if args.repaired:
         output = photometers_repaired(connection)
@@ -847,9 +861,15 @@ def add_args(parser):
    
 
     tdfix = subparser.add_parser('fix',  help="Fix TessDB data/metadata")
+    tdex0 = tdfix.add_mutually_exclusive_group(required=True)
+    tdex0.add_argument('-rn', '--renamed', action='store_true', help='renamed photometers only')
+    tdex0.add_argument('-rp', '--repaired', action='store_true',  help='repaired photometers only')
+    tdex0.add_argument('-ea', '--easy', action='store_true',  help='"easy" (not repaired nor renamed photometers)')
+    tdex0.add_argument('-co', '--complicated', action='store_true',  help='complicated photometers (with repairs AND renamings)')
     tdex1 = tdfix.add_mutually_exclusive_group(required=True)
-    tdex1.add_argument('-lr', '--location-readings', action='store_true',  help='Fix unknown location readings')
+    tdex1.add_argument('-ul', '--unknown-location', action='store_true',  help='Fix unknown location readings')
     tdfix.add_argument('-d', '--directory', type=vdir, required=True, help='Directory to place output SQL files')
+    tdfix.add_argument('-th', '--threshold', type=int,  default=0, help='Fix if count(readings) > threshold')
 
     tdphot = subparser.add_parser('photometer',  help="TessDB photometers metadata list")
     tdphot.add_argument('-o', '--output-file', type=str,  help='Optional output CSV file for output')

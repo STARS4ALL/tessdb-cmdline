@@ -9,4 +9,3 @@ SET (timezone,place,town,sub_region,region,country,organization,contact_email) =
 ({{row['timezone']}},{{row['place']}},{{row['town']}},{{row['sub_region']}},{{row['region']}},{{row['country']}},{{row['org_name']}},{{row['org_email']}})
 WHERE location_id = {{ row['location_id'] }};
 COMMIT;
-
