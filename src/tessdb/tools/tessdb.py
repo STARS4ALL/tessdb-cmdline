@@ -43,7 +43,6 @@ from .dbutils import group_by_coordinates, group_by_mac, group_by_name, log_coor
 SQL_PHOT_UPD_MAC_ADDRESS = 'sql-phot-upd-mac.j2'
 SQL_PHOT_UPD_READINGS_LOCATIONS = 'sql-phot-upd-readings-locations.j2'
 
-TSTAMP_FMT = '%Y-%m-%d %H:%M:%S+00:00'
 
 PHOTOMETER_TYPE = ('easy', 'repaired', 'renamed', 'complicated')
 
@@ -243,7 +242,7 @@ def name_mac_previous_related_history(connection, start_tstamp, name, mac):
     return history
 
 
-def photometer_next_related_history(connection, end_tstamp, name, mac):
+def name_mac_next_related_history(connection, end_tstamp, name, mac):
     cursor = connection.cursor()
     history = list()
     params = {'tstamp': end_tstamp, 'name': name, 'mac': mac}
@@ -347,7 +346,7 @@ def photometers_repaired(connection):
         start_tstamp = history[0][2]
         end_tstamp = history[-1][3]
         prev_history = name_mac_previous_related_history(connection, start_tstamp, name, mac=None)
-        next_history = photometer_next_related_history(connection, end_tstamp, name, mac=None)
+        next_history = name_mac_next_related_history(connection, end_tstamp, name, mac=None)
         pure_repair = len(history) > 1 and len(break_end_tstamps) == 0 and len(prev_history) == 0 and len(next_history) == 0
         if pure_repair:
             output.append(row)
@@ -361,7 +360,7 @@ def photometers_renamed(connection):
         start_tstamp = history[0][2]
         end_tstamp = history[-1][3]
         prev_history = name_mac_previous_related_history(connection, start_tstamp, name=None, mac=mac)
-        next_history = photometer_next_related_history(connection, end_tstamp, name=None, mac=mac)
+        next_history = name_mac_next_related_history(connection, end_tstamp, name=None, mac=mac)
         pure_renaming = len(history) > 1 and len(break_end_tstamps) == 0 and len(prev_history) == 0 and len(next_history) == 0
         if pure_renaming:
             output.append(row)
@@ -757,7 +756,7 @@ def history(args):
     start_tstamp = history[0][2]
     end_tstamp = history[-1][3]
     prev_history = name_mac_previous_related_history(connection, start_tstamp, name, mac)
-    next_history = photometer_next_related_history(connection, end_tstamp, name, mac)
+    next_history = name_mac_next_related_history(connection, end_tstamp, name, mac)
     global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'prev_related', 'valid_state', 'valid_days'))
     global_history.extend(prev_history)
     global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'current', 'valid_state', 'valid_days'))
@@ -765,11 +764,11 @@ def history(args):
     global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'next_related', 'valid_state', 'valid_days'))
     global_history.extend(next_history)
     for break_tstamp in break_end_tstamps:
-        broken_end_history = photometer_next_related_history(connection, break_tstamp, name, mac)
+        broken_end_history = name_mac_next_related_history(connection, break_tstamp, name, mac)
         global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'broken_end', 'valid_state', 'valid_days'))
         global_history.extend(broken_end_history)
     for break_tstamp in break_start_tstamps:
-        broken_start_history = photometer_next_related_history(connection, break_tstamp, name, mac)
+        broken_start_history = name_mac_next_related_history(connection, break_tstamp, name, mac)
         global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'broken_start', 'valid_state', 'valid_days'))
         global_history.extend(broken_start_history)
 
