@@ -225,18 +225,14 @@ def name_mac_next_related_history_sql(name):
 def name_mac_previous_related_history(connection, start_tstamp, name, mac):
     cursor = connection.cursor()
     history = list()
-    uncertain_history = False
     params = {'tstamp': start_tstamp, 'name': name, 'mac': mac}
     sql = name_mac_previous_related_history_sql(name)
     while True:
         cursor.execute(sql, params)
         fragment = cursor.fetchall()
         L = len(fragment)
+        assert L < 2, f"Really complicated previous related history with {L} heads"
         if L == 0:
-            break
-        elif L > 1:
-            uncertain_history = True
-            history.extend(fragment)
             break
         else:
             history.extend(fragment)
@@ -244,31 +240,27 @@ def name_mac_previous_related_history(connection, start_tstamp, name, mac):
             params = {'tstamp': tstamp} 
     history.reverse()
     history = [list(item) for item in history]
-    return uncertain_history, history
+    return history
 
 
 def photometer_next_related_history(connection, end_tstamp, name, mac):
     cursor = connection.cursor()
     history = list()
-    uncertain_history = False
     params = {'tstamp': end_tstamp, 'name': name, 'mac': mac}
     sql = name_mac_next_related_history_sql(name)
     while True:
         cursor.execute(sql, params)
         fragment = cursor.fetchall()
         L = len(fragment)
+        assert L < 2, f"Really complicated next related history with {L} heads"
         if L == 0:
-            break
-        elif L > 1:
-            uncertain_history = True
-            history.extend(fragment)
             break
         else:
             history.extend(fragment)
             tstamp =  fragment[0][3]
             params = {'tstamp': tstamp}
     history = [list(item) for item in history]
-    return uncertain_history, history
+    return history
       
 
 def name_mac_current_history(connection, name, mac):
@@ -354,8 +346,8 @@ def photometers_repaired(connection):
         history, break_end_tstamps, break_start_tstamps, truncated = name_mac_current_history(connection, name, mac=None)
         start_tstamp = history[0][2]
         end_tstamp = history[-1][3]
-        uncertain_history1, prev_history = name_mac_previous_related_history(connection, start_tstamp, name, mac=None)
-        uncertain_history2, next_history = photometer_next_related_history(connection, end_tstamp, name, mac=None)
+        prev_history = name_mac_previous_related_history(connection, start_tstamp, name, mac=None)
+        next_history = photometer_next_related_history(connection, end_tstamp, name, mac=None)
         pure_repair = len(history) > 1 and len(break_end_tstamps) == 0 and len(prev_history) == 0 and len(next_history) == 0
         if pure_repair:
             output.append(row)
@@ -368,8 +360,8 @@ def photometers_renamed(connection):
         history, break_end_tstamps, break_start_tstamps, truncated = name_mac_current_history(connection, name=None, mac=mac)
         start_tstamp = history[0][2]
         end_tstamp = history[-1][3]
-        uncertain_history1, prev_history = name_mac_previous_related_history(connection, start_tstamp, name=None, mac=mac)
-        uncertain_history2, next_history = photometer_next_related_history(connection, end_tstamp, name=None, mac=mac)
+        prev_history = name_mac_previous_related_history(connection, start_tstamp, name=None, mac=mac)
+        next_history = photometer_next_related_history(connection, end_tstamp, name=None, mac=mac)
         pure_renaming = len(history) > 1 and len(break_end_tstamps) == 0 and len(prev_history) == 0 and len(next_history) == 0
         if pure_renaming:
             output.append(row)
@@ -764,8 +756,8 @@ def history(args):
     history, break_end_tstamps, break_start_tstamps, truncated = name_mac_current_history(connection, name, mac)
     start_tstamp = history[0][2]
     end_tstamp = history[-1][3]
-    uncertain_history1, prev_history = name_mac_previous_related_history(connection, start_tstamp, name, mac)
-    uncertain_history2, next_history = photometer_next_related_history(connection, end_tstamp, name, mac)
+    prev_history = name_mac_previous_related_history(connection, start_tstamp, name, mac)
+    next_history = photometer_next_related_history(connection, end_tstamp, name, mac)
     global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'prev_related', 'valid_state', 'valid_days'))
     global_history.extend(prev_history)
     global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'current', 'valid_state', 'valid_days'))
@@ -773,11 +765,11 @@ def history(args):
     global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'next_related', 'valid_state', 'valid_days'))
     global_history.extend(next_history)
     for break_tstamp in break_end_tstamps:
-        uncertain_history3, broken_end_history = photometer_next_related_history(connection, break_tstamp, name, mac)
+        broken_end_history = photometer_next_related_history(connection, break_tstamp, name, mac)
         global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'broken_end', 'valid_state', 'valid_days'))
         global_history.extend(broken_end_history)
     for break_tstamp in break_start_tstamps:
-        uncertain_history4, broken_start_history = photometer_next_related_history(connection, break_tstamp, name, mac)
+        broken_start_history = photometer_next_related_history(connection, break_tstamp, name, mac)
         global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'broken_start', 'valid_state', 'valid_days'))
         global_history.extend(broken_start_history)
 
@@ -792,27 +784,14 @@ def history(args):
             for row in global_history:
                 writer.writerow(row)
     else:
-        if prev_history and uncertain_history1:
-            tag = "UNCERTAIN"
-        elif prev_history:
-            tag = ""
-        else:
-            tag = "NO"
+        tag = "" if prev_history else "NO"
         log.info("------------------------------- %s PREVIOUS RELATED HISTORY " + "-"*75, tag)
         for item in prev_history: log.info(item)
-        if len(break_end_tstamps) == 0:
-            tag = "CONTIGUOUS"
-        else:
-            tag = "NON CONTIGUOUS"
+        tag = "CONTIGUOUS" if not break_end_tstamps else "NON CONTIGUOUS"
         log.info("=============================== %s %9s HISTORY BEGINS " + "="*63, tag, name)
         for item in history: log.info(item)
         log.info("=============================== %s %9s HISTORY ENDS   " + "="*63, tag, name)
-        if next_history and uncertain_history2:
-            tag = "UNCERTAIN"
-        elif next_history:
-            tag = ""
-        else:
-            tag = "NO"
+        tag = "" if next_history else "NO"
         log.info("------------------------------- %s NEXT RELATED HISTORY " + "-"*79, tag)
         for item in next_history: log.info(item)
         for break_tstamp in break_end_tstamps:
