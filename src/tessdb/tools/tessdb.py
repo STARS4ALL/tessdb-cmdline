@@ -132,12 +132,12 @@ def photometers_fake_zero_points(connection, name_mac_list, threshold=18.5):
     for row in name_mac_list:
         params = {'name': row['name'], 'mac': row['mac'], 'zp': threshold}
         cursor.execute('''
-            SELECT :name, mac_address, tess_id, zp1
+            SELECT :name, mac_address, tess_id, zp1, valid_state
             FROM tess_t
             WHERE mac_address = :mac
             AND zp1 < :zp
             ''', params)
-        result.extend([dict(zip(['name','mac','tess_id','zp1'],row)) for row in cursor])
+        result.extend([dict(zip(['name','mac','tess_id','zp1','phot_valid_state'],row)) for row in cursor])
     return result
 
 def photometers_location_id(connection, name_mac_list, location_id):
@@ -146,12 +146,12 @@ def photometers_location_id(connection, name_mac_list, location_id):
     for row in name_mac_list:
         params = {'name': row['name'], 'mac': row['mac'], 'location_id': location_id}
         cursor.execute('''
-            SELECT :name, mac_address, tess_id, location_id 
+            SELECT :name, mac_address, tess_id, location_id, valid_state 
             FROM tess_t
             WHERE mac_address = :mac
             AND location_id = :location_id
             ''', params)
-        temp = [dict(zip(['name','mac','tess_id','location_id'],row)) for row in cursor]
+        temp = [dict(zip(['name','mac','tess_id','location_id','phot_valid_state'],row)) for row in cursor]
         result.extend(temp)
     return result
 
@@ -161,12 +161,12 @@ def photometers_observer_id(connection, name_mac_list, observer_id):
     for row in name_mac_list:
         params = {'name': row['name'], 'mac': row['mac'], 'observer_id': observer_id}
         cursor.execute('''
-            SELECT :name, mac_address, tess_id, observer_id 
+            SELECT :name, mac_address, tess_id, observer_id, valid_state 
             FROM tess_t
             WHERE mac_address = :mac
             AND observer_id = :observer_id
             ''', params)
-        temp = [dict(zip(['name','mac','tess_id','observer_id'],row)) for row in cursor]
+        temp = [dict(zip(['name','mac','tess_id','observer_id','phot_valid_state'],row)) for row in cursor]
         result.extend(temp)
     return result
 
@@ -407,10 +407,54 @@ def places(connection):
         ''')
     return [dict(zip(['longitude','latitude','place','town','sub_region','region','country','timezone','name'],row)) for row in cursor]
 
+def referenced_photometers(connection, location_id):
+     params = {'location_id': location_id}
+     cursor = connection.cursor()
+     cursor.execute(
+        '''
+        SELECT COUNT(*) FROM tess_t WHERE location_id = :location_id
+        ''', params)
+     return cursor.fetchone()[0]
+
+def referenced_readings(connection, location_id):
+     params = {'location_id': location_id}
+     cursor = connection.cursor()
+     cursor.execute(
+        '''
+        SELECT COUNT(*) FROM tess_readings_t WHERE location_id = :location_id
+        ''', params)
+     return cursor.fetchone()[0]
+
+def photometers_with_locations(connection, classification):
+    name_mac_list = selected_name_mac_list(connection, classification)
+    result = list()
+    cursor = connection.cursor()
+    for row in name_mac_list:
+        params = {'name': row['name'], 'mac': row['mac']}
+        cursor.execute(
+            '''
+            SELECT  :name, mac_address, tess_id, valid_state, model, firmware, 
+            nchannels, zp1, filter1, zp2, filter2, zp3, filter3, zp4, filter4,
+            cover_offset, fov, azimuth, altitude,
+            longitude, latitude, place, town, sub_region, country, timezone,
+            contact_name, contact_email, organization -- This should be removed at some point
+            FROM tess_t AS t
+            JOIN location_t USING(location_id)
+            WHERE mac_address = :mac 
+            ''')
+        temp = [dict(zip(['name','mac','tess_id','phot_valid_state','model','firmware',
+            'nchannels', 'zp1', 'filter1', 'zp2', 'filter2', 'zp3', 'filter3', 'zp4', 'filter4',
+            'cover_offset', 'fov', 'azimuth', 'altitude',
+            'longitude', 'latitude', 'place', 'town', 'sub_region', 'country', 'timezone',
+            'contact_name', 'contact_email', 'organization'],row)) for row in cursor]
+        result.extend(temp)
+    return result
+
 # ================================ END GOOD REUSABLE FUNCTIONS ===============================
 
-
-
+##############################################################################################
+################################### BEGIN KAKITA #############################################
+##############################################################################################
 
 def _photometers_and_locations_from_tessdb(connection):
     cursor = connection.cursor()
@@ -429,24 +473,6 @@ def _photometers_and_locations_from_tessdb(connection):
         AND name LIKE 'stars%'
         ''')
     return cursor
-
-def photometers_with_unknown_current_location(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT DISTINCT tess_id, mac_address, name, n.valid_since, n.valid_until
-        FROM tess_t AS t
-        JOIN name_to_mac_t AS n USING (mac_address)
-        WHERE t.valid_state = 'Current'
-        AND n.valid_state = 'Current'
-        AND location_id = -1
-        AND name LIKE 'stars%'
-        ORDER BY mac_address
-        ''')
-    result = [dict(zip(['tess_id','mac','name','valid_since', 'valid_until'],row)) for row in cursor]
-    return result
-
-
 
 def tessdb_remap_info(row):
     new_row = dict()
@@ -492,68 +518,15 @@ def tessdb_remap_all_info(row):
     return new_row
 
 
-
 def photometers_from_tessdb(connection):
     return list(map(tessdb_remap_info, _photometers_from_tessdb(connection)))
 
 def photometers_and_locations_from_tessdb(connection):
     return list(map(tessdb_remap_all_info, _photometers_and_locations_from_tessdb(connection)))
 
-
-
-def referenced_photometers(connection, location_id):
-     row = {'location_id': location_id}
-     cursor = connection.cursor()
-     cursor.execute(
-        '''
-        SELECT COUNT(*) FROM tess_t WHERE location_id = :location_id
-        ''', row)
-     count = cursor.fetchone()[0]
-     return count
-
-def referenced_readings(connection, location_id):
-     row = {'location_id': location_id}
-     cursor = connection.cursor()
-     cursor.execute(
-        '''
-        SELECT COUNT(*) FROM tess_readings_t WHERE location_id = :location_id
-        ''', row)
-     count = cursor.fetchone()[0]
-     return count
-
-def log_duplicated_coords(connection, coords_iterable):
-     for coords, rows in coords_iterable.items():
-        if None in coords:
-            log.error("entry %s with no coordinates: %s", rows[0]['name'], coords)
-        if len(rows) > 1 and all(row['place'] == rows[0]['place'] for row in rows):
-            log.error("Coordinates %s has duplicated place names: %s for %s", coords, [row['place'] for row in rows], [row['name'] for row in rows])
-
-
-def log_detailed_impact(connection, coords_iterable):
-    for coords, rows in coords_iterable.items():
-        if None in coords:
-            continue
-        if len(rows) == 1:
-            continue
-        for row in rows:
-            count1 = referenced_photometers(connection, row['name'])
-            count2 = referenced_readings(connection, row['name'])
-            if count1 == 0 and count2 == 0:
-                print("DELETE FROM location_t WHERE location_id = %d;" % row['name']);
-            elif count1 != 0 and count2 != 0:
-                log.info("[%d] (%s) Ojito con esta location que tiene %d referencias en tess_t y %d en tess_readings_t",
-                    row['name'], row['place'], count1, count2)
-            elif count1 != 0 :
-                log.info("[%d] (%s) Ojito con esta location que tiene %d referencias en tess_t",
-                    row['name'], row['place'], count1)
-            elif count2 != 0 :
-                log.info("[%d] (%s) Ojito con esta location que tiene %d referencias en tess_readings_t",
-                    row['name'], row['place'], count2)
-
-
-
-
-
+##############################################################################################
+################################### END   KAKITA #############################################
+##############################################################################################
 
 # ========================
 # PHOTOMETER 'fix' COMMAND
@@ -625,7 +598,7 @@ def check(args):
         log.info("Check for same coordinates, duplicated places")
         tessdb_coords  = group_by_coordinates(places(connection))
         log_duplicated_coords(connection, tessdb_coords)
-        #log_detailed_impact(connection, tessdb_coords)
+        log_detailed_impact(connection, tessdb_coords)
     elif args.nearby:
         log.info("Check for nearby places in radius %0.0f meters", args.nearby)
         tessdb_coords  = group_by_coordinates(places(connection))
@@ -670,6 +643,36 @@ def check_proper_macs(connection, classification):
             log.warn("%s has a bad mac address => %s", row['name'], row['mac'])
     log.info("%d Bad MAC addresses ", len(bad_macs))
 
+
+
+def log_duplicated_coords(connection, coords_iterable):
+     for coords, rows in coords_iterable.items():
+        if None in coords:
+            log.error("entry %s with no coordinates: %s", rows[0]['name'], coords)
+        if len(rows) > 1 and all(row['place'] == rows[0]['place'] for row in rows):
+            log.error("Coordinates %s has duplicated place names: %s for %s", coords, [row['place'] for row in rows], [row['name'] for row in rows])
+
+
+def log_detailed_impact(connection, coords_iterable):
+    for coords, rows in coords_iterable.items():
+        if None in coords:
+            continue
+        if len(rows) == 1:
+            continue
+        for row in rows:
+            count1 = referenced_photometers(connection, row['name'])
+            count2 = referenced_readings(connection, row['name'])
+            if count1 == 0 and count2 == 0:
+                print("DELETE FROM location_t WHERE location_id = %d;" % row['name']);
+            elif count1 != 0 and count2 != 0:
+                log.info("[%d] (%s) Ojito con esta location que tiene %d referencias en tess_t y %d en tess_readings_t",
+                    row['name'], row['place'], count1, count2)
+            elif count1 != 0 :
+                log.info("[%d] (%s) Ojito con esta location que tiene %d referencias en tess_t",
+                    row['name'], row['place'], count1)
+            elif count2 != 0 :
+                log.info("[%d] (%s) Ojito con esta location que tiene %d referencias en tess_readings_t",
+                    row['name'], row['place'], count2)
 
 # ===============================
 # PHOTOMETER 'photometer' COMMAND
@@ -743,7 +746,6 @@ def history(args):
         broken_start_history, _ = name_mac_next_related_history(connection, break_tstamp, name, mac)
         global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'broken_start', 'valid_state', 'valid_days'))
         global_history.extend(broken_start_history)
-
     if args.output_file:
         log.info("%d rows of previous related history", len(prev_history))
         log.info("%d rows of proper history", len(history))
