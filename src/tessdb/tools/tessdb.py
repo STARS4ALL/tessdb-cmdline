@@ -226,20 +226,25 @@ def name_mac_previous_related_history(connection, start_tstamp, name, mac):
     history = list()
     params = {'tstamp': start_tstamp, 'name': name, 'mac': mac}
     sql = name_mac_previous_related_history_sql(name)
+    complicated = False
     while True:
         cursor.execute(sql, params)
         fragment = cursor.fetchall()
         L = len(fragment)
-        assert L < 2, f"Really complicated previous related history with {L} heads"
         if L == 0:
+            break
+        elif L > 1:
+            complicated = True
+            history.extend(fragment)
+            log.warn("Really complicated previous related history with %d heads for name=%s mac=%s",L, name, mac)
             break
         else:
             history.extend(fragment)
-            tstamp =  fragment[0][2]
+            tstamp =  fragment[0][2]  # begin timestamp
             params = {'tstamp': tstamp} 
     history.reverse()
     history = [list(item) for item in history]
-    return history
+    return history, complicated
 
 
 def name_mac_next_related_history(connection, end_tstamp, name, mac):
@@ -247,19 +252,24 @@ def name_mac_next_related_history(connection, end_tstamp, name, mac):
     history = list()
     params = {'tstamp': end_tstamp, 'name': name, 'mac': mac}
     sql = name_mac_next_related_history_sql(name)
+    complicated = False
     while True:
         cursor.execute(sql, params)
         fragment = cursor.fetchall()
         L = len(fragment)
-        assert L < 2, f"Really complicated next related history with {L} heads"
         if L == 0:
+            break
+        elif L > 1:
+            history.extend(fragment)
+            complicated = True
+            log.warn("Really complicated next related history with %d heads for name=%s mac=%s",L, name, mac)
             break
         else:
             history.extend(fragment)
-            tstamp =  fragment[0][3]
+            tstamp =  fragment[0][3] # end timestamp
             params = {'tstamp': tstamp}
     history = [list(item) for item in history]
-    return history
+    return history, complicated
       
 
 def name_mac_current_history(connection, name, mac):
@@ -345,8 +355,8 @@ def photometers_repaired(connection):
         history, break_end_tstamps, break_start_tstamps, truncated = name_mac_current_history(connection, name, mac=None)
         start_tstamp = history[0][2]
         end_tstamp = history[-1][3]
-        prev_history = name_mac_previous_related_history(connection, start_tstamp, name, mac=None)
-        next_history = name_mac_next_related_history(connection, end_tstamp, name, mac=None)
+        prev_history, _ = name_mac_previous_related_history(connection, start_tstamp, name, mac=None)
+        next_history, _ = name_mac_next_related_history(connection, end_tstamp, name, mac=None)
         pure_repair = len(history) > 1 and len(break_end_tstamps) == 0 and len(prev_history) == 0 and len(next_history) == 0
         if pure_repair:
             output.append(row)
@@ -359,8 +369,9 @@ def photometers_renamed(connection):
         history, break_end_tstamps, break_start_tstamps, truncated = name_mac_current_history(connection, name=None, mac=mac)
         start_tstamp = history[0][2]
         end_tstamp = history[-1][3]
-        prev_history = name_mac_previous_related_history(connection, start_tstamp, name=None, mac=mac)
-        next_history = name_mac_next_related_history(connection, end_tstamp, name=None, mac=mac)
+        log.info(history)
+        prev_history, _ = name_mac_previous_related_history(connection, start_tstamp, name=None, mac=mac)
+        next_history, _ = name_mac_next_related_history(connection, end_tstamp, name=None, mac=mac)
         pure_renaming = len(history) > 1 and len(break_end_tstamps) == 0 and len(prev_history) == 0 and len(next_history) == 0
         if pure_renaming:
             output.append(row)
@@ -386,7 +397,8 @@ def photometers_with_unknown_observer(connection, classification):
     name_mac_list = selected_name_mac_list(connection, classification)
     return photometers_observer_id(connection, name_mac_list, observer_id=-1)
 
-def places_from_tessdb(connection):
+# we need 'name' for instead of 'location_id', because we use 'group_by_name()' later on
+def places(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
@@ -434,21 +446,6 @@ def photometers_with_unknown_current_location(connection):
     result = [dict(zip(['tess_id','mac','name','valid_since', 'valid_until'],row)) for row in cursor]
     return result
 
-
-
-
-def filter_contiguous(values):
-    result = all(values[i]['valid_until'] == values[i+1]['valid_since'] for i in range(len(values)-1))
-    # Makes sure that we end-up the chain in the far future
-    result = result and values[-1]['valid_until'] == '2999-12-31 23:59:59+00:00' 
-    return result
-   
-
-def filter_all_unknown_id(values, item_key):
-    return not all(  all(ide == -1 for ide in value[item_key]) for value in values)
-
-def filter_any_unknown_id(values, item_key):
-    return any(  all(ide == -1 for ide in value[item_key]) for value in values)
 
 
 def tessdb_remap_info(row):
@@ -555,37 +552,12 @@ def log_detailed_impact(connection, coords_iterable):
 
 
 
-def check_proper_macs(connection):
-    cursor = _photometers_and_locations_from_tessdb(connection)
-    bad_macs=list()
-    bad_formatted=list() 
-    for t in cursor:
-        if not is_tess_mac(t[2]):
-            log.warn("Id=%d %s (MAC=%s) has not even a good MAC", t[0], t[1], t[2])
-            bad_macs.append(t[2])
-        elif not is_mac(t[2]):
-            good_mac = formatted_mac(t[2])
-            log.warn("Id=%d %s (MAC=%s) should be (MAC=%s)", t[0], t[1], t[2], good_mac)
-            bad_formatted.append(t[2])
-    log.info("%d Bad MAC addresses and %d bad formatted MAC addresses", len(bad_macs), len(bad_formatted))
 
 
-def fix_location_readings(connection, output_dir):
-    result = _get_tessid_with_unknown_locations_in_readings_but_known_current_location(connection, threshold=0)
-    unique_photometers = group_by_mac(result, column_name='mac_address')
-    log.info("%d photometers need fixing in tess_readings_t", len(unique_photometers))
-    for i, row in enumerate(result,1):
-        context = {'row': row}
-        output = render(SQL_PHOT_UPD_READINGS_LOCATIONS, context)
-        output_path = os.path.join(output_dir, f"{i:03d}_upd_unknown_readings_locations.sql")
-        log.info("Photometer %s (%s): generating SQL file for MAC %s", row['mac'], row['name'], output_path)
-        with open(output_path, "w") as sqlfile:
-            sqlfile.write(output)
 
-
-# ===================
-# Module entry points
-# ===================
+# ========================
+# PHOTOMETER 'fix' COMMAND
+# ========================
 
 def fix(args):
     log.info(" ====================== GENERATE SQL FILES TO FIX TESSDB METADATA ======================")
@@ -643,20 +615,20 @@ def check(args):
     log.info("Connecting to SQLite database %s", path)
     if args.places:
         log.info("Check for same place, different coordinates")
-        tessdb_places  = group_by_place(places_from_tessdb(connection))
+        tessdb_places  = group_by_place(places(connection))
         log_places(tessdb_places)
     elif args.coords:
         log.info("Check for same coordinates, different places")
-        tessdb_coords  = group_by_coordinates(places_from_tessdb(connection))
+        tessdb_coords  = group_by_coordinates(places(connection))
         log_coordinates(tessdb_coords)
     elif args.dupl:
         log.info("Check for same coordinates, duplicated places")
-        tessdb_coords  = group_by_coordinates(places_from_tessdb(connection))
+        tessdb_coords  = group_by_coordinates(places(connection))
         log_duplicated_coords(connection, tessdb_coords)
         #log_detailed_impact(connection, tessdb_coords)
     elif args.nearby:
         log.info("Check for nearby places in radius %0.0f meters", args.nearby)
-        tessdb_coords  = group_by_coordinates(places_from_tessdb(connection))
+        tessdb_coords  = group_by_coordinates(places(connection))
         log_coordinates_nearby(tessdb_coords, args.nearby)
     elif args.macs:
         log.info("Check for proper MAC addresses in tess_t")
@@ -695,7 +667,7 @@ def check_proper_macs(connection, classification):
             mac = vmac(row['mac'])
         except Exception:
             bad_macs.append(row['mac'])
-            log.warn("%s has a bad mac address", row['name'])
+            log.warn("%s has a bad mac address => %s", row['name'], row['mac'])
     log.info("%d Bad MAC addresses ", len(bad_macs))
 
 
@@ -755,8 +727,8 @@ def history(args):
     history, break_end_tstamps, break_start_tstamps, truncated = name_mac_current_history(connection, name, mac)
     start_tstamp = history[0][2]
     end_tstamp = history[-1][3]
-    prev_history = name_mac_previous_related_history(connection, start_tstamp, name, mac)
-    next_history = name_mac_next_related_history(connection, end_tstamp, name, mac)
+    prev_history, _ = name_mac_previous_related_history(connection, start_tstamp, name, mac)
+    next_history, _ = name_mac_next_related_history(connection, end_tstamp, name, mac)
     global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'prev_related', 'valid_state', 'valid_days'))
     global_history.extend(prev_history)
     global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'current', 'valid_state', 'valid_days'))
@@ -764,11 +736,11 @@ def history(args):
     global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'next_related', 'valid_state', 'valid_days'))
     global_history.extend(next_history)
     for break_tstamp in break_end_tstamps:
-        broken_end_history = name_mac_next_related_history(connection, break_tstamp, name, mac)
+        broken_end_history, _ = name_mac_next_related_history(connection, break_tstamp, name, mac)
         global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'broken_end', 'valid_state', 'valid_days'))
         global_history.extend(broken_end_history)
     for break_tstamp in break_start_tstamps:
-        broken_start_history = name_mac_next_related_history(connection, break_tstamp, name, mac)
+        broken_start_history, _ = name_mac_next_related_history(connection, break_tstamp, name, mac)
         global_history.append(('xxxx', 'xxxx', 'valid_since', 'valid_until', 'broken_start', 'valid_state', 'valid_days'))
         global_history.extend(broken_start_history)
 
