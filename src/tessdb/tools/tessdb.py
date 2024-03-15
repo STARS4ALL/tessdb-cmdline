@@ -60,9 +60,16 @@ log = logging.getLogger(__name__)
 # Module auxiliar functions
 # -------------------------
 
+# ================================ BEGIN GOOD REUSABLE FUNCTIONS ============================
+
 render = functools.partial(render_from, package)
 
-# ================================ BEGIN GOOD REUSABLE FUNCTIONS ============================
+
+def filter_current_name(row):
+    return row['valid_state'] == 'Current'
+
+def filter_current_phot(row):
+    return row['phot_valid_state'] == 'Current'
 
 # This takes so much time that we converted it to a generator
 def readings_unknown_location(connection, name_mac_list, known_flag, threshold=0):
@@ -130,28 +137,28 @@ def photometers_fake_zero_points(connection, name_mac_list, threshold=18.5):
     cursor = connection.cursor()
     result = list()
     for row in name_mac_list:
-        params = {'name': row['name'], 'mac': row['mac'], 'zp': threshold}
+        params = {'name': row['name'], 'mac': row['mac'], 'valid_state': row['valid_state'], 'zp': threshold}
         cursor.execute('''
-            SELECT :name, mac_address, tess_id, zp1, valid_state
+            SELECT :name, mac_address, :valid_state, tess_id, zp1, valid_state
             FROM tess_t
             WHERE mac_address = :mac
             AND zp1 < :zp
             ''', params)
-        result.extend([dict(zip(['name','mac','tess_id','zp1','phot_valid_state'],row)) for row in cursor])
+        result.extend([dict(zip(['name','mac','valid_state','tess_id','zp1','phot_valid_state'],row)) for row in cursor])
     return result
 
 def photometers_location_id(connection, name_mac_list, location_id):
     cursor = connection.cursor()
     result = list()
     for row in name_mac_list:
-        params = {'name': row['name'], 'mac': row['mac'], 'location_id': location_id}
+        params = {'name': row['name'], 'mac': row['mac'], 'valid_state': row['valid_state'], 'location_id': location_id}
         cursor.execute('''
-            SELECT :name, mac_address, tess_id, location_id, valid_state 
+            SELECT :name, mac_address, :valid_state, tess_id, location_id, valid_state 
             FROM tess_t
             WHERE mac_address = :mac
             AND location_id = :location_id
             ''', params)
-        temp = [dict(zip(['name','mac','tess_id','location_id','phot_valid_state'],row)) for row in cursor]
+        temp = [dict(zip(['name','mac','valid_state','tess_id','location_id','phot_valid_state'],row)) for row in cursor]
         result.extend(temp)
     return result
 
@@ -159,14 +166,14 @@ def photometers_observer_id(connection, name_mac_list, observer_id):
     cursor = connection.cursor()
     result = list()
     for row in name_mac_list:
-        params = {'name': row['name'], 'mac': row['mac'], 'observer_id': observer_id}
+        params = {'name': row['name'], 'mac': row['mac'],  'valid_state': row['valid_state'], 'observer_id': observer_id}
         cursor.execute('''
-            SELECT :name, mac_address, tess_id, observer_id, valid_state 
+            SELECT :name, mac_address, :valid_state, tess_id, observer_id, valid_state 
             FROM tess_t
             WHERE mac_address = :mac
             AND observer_id = :observer_id
             ''', params)
-        temp = [dict(zip(['name','mac','tess_id','observer_id','phot_valid_state'],row)) for row in cursor]
+        temp = [dict(zip(['name','mac','valid_state','tess_id','observer_id','phot_valid_state'],row)) for row in cursor]
         result.extend(temp)
     return result
 
