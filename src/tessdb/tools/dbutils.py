@@ -296,7 +296,8 @@ def log_coordinates_nearby(coords_iterable, limit):
             name_b = coords_iterable[pair[1]][0]['name']
             log.warn("Place 1 (%s): '%s' %s vs Place 2 (%s): '%s' %s [%d meters]", name_a, place_a, pair[0], name_b, place_b, pair[1], d)
 
-
+def filter_selected_keys(dictionary, keys):
+    return {key: dictionary[key] for key in keys}
 
 def filter_and_flatten(iterable, keys=None):
     '''Filter and flaten list created by by_xxx() filters

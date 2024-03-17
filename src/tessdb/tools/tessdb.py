@@ -71,6 +71,34 @@ def filter_current_name(row):
 def filter_current_phot(row):
     return row['phot_valid_state'] == 'Current'
 
+def filter_current_name_and_phot(row):
+     return row['valid_state'] == 'Current' and row['phot_valid_state'] == 'Current'
+
+def photometers_with_locations(connection, classification):
+    name_mac_list = selected_name_mac_list(connection, classification)
+    result = list()
+    cursor = connection.cursor()
+    for row in name_mac_list:
+        params = {'name': row['name'], 'mac': row['mac'], 'valid_state': row['valid_state']}
+        cursor.execute(
+            '''
+            SELECT  :name, mac_address, :valid_state, tess_id, valid_state, model, firmware, 
+            nchannels, zp1, filter1, zp2, filter2, zp3, filter3, zp4, filter4,
+            cover_offset, fov, azimuth, altitude,
+            longitude, latitude, place, town, sub_region, country, timezone,
+            contact_name, contact_email, organization -- This should be removed at some point
+            FROM tess_t AS t
+            JOIN location_t USING(location_id)
+            WHERE mac_address = :mac 
+            ''')
+        temp = [dict(zip(['name','mac','valid_state','tess_id','phot_valid_state','model','firmware',
+            'nchannels', 'zp1', 'filter1', 'zp2', 'filter2', 'zp3', 'filter3', 'zp4', 'filter4',
+            'cover_offset', 'fov', 'azimuth', 'altitude',
+            'longitude', 'latitude', 'place', 'town', 'sub_region', 'country', 'timezone',
+            'contact_name', 'contact_email', 'organization'],row)) for row in cursor]
+        result.extend(temp)
+    return result
+
 # This takes so much time that we converted it to a generator
 def readings_unknown_location(connection, name_mac_list, known_flag, threshold=0):
     cursor = connection.cursor()
@@ -376,7 +404,6 @@ def photometers_renamed(connection):
         history, break_end_tstamps, break_start_tstamps, truncated = name_mac_current_history(connection, name=None, mac=mac)
         start_tstamp = history[0][2]
         end_tstamp = history[-1][3]
-        log.info(history)
         prev_history, _ = name_mac_previous_related_history(connection, start_tstamp, name=None, mac=mac)
         next_history, _ = name_mac_next_related_history(connection, end_tstamp, name=None, mac=mac)
         pure_renaming = len(history) > 1 and len(break_end_tstamps) == 0 and len(prev_history) == 0 and len(next_history) == 0
@@ -432,30 +459,7 @@ def referenced_readings(connection, location_id):
         ''', params)
      return cursor.fetchone()[0]
 
-def photometers_with_locations(connection, classification):
-    name_mac_list = selected_name_mac_list(connection, classification)
-    result = list()
-    cursor = connection.cursor()
-    for row in name_mac_list:
-        params = {'name': row['name'], 'mac': row['mac']}
-        cursor.execute(
-            '''
-            SELECT  :name, mac_address, tess_id, valid_state, model, firmware, 
-            nchannels, zp1, filter1, zp2, filter2, zp3, filter3, zp4, filter4,
-            cover_offset, fov, azimuth, altitude,
-            longitude, latitude, place, town, sub_region, country, timezone,
-            contact_name, contact_email, organization -- This should be removed at some point
-            FROM tess_t AS t
-            JOIN location_t USING(location_id)
-            WHERE mac_address = :mac 
-            ''')
-        temp = [dict(zip(['name','mac','tess_id','phot_valid_state','model','firmware',
-            'nchannels', 'zp1', 'filter1', 'zp2', 'filter2', 'zp3', 'filter3', 'zp4', 'filter4',
-            'cover_offset', 'fov', 'azimuth', 'altitude',
-            'longitude', 'latitude', 'place', 'town', 'sub_region', 'country', 'timezone',
-            'contact_name', 'contact_email', 'organization'],row)) for row in cursor]
-        result.extend(temp)
-    return result
+
 
 # ================================ END GOOD REUSABLE FUNCTIONS ===============================
 
