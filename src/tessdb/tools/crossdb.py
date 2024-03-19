@@ -34,7 +34,7 @@ from .._version import __version__
 import tessdb.tools.tessdb as tdb
 import tessdb.tools.mongodb as mdb
 
-from .dbutils import common_A_B_items, in_A_not_in_B, filter_and_flatten, filter_selectd_keys
+from .dbutils import common_A_B_items, in_A_not_in_B, filter_and_flatten, filter_selected_keys
 from .dbutils import group_by_place, group_by_name, group_by_coordinates, group_by_mac
 from .dbutils import  log_places, log_names, distance, get_mongo_api_url, ungroup_from
 
