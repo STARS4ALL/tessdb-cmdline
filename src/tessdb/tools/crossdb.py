@@ -449,7 +449,8 @@ def location_check_unknown(mdb_input_list, connection, classification):
 def location_generate_unknown(mdb_input_list, connection, classification, output_dir):
     tdb_input_list = tdb.photometers_with_unknown_location(connection, classification)
     log.info("TessDB: Read %d items", len(tdb_input_list))
-    tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
+    if classification == 'easy' or classification == 'renamed':
+        tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
     log.info("TessDB: after filtering, %d items", len(tdb_input_list))
     mdb_phot_dict, tdb_phot_dict = common_location_unknown(mdb_input_list, tdb_input_list)
     if classification == 'easy' or classification == 'renamed':

@@ -66,7 +66,7 @@ render = functools.partial(render_from, package)
 
 def get_as_list(field, astype, phot_dict):
     def _collect(rows):
-        return [astype(row[field]) for row in rows]
+        return list(set(astype(row[field]) for row in rows))
     result = dict(zip(phot_dict.keys(), map(_collect, phot_dict.values())))    
     return result
 
