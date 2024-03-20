@@ -30,7 +30,7 @@ WHERE mac_address = '{{row['mac']}}';
 -- Updates past readings with the former location id
 UPDATE tess_readings_t
 SET location_id = (SELECT location_id FROM location_t WHERE longitude = {{row['longitude']}} AND latitude = {{row['latitude']}})
-WHERE tess_id IN ({{ ','.join(row['tess_ids']) }});
+WHERE tess_id IN ({{ ','.join( row['tess_ids']) }});
 COMMIT;
 PRAGMA foreign_keys = ON;
 --

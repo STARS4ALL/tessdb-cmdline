@@ -467,14 +467,14 @@ def location_generate_unknown(mdb_input_list, connection, classification, output
         log.info("Need to update location in: %s", item)
     tessdb_phot_list = list(map(quote_for_sql, tessdb_phot_list))
     tdb_phot_dict = group_by_mac(tessdb_phot_list)
-    
-    get_tess_ids = functools.partial(tdb.get_as_list, 'tess_id', str)
-    tdb_phot_ids = get_tess_ids(tdb_phot_dict)
+
+    get_tess_ids = functools.partial(tdb.get_as_list, 'tess_id')
+    tdb_phot_ids =  get_tess_ids(tdb_phot_dict)
   
-    for i, (key, values) in enumerate(tdb_phot_dict.items(), start=1):
+    for i, key  in enumerate(sorted(tdb_phot_dict.keys()), start=1):
         context = dict()
-        phot = values[0]
-        phot['tess_ids'] = tdb_phot_ids[key] # Append this item
+        phot = tdb_phot_dict[key][0]
+        phot['tess_ids'] = list(map(lambda x: str(x), tdb_phot_ids[key])) # Append this item
         if classification == 'renamed':
             context['names_history'] = tdb.names(connection, key)
             context['mac'] = key
