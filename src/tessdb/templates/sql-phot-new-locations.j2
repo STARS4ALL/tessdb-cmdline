@@ -1,10 +1,24 @@
--- ---------------------------
+-- --------------------------------------------------------------------
+-- NEW LOCATION INSERTION FOR {{ row['name'] }} ({{ classification }})
+-- --------------------------------------------------------------------
+{% if classification == 'easy' -%}
 -- NEW LOCATION INSERTION PART {{ row['name'] }} ({{ classification }})
--- ---------------------------
+{% elif classification == 'renamed' -%}
+-- NAMES HISTORY FOR '{{ mac }}':
+{% for history in names_history -%}
+-- {{ history['name'] }}	{{ history['valid_since'] }}	{{ history['valid_until'] }}	{{ history['valid_state'] }}
+{% endfor -%}
+{% elif classification == 'repaired' -%}
+-- MAC HISTORY FOR '{{ name }}':
+{% for history in macs_history -%}
+-- {{ history['mac'] }}		{{ history['valid_since'] }}	{{ history['valid_until'] }}	{{ history['valid_state'] }}
+{% endfor -%}
+{% else -%}
+-- BUFFFFFF
+{% endif -%}
 .echo on
 -- CREATE INDEX tess_id_readings_i ON tess_readings_t(tess_id);
 PRAGMA foreign_keys = OFF;
--- {{ i }}
 BEGIN TRANSACTION;
 -- Inserts new Location
 INSERT OR IGNORE INTO location_t (longitude,latitude,elevation,timezone,place,town,sub_region,region,country,organization,contact_email)

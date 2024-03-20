@@ -63,12 +63,11 @@ log = logging.getLogger(__name__)
 # ================================ BEGIN GOOD REUSABLE FUNCTIONS ============================
 
 render = functools.partial(render_from, package)
- 
 
-def get_tess_ids(phot_dict, astype=int):
-    def _tess_ids(rows):
-        return [astype(row['tess_id']) for row in rows]
-    result = dict(zip(phot_dict.keys(), map(_tess_ids, phot_dict.values())))    
+def get_as_list(field, astype, phot_dict):
+    def _collect(rows):
+        return [astype(row[field]) for row in rows]
+    result = dict(zip(phot_dict.keys(), map(_collect, phot_dict.values())))    
     return result
 
 def filter_current_name(row):
@@ -436,6 +435,30 @@ def photometers_with_unknown_location(connection, classification):
 def photometers_with_unknown_observer(connection, classification):
     name_mac_list = selected_name_mac_list(connection, classification)
     return photometers_observer_id(connection, name_mac_list, observer_id=-1)
+
+def names(connection, mac):
+    cursor = connection.cursor()
+    params = {'mac': mac}
+    cursor.execute(
+        '''
+        SELECT name, valid_since, valid_until, valid_state
+        FROM name_to_mac_t
+        WHERE mac_address = :mac
+        ORDER BY valid_since
+        ''', params)
+    return [dict(zip(['name','valid_since','valid_until','valid_state'], row)) for row in cursor]
+
+def mac_addresses(connection, name):
+    cursor = connection.cursor()
+    params = {'name': name}
+    cursor.execute(
+        '''
+        SELECT mac_address, valid_since, valid_until, valid_state
+        FROM name_to_mac_t
+        WHERE name = :name
+        ORDER BY valid_since
+        ''', params)
+    return [dict(zip(['mac','valid_since','valid_until','valid_state'], row)) for row in cursor]
 
 # we need 'name' for instead of 'location_id', because we use 'group_by_name()' later on
 def places(connection):

@@ -434,30 +434,52 @@ def common_location_unknown(mdb_input_list, tdb_input_list):
     return mdb_phot_dict, tdb_phot_dict
 
 
-def location_check_unknown(mdb_input_list, tdb_input_list):
+def location_check_unknown(mdb_input_list, connection, classification):
+    tdb_input_list = tdb.photometers_with_unknown_location(connection, classification)
+    log.info("TessDB: Read %d items", len(tdb_input_list))
+    tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
+    log.info("TessDB: after filtering, %d items", len(tdb_input_list))
     mdb_phot_dict, tdb_phot_dict = common_location_unknown(mdb_input_list, tdb_input_list)
     for k,values in tdb_phot_dict.items(): 
         for v in values: log.info("%s",v)
     log.info("Must update %s", " ".join(sorted(mdb_phot_dict.keys())))
+   
 
 
-def location_generate_unknown(mdb_input_list, tdb_input_list, output_dir, classification):
+def location_generate_unknown(mdb_input_list, connection, classification, output_dir):
+    tdb_input_list = tdb.photometers_with_unknown_location(connection, classification)
+    log.info("TessDB: Read %d items", len(tdb_input_list))
+    tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
+    log.info("TessDB: after filtering, %d items", len(tdb_input_list))
     mdb_phot_dict, tdb_phot_dict = common_location_unknown(mdb_input_list, tdb_input_list)
-    common_names = same_mac_filter(mdb_phot_dict, tdb_phot_dict)
+    if classification == 'easy' or classification == 'renamed':
+        common_names = same_mac_filter(mdb_phot_dict, tdb_phot_dict)
+    else:
+        common_names = tdb_phot_dict.keys()
     log.info("Reduced list of only %d names after MAC exclusion", len(common_names))
     mdb_phot_dict = filter_selected_keys(mdb_phot_dict, common_names)
     tdb_phot_dict = filter_selected_keys(tdb_phot_dict, common_names)
+
     update_tdb_dict_with_mdb_dict_location(tdb_phot_dict, mdb_phot_dict)
     tessdb_phot_list = filter_and_flatten(tdb_phot_dict)
     for item in tessdb_phot_list: 
         log.info("Need to update location in: %s", item)
-    tessdb_phot_list = list(map(quote_for_sql,tessdb_phot_list))
+    tessdb_phot_list = list(map(quote_for_sql, tessdb_phot_list))
     tdb_phot_dict = group_by_mac(tessdb_phot_list)
-    tdb_phot_ids = tdb.get_tess_ids(tdb_phot_dict, astype=str)
-    for i, (mac, values) in enumerate(tdb_phot_dict.items(), start=1):
-        phot = values[0]
-        phot['tess_ids'] = tdb_phot_ids[mac] # Append this item
+    
+    get_tess_ids = functools.partial(tdb.get_as_list, 'tess_id', str)
+    tdb_phot_ids = get_tess_ids(tdb_phot_dict)
+  
+    for i, (key, values) in enumerate(tdb_phot_dict.items(), start=1):
         context = dict()
+        phot = values[0]
+        phot['tess_ids'] = tdb_phot_ids[key] # Append this item
+        if classification == 'renamed':
+            context['names_history'] = tdb.names(connection, key)
+            context['mac'] = key
+        elif classification == 'repaired':
+            context['macs_history'] = tdb.mac_addresses(connection, phot['name'])
+            context['name'] = phot['name']
         context['row'] = phot
         context['i'] = i
         context['classification'] = classification
@@ -475,11 +497,8 @@ def location_check(args):
     log.info("MongoDB: Read %d items", len(mdb_input_list))
     classification = tdb.photometer_classification(args)
     if args.unknown:
-        tdb_input_list = tdb.photometers_with_unknown_location(connection, classification)
-        log.info("TessDB: Read %d items", len(tdb_input_list))
-        tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
-        log.info("TessDB: after filtering, %d items", len(tdb_input_list))
-        location_check_unknown(mdb_input_list, tdb_input_list)
+        location_check_unknown(mdb_input_list, connection, classification)
+        
 
 
 def location_fix(args):
@@ -490,12 +509,7 @@ def location_fix(args):
     log.info("MongoDB: Read %d items", len(mdb_input_list))
     classification = tdb.photometer_classification(args)
     if args.unknown:
-        tdb_input_list = tdb.photometers_with_unknown_location(connection, classification)
-        #for row in tdb_input_list: log.info(row)
-        log.info("TessDB: Read %d items", len(tdb_input_list))
-        tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
-        log.info("TessDB: after filtering, %d items", len(tdb_input_list))
-        location_generate_unknown(mdb_input_list, tdb_input_list, args.directory, classification)
+        location_generate_unknown(mdb_input_list, connection, classification, args.directory)
 
 
 def add_args(parser):
