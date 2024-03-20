@@ -448,17 +448,19 @@ def location_generate_unknown(mdb_input_list, tdb_input_list, output_dir, classi
     mdb_phot_dict = filter_selected_keys(mdb_phot_dict, common_names)
     tdb_phot_dict = filter_selected_keys(tdb_phot_dict, common_names)
     update_tdb_dict_with_mdb_dict_location(tdb_phot_dict, mdb_phot_dict)
-    tess_ids = [values for k, values in tdb_phot_dict.items()]
-    log.info(tess_ids)
     tessdb_phot_list = filter_and_flatten(tdb_phot_dict)
-    for item in tessdb_phot_list: log.info(item)
+    for item in tessdb_phot_list: 
+        log.info("Need to update location in: %s", item)
     tessdb_phot_list = list(map(quote_for_sql,tessdb_phot_list))
-    for i, phot in enumerate(tessdb_phot_list, start=1):
+    tdb_phot_dict = group_by_mac(tessdb_phot_list)
+    tdb_phot_ids = tdb.get_tess_ids(tdb_phot_dict, astype=str)
+    for i, (mac, values) in enumerate(tdb_phot_dict.items(), start=1):
+        phot = values[0]
+        phot['tess_ids'] = tdb_phot_ids[mac] # Append this item
         context = dict()
         context['row'] = phot
         context['i'] = i
         context['classification'] = classification
-        context['tess_ids'] = None
         name = phot['name']
         output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
         output_path = os.path.join(output_dir, f"{i:03d}_{name}_{classification}_new_unknown.sql")

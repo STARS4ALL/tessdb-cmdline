@@ -63,7 +63,13 @@ log = logging.getLogger(__name__)
 # ================================ BEGIN GOOD REUSABLE FUNCTIONS ============================
 
 render = functools.partial(render_from, package)
+ 
 
+def get_tess_ids(phot_dict, astype=int):
+    def _tess_ids(rows):
+        return [astype(row['tess_id']) for row in rows]
+    result = dict(zip(phot_dict.keys(), map(_tess_ids, phot_dict.values())))    
+    return result
 
 def filter_current_name(row):
     return row['valid_state'] == 'Current'
