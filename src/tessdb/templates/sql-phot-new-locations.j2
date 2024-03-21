@@ -1,6 +1,4 @@
--- --------------------------------------------------------------------
--- NEW LOCATION INSERTION FOR {{ row['name'] }} ({{ classification }})
--- --------------------------------------------------------------------
+-- ------------------------------------------------------------------------
 {% if classification == 'easy' -%}
 -- NEW LOCATION INSERTION PART {{ row['name'] }} ({{ classification }})
 {% elif classification == 'renamed' -%}
@@ -16,6 +14,7 @@
 {% else -%}
 -- BUFFFFFF
 {% endif -%}
+-- ------------------------------------------------------------------------
 .echo on
 -- CREATE INDEX tess_id_readings_i ON tess_readings_t(tess_id);
 PRAGMA foreign_keys = OFF;
