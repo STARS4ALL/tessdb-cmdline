@@ -437,9 +437,17 @@ def common_location_unknown(mdb_input_list, tdb_input_list):
 def location_check_unknown(mdb_input_list, connection, classification):
     tdb_input_list = tdb.photometers_with_unknown_location(connection, classification)
     log.info("TessDB: Read %d items", len(tdb_input_list))
-    tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
+    if classification == 'easy' or classification == 'renamed':
+        tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
     log.info("TessDB: after filtering, %d items", len(tdb_input_list))
     mdb_phot_dict, tdb_phot_dict = common_location_unknown(mdb_input_list, tdb_input_list)
+    if classification == 'easy' or classification == 'renamed':
+        common_names = same_mac_filter(mdb_phot_dict, tdb_phot_dict)
+    else:
+        common_names = tdb_phot_dict.keys()
+    log.info("Reduced list of only %d names after MAC exclusion", len(common_names))
+    mdb_phot_dict = filter_selected_keys(mdb_phot_dict, common_names)
+    tdb_phot_dict = filter_selected_keys(tdb_phot_dict, common_names)
     for k,values in tdb_phot_dict.items(): 
         for v in values: log.info("%s",v)
     log.info("Must update %s", " ".join(sorted(mdb_phot_dict.keys())))
@@ -494,7 +502,7 @@ def location_check(args):
     log.info(" ====================== PERFORM CROSS DB LOCATION CHECKS ======================")
     connection, path = open_database(None, 'TESSDB_URL')
     url = get_mongo_api_url()
-    mdb_input_list = mdb.mongo_get_location_info(url)
+    mdb_input_list = mdb.mongo_get_all_info(url)
     log.info("MongoDB: Read %d items", len(mdb_input_list))
     classification = tdb.photometer_classification(args)
     if args.unknown:
