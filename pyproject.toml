@@ -55,7 +55,6 @@ Repository = "https://github.com/astrorafael/tessdb-cmdline.git"
 [project.scripts]
 mongo-db = "tessdb.tools.mongodb:main"
 tess-db = "tessdb.tools.tessdb:main"
-location = "tessdb.tools.location:main"
 zp-tess =  "tessdb.tools.zptess:main"
 cross-db =  "tessdb.tools.crossdb:main"
 tess-ida = "tessdb.reports.ida:main"

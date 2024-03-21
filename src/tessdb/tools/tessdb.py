@@ -79,6 +79,15 @@ def filter_current_phot(row):
 def filter_current_name_and_phot(row):
      return row['valid_state'] == 'Current' and row['phot_valid_state'] == 'Current'
 
+def coordinates_from_location_id(connection, location_id):
+    params = {'location_id': location_id}
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT longitude, latitude FROM location_t WHERE location_id = :location_id
+        ''', params)
+    return cursor.fetchone()
+
 def photometers_with_locations(connection, classification):
     name_mac_list = selected_name_mac_list(connection, classification)
     result = list()

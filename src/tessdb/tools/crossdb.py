@@ -42,6 +42,8 @@ from .dbutils import  log_places, log_names, distance, get_mongo_api_url, ungrou
 # Module constants
 # ----------------
 
+SQL_PHOT_NEW_LOCATIONS_TEMPLATE = 'sql-phot-new-locations.j2'
+
 # -----------------------
 # Module global variables
 # -----------------------
@@ -53,6 +55,10 @@ render = functools.partial(render_from, package)
 # -------------------------
 # Module auxiliar functions
 # -------------------------
+
+### ##################### ###
+### BEGIN UNUSUED SECTION 
+### ##################### ###  
 
 def make_nearby_filter(tuple2, lower, upper):
     def distance_filter(tuple1):
@@ -164,39 +170,6 @@ def check_unknown(connection, url):
     log.info(photometer_names)
     for name in photometer_names:
         log.info(mongo_phot[name])
-
-
-
-
-# ===================
-# Module entry points
-# ===================
-
-def check(args):
-    log.info(" ====================== PERFORM CROSS DB CHEKCS ======================")
-    connection, path = open_database(None, 'TESSDB_URL')
-    url = get_mongo_api_url()
-    mdb_input_list = mdb.mongo_get_photometer_info(url)
-    log.info("MongoDB: Read %d items", len(mdb_input_list))
-    mongo_phot = group_by_name(mdb_input_list)
-    tdb_input_list = photometers_from_tessdb(connection)
-    log.info("read %d items from TessDB", len(tdb_input_list))
-    tessdb_phot = group_by_name(tdb_input_list)
-    if args.mac:
-        log.info("Check for MAC differences in common photometer names")
-        photometer_names = common_A_B_items(mongo_phot, tessdb_phot)
-        log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
-        common_mac_check(photometer_names, mongo_phot, tessdb_phot)
-    elif args.zero_point:
-        log.info("Check for Zero Point differentces in common photometer names")
-        photometer_names = common_A_B_items(mongo_phot, tessdb_phot)
-        log.info("%d photometers in common between MongoDB and TessDB",len(photometer_names))
-        common_zp_check(photometer_names, mongo_phot, tessdb_phot)
-    elif args.unknown:
-        log.info("Cross checking unknown location in TESSDB vs known locations in MongoDB")
-        check_unknown(connection, url)
-    else:
-        log.error("No valid input option to subcommand 'check'")
 
 
 def photometers(args):
@@ -384,15 +357,16 @@ def coordinates(args):
                         'tdb_timezone': tessdb_row['timezone']
                         }
                     )
-    write_csv(output, X_HEADER, args.file)       
+    write_csv(output, X_HEADER, args.file)     
+
+### ################### ###
+### END UNUSUED SECTION 
+### ################### ###  
 
 ### ###################### ###
-### ---------------------- ---
 ### NEW REFACTORED SECTION 
-### ---------------------- ---
 ### ###################### ###
 
-SQL_PHOT_NEW_LOCATIONS_TEMPLATE = 'sql-phot-new-locations.j2'
 
 def quote_for_sql(row):
     for key in ('timezone', 'place', 'town', 'sub_region', 'region', 'country', 'org_name', 'org_email'):
@@ -424,23 +398,20 @@ def update_tdb_dict_with_mdb_dict_location(tdb_phot_dict, mdb_phot_dict):
                 values[i][field] = mdb_phot_dict[name][0][field]
     
 
-def common_location_unknown(mdb_input_list, tdb_input_list):
+def location_common_unknown(mdb_input_list, connection, classification):
+    tdb_input_list = tdb.photometers_with_unknown_location(connection, classification)
+    log.info("TessDB: Read %d items", len(tdb_input_list))
+    if classification == 'easy' or classification == 'renamed':
+        tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
+    log.info("TessDB: after filtering, %d items", len(tdb_input_list))
+    # Wgen compaing to MongoDB, we must group by name 
+    # and themn select all the common names in each dict
     mdb_phot_dict = group_by_name(mdb_input_list)
     tdb_phot_dict = group_by_name(tdb_input_list)
     common_names = common_A_B_items(mdb_phot_dict, tdb_phot_dict)
     log.info("Found %d common location entries", len(common_names))
     mdb_phot_dict = filter_selected_keys(mdb_phot_dict, common_names)
     tdb_phot_dict = filter_selected_keys(tdb_phot_dict, common_names)
-    return mdb_phot_dict, tdb_phot_dict
-
-
-def location_check_unknown(mdb_input_list, connection, classification):
-    tdb_input_list = tdb.photometers_with_unknown_location(connection, classification)
-    log.info("TessDB: Read %d items", len(tdb_input_list))
-    if classification == 'easy' or classification == 'renamed':
-        tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
-    log.info("TessDB: after filtering, %d items", len(tdb_input_list))
-    mdb_phot_dict, tdb_phot_dict = common_location_unknown(mdb_input_list, tdb_input_list)
     if classification == 'easy' or classification == 'renamed':
         common_names = same_mac_filter(mdb_phot_dict, tdb_phot_dict)
     else:
@@ -448,6 +419,11 @@ def location_check_unknown(mdb_input_list, connection, classification):
     log.info("Reduced list of only %d names after MAC exclusion", len(common_names))
     mdb_phot_dict = filter_selected_keys(mdb_phot_dict, common_names)
     tdb_phot_dict = filter_selected_keys(tdb_phot_dict, common_names)
+    return mdb_phot_dict, tdb_phot_dict
+
+
+def location_check_unknown(mdb_input_list, connection, classification):
+    mdb_phot_dict, tdb_phot_dict = location_common_unknown(mdb_input_list, connection, classification)
     for k,values in tdb_phot_dict.items(): 
         for v in values: log.info("%s",v)
     log.info("Must update %s", " ".join(sorted(mdb_phot_dict.keys())))
@@ -455,30 +431,14 @@ def location_check_unknown(mdb_input_list, connection, classification):
 
 
 def location_generate_unknown(mdb_input_list, connection, classification, output_dir):
-    tdb_input_list = tdb.photometers_with_unknown_location(connection, classification)
-    log.info("TessDB: Read %d items", len(tdb_input_list))
-    if classification == 'easy' or classification == 'renamed':
-        tdb_input_list = list(filter(tdb.filter_current_name, tdb_input_list))
-    log.info("TessDB: after filtering, %d items", len(tdb_input_list))
-    mdb_phot_dict, tdb_phot_dict = common_location_unknown(mdb_input_list, tdb_input_list)
-    if classification == 'easy' or classification == 'renamed':
-        common_names = same_mac_filter(mdb_phot_dict, tdb_phot_dict)
-    else:
-        common_names = tdb_phot_dict.keys()
-    log.info("Reduced list of only %d names after MAC exclusion", len(common_names))
-    mdb_phot_dict = filter_selected_keys(mdb_phot_dict, common_names)
-    tdb_phot_dict = filter_selected_keys(tdb_phot_dict, common_names)
-
+    mdb_phot_dict, tdb_phot_dict = location_common_unknown(mdb_input_list, connection, classification)
     update_tdb_dict_with_mdb_dict_location(tdb_phot_dict, mdb_phot_dict)
     tessdb_phot_list = filter_and_flatten(tdb_phot_dict)
-    for item in tessdb_phot_list: 
-        log.info("Need to update location in: %s", item)
     tessdb_phot_list = list(map(quote_for_sql, tessdb_phot_list))
+    # However, to generate SQL, we mut group by mac, to get all tess_ids for a single MAC
     tdb_phot_dict = group_by_mac(tessdb_phot_list)
-
     get_tess_ids = functools.partial(tdb.get_as_list, 'tess_id')
     tdb_phot_ids =  get_tess_ids(tdb_phot_dict)
-  
     for i, key  in enumerate(sorted(tdb_phot_dict.keys()), start=1):
         context = dict()
         phot = tdb_phot_dict[key][0]

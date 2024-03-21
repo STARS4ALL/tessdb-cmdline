@@ -71,94 +71,10 @@ log = logging.getLogger(__name__)
 package = __name__.split('.')[0]
 render = functools.partial(render_from, package)
 
-'''
-
--- Detalle de fotometros reparados
-SELECT name, mac_address, valid_since, valid_until, valid_region FROM name_to_mac_t
-WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
-ORDER BY name;
-
--- Detalle de fotometros renombrados porque si
-SELECT name, mac_address, valid_since, valid_until, valid_region FROM name_to_mac_t
-WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
-ORDER BY mac_address;
-
-
--------------------------------------------------------------------------
--- Todos los fotometros que no han sufrido ni reparaciones ni renombrados
--------------------------------------------------------------------------
-SELECT name, mac_address, valid_since, valid_until, valid_region  FROM name_to_mac_t
-WHERE name LIKE 'stars%'
-EXCEPT
-SELECT name, mac_address, valid_since, valid_until, valid_region  FROM name_to_mac_t
-WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
-EXCEPT
-SELECT name, mac_address, valid_since, valid_until, valid_region  FROM name_to_mac_t
-WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1)
-
-
-----------------------------------------------------------------------------------------
--- Historial de ZP de los fotometros 'faciles' y que no están asignados a ningun 'place'
-----------------------------------------------------------------------------------------
-
-SELECT mac_address, tess_id, location_id, zero_point, valid_since, valid_until, valid_region
-FROM tess_t
-WHERE mac_address IN (
-    SELECT mac_address  FROM name_to_mac_t
-    WHERE name LIKE 'stars%'
-    EXCEPT
-    SELECT mac_address FROM name_to_mac_t
-    WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
-    EXCEPT
-    SELECT mac_address FROM name_to_mac_t
-    WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1))
-AND location_id = -1
-ORDER BY mac_address, valid_since
-
--------------------------------------
--- Lo mismo pero incluyendo el nombre
--------------------------------------
-
-SELECT name, t.mac_address, tess_id, location_id, zero_point, t.valid_since, t.valid_until, t.valid_region
-FROM tess_t AS t
-JOIN name_to_mac_t USING(mac_address)
-WHERE mac_address IN (
-    SELECT mac_address  FROM name_to_mac_t
-    WHERE name LIKE 'stars%'
-    EXCEPT
-    SELECT mac_address FROM name_to_mac_t
-    WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
-    EXCEPT
-    SELECT mac_address FROM name_to_mac_t
-    WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1))
-AND location_id = -1
-ORDER BY mac_address, t.valid_since
-
-'''
-
-def _easy_photometers_with_unknown_locations_from_tessdb(connection):
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT name, t.mac_address, tess_id, zp1, location_id, 
-            l.place, l.town, l.sub_region, l.region, l.country, l.timezone, l.organization, l.contact_email
-        FROM tess_t AS t
-        JOIN name_to_mac_t AS n USING(mac_address)
-        JOIN location_t  AS l USING(location_id)
-        WHERE mac_address IN (
-            -- Photometers with no repairs and no renamings
-            SELECT mac_address  FROM name_to_mac_t
-            WHERE name LIKE 'stars%'
-            EXCEPT -- this is the photometer substitution/repair part
-            SELECT mac_address FROM name_to_mac_t
-            WHERE name IN (SELECT name FROM name_to_mac_t GROUP BY name HAVING COUNT(name) > 1)
-            EXCEPT -- This is the renamings part
-            SELECT mac_address FROM name_to_mac_t
-            WHERE mac_address IN (SELECT mac_address FROM name_to_mac_t GROUP BY mac_address HAVING COUNT(mac_address) > 1))
-        AND location_id = -1
-        ORDER BY mac_address, t.valid_since
-        ''')
-    return cursor
+# ============================================================
+# DISMANTELED AS AN UTILITY
+# REMAINS HERE FOR USEFUL CODE THAT COULD BE PORTED ELSEWHERE
+# ============================================================
 
 def _easy_photometers_with_former_locations_from_tessdb(connection):
     cursor = connection.cursor()
@@ -184,15 +100,6 @@ def _easy_photometers_with_former_locations_from_tessdb(connection):
         ''')
     return cursor
 
-def _coordinates_from_id(connection, location_id):
-    row = dict()
-    row['location_id'] = location_id
-    cursor = connection.cursor()
-    cursor.execute(
-        '''
-        SELECT longitude, latitude FROM location_t WHERE location_id = :location_id
-        ''', row)
-    return cursor.fetchone()
 
 def tessdb_remap_location_info(row):
     new_row = dict()
@@ -248,25 +155,6 @@ def easy_photometers_with_former_locations_from_tessdb(connection):
 def repaired_photometers_with_locations_from_tessdb(connection):
     return list(map(tessdb_remap_location_info2, _repaired_photometers_with_locations_from_tessdb(connection)))
 
-def quote_for_sql(row):
-    for key in ('timezone', 'place', 'town', 'sub_region', 'region', 'country', 'org_name', 'org_email'):
-        if row[key] is not None:
-            row[key] = "'" + row[key].replace("'","''") + "'"
-        else:
-            row[key] = 'NULL'
-    return row
-
-def same_mac_filter(mongo_db_input_dict, tessdb_input_dict):
-    result = list()
-    names = mongo_db_input_dict.keys()
-    for name in sorted(names):
-        mongo_mac = mongo_db_input_dict[name][0]['mac']
-        tessdb_mac = tessdb_input_dict[name][0]['mac']
-        if mongo_mac  != tessdb_mac:
-            log.info("Excluding photometer %s with different MACs: MongoDB (%s) , TESSDB (%s)", name, mongo_mac, tessdb_mac)
-        else:
-            result.append(name)
-    return result
 
 def new_photometer_location(mongo_db_input_dict, tessdb_input_dict):
     photometers = list()
@@ -307,7 +195,7 @@ def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connect
         assert all(loc == locations[0] for loc in locations)
         row['location_id'] = locations[0]
         #log.info("Must update %s [%s] with (%s,%s) coords", name, row['mac'], row['longitude'], row['latitude'])
-        tessdb_coords = _coordinates_from_id(connection, row['location_id'])
+        tessdb_coords = coordinates_from_location_id(connection, row['location_id'])
         mongodb_coords = (row['longitude'], row['latitude'])
         dist = distance ( mongodb_coords, tessdb_coords)
         if dist == 0:
@@ -326,56 +214,6 @@ def existing_photometer_location(mongo_db_input_dict, tessdb_input_dict, connect
 # ======================
 # Second level functions
 # ======================
-
-def check_easy(connection):
-    log.info("Accesing TESSDB database")
-    tessdb_input_list = photometers_easy(connection)
-    tessdb_input_dict = group_by_name(tessdb_input_list)
-    log.info("Easy photometers: %d", len(tessdb_input_dict))
-    for key, values in tessdb_input_dict.items():
-        for item in values:
-            mac = item['mac']
-            cursor = tess_id_from_mac(connection, mac)
-            result = tuple(zip(*cursor))
-            item['tess_ids'] = result[0]
-            item['location_ids'] = result[1]
-            log.info("%s MAC: %s, TESS IDS: %s LOCATION_IDS: %s",key, mac, item['tess_ids'], item['location_ids'])
-            item['observer_ids'] = result[2]
-    tessdb_input_dict = {key: values for key, values in tessdb_input_dict.items() if filter_any_unknown_id(values, 'location_ids')}
-    log.info("="*64)
-    for key, values in tessdb_input_dict.items():
-        for item in values:
-            mac = item['mac']
-            log.info("%s MAC: %s, TESS IDS: %s LOCATION_IDS: %s", key, mac, item['tess_ids'], item['location_ids'])
-
-def generate_unknown(connection, mongodb_url, output_dir):
-    log.info("Accesing TESSDB database")
-    tessdb_input_list = easy_photometers_with_unknown_locations_from_tessdb(connection)
-    tessdb_input_dict = group_by_name(tessdb_input_list)
-    log.info("Photometer entries with unknown locations: %d", len(tessdb_input_dict))
-    log.info("Accesing MongoDB database")
-    mongodb_input_list = mongo_get_all_info(mongodb_url)
-    mongo_db_input_dict = group_by_name(mongodb_input_list)
-    common_names = common_A_B_items(tessdb_input_dict, mongo_db_input_dict)
-    log.info("Photometer names that must be updated with MongoDB location: %d", len(common_names))
-    mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
-    tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
-    common_names = same_mac_filter(mongo_db_input_dict, tessdb_input_dict)
-    log.info("Reduced list of only %d entries after MAC exclusion", len(common_names))
-    mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
-    tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
-    photometers_with_new_locations = list(map(quote_for_sql, new_photometer_location(mongo_db_input_dict, tessdb_input_dict)))
-    for i, phot in enumerate(new_photometer_location(mongo_db_input_dict, tessdb_input_dict), 1):
-        context = dict()
-        context['row'] = phot
-        context['i'] = i
-        name = phot['name']
-        output = render(SQL_PHOT_NEW_LOCATIONS_TEMPLATE, context)
-        output_path = os.path.join(output_dir, f"{i:03d}_{name}_new_unknown.sql")
-        with open(output_path, "w") as sqlfile:
-            sqlfile.write(output)
-
-
 
 
 def generate_single(connection, mongodb_url, output_dir):
@@ -427,86 +265,17 @@ def generate_single(connection, mongodb_url, output_dir):
             sqlfile.write(output)
 
 
-def generate_repaired(connection, mongodb_url, output_dir):
-    log.info("Accesing TESSDB database")
-    tessdb_input_list = photometers_repaired(connection)
-    tessdb_input_dict = group_by_name(tessdb_input_list)
-    log.info("Repaired photometers: %d", len(tessdb_input_dict))
-    valid_names = list()
-    for key, values in tessdb_input_dict.items():
-        accepted = filter_contiguous(values)
-        if accepted:
-            valid_names.append(key)
-        log.debug("KEY = %s , LEN VALUES = %d, ACCEPTED = %s", key, len(values), accepted)
-    tessdb_input_dict = {key: tessdb_input_dict[key] for key in valid_names }
-    log.info("After detecting true pure repairs, the list has %d entries", len(tessdb_input_dict))
-    log.info("Accesing MongoDB database")
-    mongodb_input_list = mongo_get_all_info(mongodb_url)
-    mongo_db_input_dict = group_by_name(mongodb_input_list)
-    common_names = common_A_B_items(tessdb_input_dict, mongo_db_input_dict)
-    log.info("Photometer names that must be updated with MongoDB location: %d", len(common_names))
-    mongo_db_input_dict = {key: mongo_db_input_dict[key] for key in common_names }
-    tessdb_input_dict = {key: tessdb_input_dict[key] for key in common_names }
-    #log.info(tessdb_input_dict)
-    for key, values in tessdb_input_dict.items():
-        log.info("---------------------- %s ----------------------", key)
-        for item in values:
-            mac = item['mac']
-            cursor = tess_id_from_mac(connection, mac)
-            result = tuple(zip(*cursor))
-            item['tess_ids'] = result[0]
-            item['location_ids'] = result[1]
-            log.info("MAC: %s, TESS IDS: %s LOCATION_IDS: %s", mac, item['tess_ids'], item['location_ids'])
-            item['observer_ids'] = result[2]
 
 # ===================
 # Module entry points
 # ===================
 
-def generate(args):
-    mongodb_url = get_mongo_api_url()
-    connection, path = open_database(None, 'TESSDB_URL')
-    log.info("%s: LOCATIONS SCRIPT GENERATION", __name__)
-    if args.unknown:
-        generate_unknown(connection, mongodb_url, args.directory)
-    elif args.single:
-        generate_single(connection, mongodb_url, args.directory)
-    elif args.repaired:
-        generate_repaired(connection, mongodb_url, args.directory)
-    else:
-        raise NotImplementedError("Command line option not yet implemented")
 
 # ================
 # MAIN ENTRY POINT
 # ================
 
-def add_args(parser):
-
-    # ------------------------------------------
-    # Create second level parsers for 'location'
-    # ------------------------------------------
-
-    subparser = parser.add_subparsers(dest='command')
-    
-    locg = subparser.add_parser('generate',  help="Generate SQL file with location updates from MongoDB ")
-    locgex1 = locg.add_mutually_exclusive_group(required=True)
-    locgex1.add_argument('-u', '--unknown', action='store_true', help='Update those with no repairs and no renamings and unknown location')
-    locgex1.add_argument('-s', '--single', action='store_true', help='Update those with no repairs and no renamings in tessdb')
-    locgex1.add_argument('-rp', '--repaired', action='store_true', help='Update those with true repaired entries and unknown location in tessdb')
-    locg.add_argument('-d', '--directory', type=vdir, required=True, help='Directory to place output SQL files')
-
-ENTRY_POINT = {
-    'generate': generate,
-}
-
-def location(args):
-    func = ENTRY_POINT[args.command]
-    func(args)
-
-def main():
-    execute(main_func=location, 
-        add_args_func=add_args, 
-        name=__name__, 
-        version=__version__,
-        description="STARS4ALL MongoDB Utilities"
-    )
+# ============================================================
+# DISMANTELED AS AN UTILITY
+# REMAINS HERE FOR USEFUL CODE THAT COULD BE PORTED ELSEWHERE
+# ============================================================
