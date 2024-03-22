@@ -670,11 +670,11 @@ def check(args):
 
 def check_photometers_with_unknown_location(connection, classification):
     result = photometers_with_unknown_location(connection, classification)
-    log.info("Must update location in %d %s photometers (%d entries)", classification, len(group_by_mac(result)), len(result))
+    log.info("Must update location in %d %s photometers (%d entries)", len(group_by_mac(result)), classification, len(result))
 
 def check_photometers_with_unknown_observer(connection, classification):
     result = photometers_with_unknown_opbserver(connection, classification)
-    log.info("Must update observer in %d %s photometers (%d entries)", classification, len(group_by_mac(result)), len(result))
+    log.info("Must update observer in %d %s photometers (%d entries)", len(group_by_mac(result)), classification,  len(result))
 
 def check_fake_zero_points(connection, classification):
     name_mac_list = selected_name_mac_list(connection, classification)
