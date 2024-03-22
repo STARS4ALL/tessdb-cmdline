@@ -440,7 +440,7 @@ def photometers_complicated(connection):
 def photometers_with_unknown_location(connection, classification):
     name_mac_list = selected_name_mac_list(connection, classification)
     return photometers_location_id(connection, name_mac_list, location_id=-1)
-
+   
 def photometers_with_unknown_observer(connection, classification):
     name_mac_list = selected_name_mac_list(connection, classification)
     return photometers_observer_id(connection, name_mac_list, observer_id=-1)
@@ -660,20 +660,36 @@ def check(args):
         check_fake_zero_points(connection, classification)
     elif args.unknown_location:
         log.info("Check for Unknown Location in tess_t")
-        check_photometers_with_unknown_location(connection, classification)
+        check_photometers_with_unknown_location(connection, classification, args.output_file)
     elif args.unknown_observer:
         log.info("Check for Unknown Observer in tess_t")
-        check_photometers_with_unknown_observer(connection, classification)
+        check_photometers_with_unknown_observer(connection, classification, args.output_file)
     else:
         log.error("No valid input option to command 'check'")
 
 
-def check_photometers_with_unknown_location(connection, classification):
+def check_photometers_with_unknown_location(connection, classification, optional_csv_path):
     result = photometers_with_unknown_location(connection, classification)
+    result = list(filter(filter_current_phot, result))
+    if optional_csv_path and result:
+        with open(optional_csv_path, 'w') as csvfile:
+            fieldnames = result[0].keys()
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in result:
+                writer.writerow(row)
     log.info("Must update location in %d %s photometers (%d entries)", len(group_by_mac(result)), classification, len(result))
 
-def check_photometers_with_unknown_observer(connection, classification):
-    result = photometers_with_unknown_opbserver(connection, classification)
+def check_photometers_with_unknown_observer(connection, classification, optional_csv_path):
+    result = photometers_with_unknown_observer(connection, classification)
+    result = list(filter(filter_current_phot, result))
+    if optional_csv_path and result:
+        with open(optional_csv_path, 'w') as csvfile:
+            fieldnames = result[0].keys()
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in result:
+                writer.writerow(row)
     log.info("Must update observer in %d %s photometers (%d entries)", len(group_by_mac(result)), classification,  len(result))
 
 def check_fake_zero_points(connection, classification):
@@ -859,6 +875,7 @@ def add_args(parser):
     tdex1.add_argument('-z', '--fake-zero-points', action='store_true', help='Check for fake zero points tess_t')
     tdex1.add_argument('-ul', '--unknown-location', action='store_true', help='Check unknown location in tess_t')
     tdex1.add_argument('-uo', '--unknown-observer', action='store_true', help='Check unknown observer in tess_t')
+    tdcheck.add_argument('-o', '--output-file', type=str, help='Optional output CSV file to export info')
    
 
     tdfix = subparser.add_parser('fix',  help="Fix TessDB data/metadata")
