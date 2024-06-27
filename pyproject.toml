@@ -49,8 +49,8 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/astrorafael/tessdb-cmdline"
-Repository = "https://github.com/astrorafael/tessdb-cmdline.git"
+Homepage = "https://github.com/STARS4ALL/tessdb-cmdline"
+Repository = "https://github.com/STARS4ALL/tessdb-cmdline.git"
 
 [project.scripts]
 mongo-db = "tessdb.tools.mongodb:main"
