@@ -83,11 +83,7 @@ script-files = [
     "scripts/tools/manual-repaired-location-fixes",
     "scripts/reports/tess_bulk_dump.sh",
     "scripts/reports/tess_daily_summary.sh",
-    "scripts/reports/tess_ida_bulk_dump.sh",
-    "scripts/reports/tess_ida_bulk_dump_all.sh",
     "scripts/reports/tess_readings_unassigned.sh",
-    "scripts/reports/tessdb_index.sh",
-
 ]
 
 [tool.setuptools.package-data]
