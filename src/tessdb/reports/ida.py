@@ -75,7 +75,7 @@ class MonthIterator(object):
     def __next__(self):
         '''Make this this class an iterator'''
         m = self.__month
-        if self.__month == self.__end:
+        if self.__month >= self.__end:
             raise StopIteration  
         self.__month += relativedelta(months = +1)
         return m
