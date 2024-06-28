@@ -1,0 +1,24 @@
+#!/bin/bash
+
+DEFAULT_SRC_DIR="/home/rfg/dbase/reports/IDA"
+DEFAULT_DST_DIR="IDA"
+# WebDAV Server is identified by a tag in .config/rclone/rclone.conf
+DEFAULT_WEBDAV_TAG="IDA"
+FLAGS="--verbose"
+
+# Some commands
+NICE=$(which nice)
+IONICE=$(which ionice)
+RCLONE=$(which rclone)
+RCLONE_COMMAND=sync
+
+# Arguments from the command line & default values
+
+SRC_DIR="${1:-$DEFAULT_SRC_DIR}"
+DST_DIR="${2:-$DEFAULT_DST_DIR}"
+WEBDAV_TAG="${3:-$DEFAULT_WEBDAV_TAG}"
+
+#do the job
+echo "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${SRC_DIR} ${WEBDAV_TAG}:${DST_DIR} ${FLAGS}"
+${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${SRC_DIR} ${WEBDAV_TAG}:${DST_DIR} ${FLAGS}
+exit $?
