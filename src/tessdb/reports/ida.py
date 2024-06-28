@@ -114,7 +114,9 @@ def createMonthList(args):
         start_month = args.for_month
         end_month   = start_month
     else:
-        start_month  = args.from_month
+        # cant compare naive dateinfo with toimeaware dateinfo
+        dt = args.from_month
+        start_month  = datetime.datetime(year=dt.year, month=dt.month, day=dt.day, tzinfo=datetime.timezone.utc)
         end_month    = now_month()
     return MonthIterator(start_month, end_month)
 
