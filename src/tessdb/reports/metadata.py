@@ -173,8 +173,8 @@ def instrument_in_several_locations(name, tess_list, connection):
         mac_address['current'] = mac_record1
         zero_point['current'], zero_point['previous'] = maybe_swap(zp1, zp2)
         filters['current'],    filters['previous']    = maybe_swap(filter1, filter2)
-    nchannels = int(tess[0][4])
-    alt_az = tuple([tess[0][18], 90 - tess[0][19]])*nchannels
+    nchannels = int(tess_list[0][4])
+    alt_az = tuple([tess_list[0][18], 90 - tess_list[0][19]])*nchannels
     return {
         'name':         name,
         'mac_address':  mac_address,
