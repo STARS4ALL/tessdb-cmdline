@@ -111,7 +111,9 @@ def if_changed(tess_list, index):
     nchannels1 = tess_list[0][4]
     nchannels2 = tess_list[1][4]
     valueA ==  tuple(tess_list[0][i] for i in range(index, index+4)) if nchannels1 > 1 else tess_list[0][index]
+    log.info("valueA = %s", valueA)
     valueB ==  tuple(tess_list[1][i] for i in range(index, index+4)) if nchannels1 > 1 else tess_list[1][index]
+    log.info("valueB = %s", valueB)
     var1 = {
         'value':        valueA, 
         'valid_since':  tess_list[0][13], 
