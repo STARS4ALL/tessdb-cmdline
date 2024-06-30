@@ -25,6 +25,9 @@ DEFAULT_DATABASE="/var/dbase/tess.db"
 DEFAULT_REPORTS_DIR="/var/dbase/reports/IDA"
 DEFAULT_START_DATE="2015-01"
 
+DATE=$(/usr/bin/date +%Y%m%d)
+LOG_FILE="tess_ida_bulk_dump_all_${DATE}.log"
+
 # get the name from the script name without extensions
 name=$(basename ${0%.sh})
 
@@ -41,8 +44,19 @@ out_dir="${3:-$DEFAULT_REPORTS_DIR}"
 
 
 if  [[ ! -f $dbase || ! -r $dbase ]]; then
-        echo "Database file $dbase does not exists or is not readable."
-        echo "Exiting"
+        echo "[WARNING] Database file $dbase does not exists or is not readable. Aborting..."
+        exit 1
+fi
+
+
+if  [[ -f /etc/cron.d/tessdb_remote_backup ]]; then
+        echo "[WARNING] tess.db remote  backup is active. Aborting..."
+        exit 1
+fi
+
+
+if  [[ -f /etc/cron.d/webdav_ida_rclone ]]; then
+        echo "[WARNING] IDA WebDAV sync is active. Aborting..."
         exit 1
 fi
 
@@ -51,7 +65,7 @@ photometers=$(query_names ${dbase})
 # Loops over the instruments file and dumping data
 for instrument in $photometers; do
     echo "Generating IDA file for TESS $instrument for ${START_DATE} under ${out_dir}/${instrument}"
-    ${TESS_IDA} ${instrument} --console --from-month ${from_month} -d ${dbase} -o ${out_dir}
+    ${TESS_IDA} ${instrument} --console --log-file ${LOG_FILE} --from-month ${from_month} -d ${dbase} -o ${out_dir}
 done
 
 
