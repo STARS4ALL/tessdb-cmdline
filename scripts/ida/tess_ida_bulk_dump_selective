@@ -14,11 +14,9 @@ DEFAULT_START_DATE="2015-01"
 DEFAULT_REGEN_DIR="{HOME}/regenerate.ida.d"
 
 DATE=$(/usr/bin/date +%Y%m%d)
-LOG_FILE="tess_ida_bulk_dump_all_${DATE}.log"
+LOG_FILE="tess_ida_bulk_dump_selective_${DATE}.log"
 
-# Makes the directory structure
-
-regen_dir="${2:-$DEFAULT_REGEN_DIR}"
+regen_dir="${3:-$DEFAULT_REGEN_DIR}"
 
 # Either the default or the rotated tess.db-* database
 dbase="${1:-$DEFAULT_DATABASE}"
@@ -26,7 +24,7 @@ dbase="${1:-$DEFAULT_DATABASE}"
 dbase="$(ls -1 $dbase)"
 
 # Output directory is created if not exists inside the inner script
-out_dir="${3:-$DEFAULT_REPORTS_DIR}"
+out_dir="${2:-$DEFAULT_REPORTS_DIR}"
 
 
 if  [[ ! -f $dbase || ! -r $dbase ]]; then
