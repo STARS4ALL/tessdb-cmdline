@@ -86,6 +86,7 @@ script-files = [
     "scripts/reports/tess_readings_unassigned.sh",
     "scripts/ida/tess_ida_bulk_dump",
     "scripts/ida/tess_ida_bulk_dump_all",
+    "scripts/ida/tess_ida_bulk_dump_selective",
     "scripts/ida/tessdb_index",
     "scripts/ida/tessdb_remote_backup",
     "scripts/ida/webdav_ida_rclone",

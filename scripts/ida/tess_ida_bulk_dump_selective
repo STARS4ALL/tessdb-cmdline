@@ -1,0 +1,59 @@
+#!/bin/bash
+# Selective but cumulative TESS data bulk dump since the beginning of the project in IDA format
+# This is meant to be invoked manually, not a from cron file
+
+# ------------------------------------------------------------------------------
+#                             AUXILIARY FUNCTIONS
+# ------------------------------------------------------------------------------
+
+TESS_IDA=/usr/local/bin/tess-ida
+
+DEFAULT_DATABASE="/var/dbase/tess.db"
+DEFAULT_REPORTS_DIR="/var/dbase/reports/IDA"
+DEFAULT_START_DATE="2015-01"
+DEFAULT_REGEN_DIR="{HOME}/regenerate.ida.d"
+
+DATE=$(/usr/bin/date +%Y%m%d)
+LOG_FILE="tess_ida_bulk_dump_all_${DATE}.log"
+
+# Makes the directory structure
+
+regen_dir="${2:-$DEFAULT_REGEN_DIR}"
+
+# Either the default or the rotated tess.db-* database
+dbase="${1:-$DEFAULT_DATABASE}"
+# wildcard expansion ...
+dbase="$(ls -1 $dbase)"
+
+# Output directory is created if not exists inside the inner script
+out_dir="${3:-$DEFAULT_REPORTS_DIR}"
+
+
+if  [[ ! -f $dbase || ! -r $dbase ]]; then
+        echo "[WARNING] Database file $dbase does not exists or is not readable. Aborting..."
+        exit 1
+fi
+
+if  [[ ! -d "${regen_dir}/input" ]]; then
+        echo "[WARNING] making IDA regeneration files dir structure under ${regen_dir}"
+       	mkdir -p "${regen_dir}/input"
+       	mkdir -p "${regen_dir}/processed"
+fi
+
+photometers=$(ls -1 ${regen_dir}/input)
+
+# Loops over the instruments file and dumping data
+for instrument in $photometers; do
+	  from_month=$(cat ${regen_dir}/input/${instrument})
+	  if [[ -z "$from_month" ]]; then
+		  from_month=${DEFAULT_START_DATE}
+	  fi
+    echo "Generating IDA file for TESS $instrument from ${from_month} under ${out_dir}/${instrument}"
+    ${TESS_IDA} ${instrument} --console --log-file ${LOG_FILE} --from-month ${from_month} -d ${dbase} -o ${out_dir}
+    echo "moving control file ${regen_dir}/input/${instrument} => ${regen_dir}/processed/${instrument}"
+    if  [[ -f ${regen_dir}/processed/${instrument} ]]; then
+      echo "[WARNING] moving previous input control file to ${regen_dir}/processed/${instrument}.${DATE}"
+      mv ${regen_dir}/processed/${instrument} ${regen_dir}/processed/${instrument}.${DATE}
+    fi
+    mv ${regen_dir}/input/${instrument} ${regen_dir}/processed/${instrument}
+done
