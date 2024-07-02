@@ -60,11 +60,16 @@ if  [[ -f /etc/cron.d/webdav_ida_rclone ]]; then
         exit 1
 fi
 
+if  [[ -d ${out_dir} ]]; then
+        echo "[INFO] Purge previous IDA reports directory..."
+        rm -fr ${out_dir}
+        mkdir -p ${out_dir}
+fi
 
 photometers=$(query_names ${dbase})
 # Loops over the instruments file and dumping data
 for instrument in $photometers; do
-    echo "Generating IDA file for TESS $instrument for ${START_DATE} under ${out_dir}/${instrument}"
+    echo "[INFO] Generating IDA file for TESS $instrument for ${START_DATE} under ${out_dir}/${instrument}"
     ${TESS_IDA} ${instrument} --console --log-file ${LOG_FILE} --from-month ${from_month} -d ${dbase} -o ${out_dir}
 done
 
