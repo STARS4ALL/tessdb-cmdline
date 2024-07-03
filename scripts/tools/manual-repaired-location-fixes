@@ -15,7 +15,7 @@ fi
 DATABASE=${1:-${TESSDB_URL}}
 
 echo "Applying location fixed for repaired photometers. This may take a while"
-nice -n 19 sqlite3 ${DATABASE} <<EOF
+nice -n 19 ionice -c3 sqlite3 ${DATABASE} <<EOF
 .echo on
 
 PRAGMA foreign_keys = OFF;

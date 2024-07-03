@@ -22,7 +22,7 @@ fi
 for FILE in $FILES
 do
 	echo "sqlite3 ${DATABASE} < ${FILE}"
-	nice -n 19 /usr/bin/time --format='%C took %e seconds' sqlite3 ${DATABASE} < ${FILE}
+	nice -n 19 ionice -c3 /usr/bin/time --format='%C took %e seconds' sqlite3 ${DATABASE} < ${FILE}
 	mv ${FILE} sql/processed || exit 255
 	sleep ${SECS}
 done

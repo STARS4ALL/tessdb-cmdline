@@ -22,6 +22,7 @@ dbase=$1
 ${NICE} -n 19 ${IONICE} -c3 ${SQLITE} ${dbase} <<EOF
 -- Create a covering index for locations
 CREATE INDEX IF NOT EXISTS tess_readings_i ON tess_readings_t(tess_id, date_id, time_id, location_id);
+CREATE INDEX IF NOT EXISTS tess_id_readings4c_i ON tess_readings4c_t(tess_id, date_id, time_id, location_id);
 EOF
 }
 
