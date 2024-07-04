@@ -81,12 +81,9 @@ script-files = [
     "scripts/tools/create-sql-indexes",
     "scripts/tools/delete-sql-indexes",
     "scripts/tools/manual-repaired-location-fixes",
-    "scripts/reports/tess_bulk_dump.sh",
-    "scripts/reports/tess_daily_summary.sh",
     "scripts/reports/tess_readings_unassigned.sh",
     "scripts/ida/tess_ida_bulk_dump",
     "scripts/ida/tess_ida_bulk_dump_all",
-    "scripts/ida/tessdb_index",
     "scripts/ida/tessdb_remote_backup",
     "scripts/ida/webdav_ida_rclone",
 ]

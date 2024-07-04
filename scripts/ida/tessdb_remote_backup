@@ -21,14 +21,5 @@ DATE="${5:-$DEFAULT_DATE}"
 
 #getting remote backup copy
 echo "getting remote file by rsync"
-echo "${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${SRC_USER}@${SRC_HOST}:${SRC_DIR}/tess.db-${DATE} ${DST_DIR}/tess.rsync.db"
-${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${SRC_USER}@${SRC_HOST}:${SRC_DIR}/tess.db-${DATE} ${DST_DIR}/tess.rsync.db
-
-echo "Making a database copy to add indexes"
-echo "${NICE} -n 19 ${IONICE} -c3 cp ${DST_DIR}/tess.rsync.db ${DST_DIR}/tess.db" 
-${NICE} -n 19 ${IONICE} -c3 cp ${DST_DIR}/tess.rsync.db ${DST_DIR}/tess.db
-
-#indexing this copy
-echo "Indexing the new database copy"
-echo "${TESSDB_INDEX} ${DST_DIR}/tess.db"
-${TESSDB_INDEX} ${DST_DIR}/tess.db
+echo "${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${SRC_USER}@${SRC_HOST}:${SRC_DIR}/tess.db-${DATE} ${DST_DIR}/tess.db"
+${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${SRC_USER}@${SRC_HOST}:${SRC_DIR}/tess.db-${DATE} ${DST_DIR}/tess.db
