@@ -1,10 +1,11 @@
 #!/bin/bash
 
 help() {
+  name=$(basename ${0%.sh})
 	echo "Usage:"
-	echo "$0 -u <remote user> -s <source host> -i <source dir> -o <dst dir> -m <YYYY-MM> -l <log file path prefix>"
+	echo "$name -u <remote user> -s <source host> -i <source dir> -o <dst dir> -m <YYYY-MM> -l <log file path prefix>"
 	echo "Defaults to:"
-	echo "$0 -u $DEFAULT_SRC_USER -s $DEFAULT_SRC_HOST -i $DEFAULT_SRC_DIR -o $DEFAULT_DST_DIR -m $DEFAULT_DATE -l $DEFAULT_LOG_FILE_PREFIX"
+	echo "$name -u $DEFAULT_SRC_USER -s $DEFAULT_SRC_HOST -i $DEFAULT_SRC_DIR -o $DEFAULT_DST_DIR -m $DEFAULT_DATE -l $DEFAULT_LOG_FILE_PREFIX"
 }
 
 DEFAULT_SRC_USER="pi"
