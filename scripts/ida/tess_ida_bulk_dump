@@ -16,7 +16,6 @@ ORDER by CAST(substr(name, 6) as decimal) ASC;
 EOF
 }
 
-# get the name from the script name without extensions
 
 help() {
     name=$(basename ${0%.sh})
@@ -37,6 +36,11 @@ TEE=$(which tee)
 TESS_IDA=$(which tess-ida)
 LOG_DATE=$(/usr/bin/date +%Y%m%d)
 
+
+dbase="${DEFAULT_DATABASE}"
+out_dir="${DEFAULT_DST_DIR}"
+month="${DEFAULT_MONTH}"
+log_file="${DEFAULT_LOG_FILE_PREFIX}_${LOG_DATE}.log"
 
 while getopts ":hd:o:m:l:" opt; do
     case ${opt} in

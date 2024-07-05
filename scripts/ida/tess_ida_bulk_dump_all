@@ -6,6 +6,16 @@
 #                             AUXILIARY FUNCTIONS
 # ------------------------------------------------------------------------------
 
+
+help() {
+    name=$(basename ${0%.sh})
+    echo "Usage:"
+    echo "$name -d <database path> -o <dst dir> -m <YYYY-MM> -l <log file path prefix>"
+    echo "Defaults to:"
+    echo "name -d $DEFAULT_DATABASE -o $DEFAULT_DST_DIR -m $DEFAULT_MONTH -l $DEFAULT_LOG_FILE_PREFIX"
+}
+
+
 query_names() {
 dbase=$1
 sqlite3 ${dbase} <<EOF
@@ -19,51 +29,71 @@ EOF
 
 # ------------------------------------------------------------------------------- #
 
-TESS_IDA=/usr/local/bin/tess-ida
-
 DEFAULT_DATABASE="/var/dbase/tess.db"
-DEFAULT_REPORTS_DIR="/var/dbase/reports/IDA"
-DEFAULT_START_DATE="2015-01"
-
+DEFAULT_DST_DIR="/var/dbase/reports/IDA"
+DEFAULT_MONTH="2015-01"
+DEFAULT_LOG_FILE_PREFIX=/var/log/ida_all
 
 TEE=$(which tee)
+TESS_IDA=$(which tess-ida)
 LOG_DATE=$(/usr/bin/date +%Y%m%d)
-LOG_FILE="${HOME}/dbase/log/ida_all_${LOG_DATE}.log"
 
-# get the name from the script name without extensions
-name=$(basename ${0%.sh})
 
-# Gets the month timestamp from the command line
-from_month="${1:-$DEFAULT_START_DATE}"
+dbase="${DEFAULT_DATABASE}"
+out_dir="${DEFAULT_DST_DIR}"
+month="${DEFAULT_MONTH}"
+log_file="${DEFAULT_LOG_FILE_PREFIX}_${LOG_DATE}.log"
 
-# Either the default or the rotated tess.db-* database
-dbase="${2:-$DEFAULT_DATABASE}"
-# wildcard expansion ...
-dbase="$(ls -1 $dbase)"
-
-# Output directory is created if not exists inside the inner script
-out_dir="${3:-$DEFAULT_REPORTS_DIR}"
+while getopts ":hd:o:m:l:" opt; do
+    case ${opt} in
+    d)
+        dbase="${OPTARG}"
+        ;;
+    o)
+        out_dir="${OPTARG}"
+        ;;
+    m)
+        month="${OPTARG}"
+        ;;
+    l)
+        log_file="${OPTARG}_${LOG_DATE}.log"
+        ;;
+    h)
+        help
+        exit 0
+        ;;
+    :)
+        echo "Option -${OPTARG} requires an argument."
+        exit 1
+        ;;
+    ?)
+        echo "Invalid option: -${OPTARG}."
+        exit 1
+        ;;
+  esac
+done
+shift "$((OPTIND-1))"
 
 
 if  [[ ! -f $dbase || ! -r $dbase ]]; then
-        echo "[WARNING] Database file $dbase does not exists or is not readable. Aborting..." | ${TEE} -a ${LOG_FILE}
+        echo "[WARNING] Database file $dbase does not exists or is not readable. Aborting..." | ${TEE} -a ${log_file}
         exit 1
 fi
 
 
 if  [[ -f /etc/cron.d/tessdb_remote_backup ]]; then
-        echo "[WARNING] tess.db remote  backup is active. Aborting..." | ${TEE} -a ${LOG_FILE}
+        echo "[WARNING] tess.db remote  backup is active. Aborting..." | ${TEE} -a ${log_file}
         exit 1
 fi
 
 
 if  [[ -f /etc/cron.d/webdav_ida_rclone ]]; then
-        echo "[WARNING] IDA WebDAV sync is active. Aborting..." | ${TEE} -a ${LOG_FILE}
+        echo "[WARNING] IDA WebDAV sync is active. Aborting..." | ${TEE} -a ${log_file}
         exit 1
 fi
 
 if  [[ -d ${out_dir} ]]; then
-        echo "[INFO] Purge previous IDA reports directory..." | ${TEE} -a ${LOG_FILE}
+        echo "[INFO] Purge previous IDA reports directory..." | ${TEE} -a ${log_file}
         rm -fr ${out_dir}
         mkdir -p ${out_dir}
 fi
@@ -71,8 +101,8 @@ fi
 photometers=$(query_names ${dbase})
 # Loops over the instruments file and dumping data
 for instrument in $photometers; do
-    echo "[INFO] Generating IDA file for TESS $instrument for ${START_DATE} under ${out_dir}/${instrument}" | ${TEE} -a ${LOG_FILE}
-    ${TESS_IDA} ${instrument} --console --log-file ${LOG_FILE} --from-month ${from_month} -d ${dbase} -o ${out_dir}
+    echo "[INFO] Generating IDA file for TESS $instrument for ${START_DATE} under ${out_dir}/${instrument}" | ${TEE} -a ${log_file}
+    ${TESS_IDA} ${instrument} --console --log-file ${log_file} --from-month ${month} -d ${dbase} -o ${out_dir}
 done
 
-echo "FINALIZED ALL BULK DUMP !!!!"
+echo "FINALIZED ALL BULK DUMP !!!!" | ${TEE} -a ${log_file}
