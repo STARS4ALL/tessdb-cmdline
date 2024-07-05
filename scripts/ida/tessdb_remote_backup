@@ -1,29 +1,72 @@
 #!/bin/bash
 
+help() {
+	echo "Usage:"
+	echo "$0 -u <remote user> -s <source host> -i <source dir> -o <dst dir> -m <YYYY-MM> -l <log file path prefix>"
+	echo "Defaults to:"
+	echo "$0 -u $DEFAULT_SRC_USER -s $DEFAULT_SRC_HOST -i $DEFAULT_SRC_DIR -o $DEFAULT_DST_DIR -m $DEFAULT_DATE -l $DEFAULT_LOG_FILE_PREFIX"
+}
+
 DEFAULT_SRC_USER="pi"
 DEFAULT_SRC_HOST="cortex.fis.ucm.es"
 DEFAULT_SRC_DIR="/var/dbase"
 DEFAULT_DST_DIR="/var/dbase"
 DEFAULT_DATE=$(/usr/bin/date +%Y%m%d)
+DEFAULT_LOG_PREFIX=/var/log/ida_daily
 
 # Some commands
 NICE=$(which nice)
 IONICE=$(which ionice)
 RSYNC=$(which rsync)
-TESSDB_INDEX=/usr/local/bin/tessdb_index
+TEE=$(which tee)
 
 # Arguments from the command line & default values
-SRC_USER="${1:-$DEFAULT_SRC_USER}"
-SRC_HOST="${2:-$DEFAULT_SRC_HOST}"
-SRC_DIR="${3:-$DEFAULT_SRC_DIR}"
-DST_DIR="${4:-$DEFAULT_DST_DIR}"
-DATE="${5:-$DEFAULT_DATE}"
+src_user="${DEFAULT_SRC_USER}"
+src_host="${DEFAULT_SRC_HOST}"
+src_dir="${DEFAULT_SRC_DIR}"
+dst_dir="${DEFAULT_DST_DIR}"
+date="${DEFAULT_DATE}"
+log_file="${DEFAULT_LOG_FILE_PREFIX}_${DEFAULT_DATE}.log"
 
-TEE=$(which tee)
-LOG_DATE=$(/usr/bin/date +%Y%m%d)
-LOG_FILE="${HOME}/dbase/log/ida_daily_${LOG_DATE}.log"
+
+while getopts ":hi:o:t:l:" opt; do
+ 	case ${opt} in
+   	u)
+		src_user="${OPTARG}"
+		;;
+   	s)
+		src_host="${OPTARG}"
+		;;
+   	i)
+		src_dir="${OPTARG}"
+      	;;
+    o)
+    	dst_dir="${OPTARG}"
+      	;;
+    m)
+     	date="${OPTARG}"
+      	;;
+    l)
+    	log_file="${OPTARG}_${DEFAULT_DATE}.log"
+      	;;
+    h)
+        help
+        exit 0
+      	;;
+    :)
+    	echo "Option -${OPTARG} requires an argument."
+    	exit 1
+      	;;
+    ?)
+      	echo "Invalid option: -${OPTARG}."
+      	exit 1
+      	;;
+  esac
+done
+shift "$((OPTIND-1))"
+
 
 #getting remote backup copy
-echo "getting remote file by rsync" | ${TEE} -a ${LOG_FILE}
-echo "${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${SRC_USER}@${SRC_HOST}:${SRC_DIR}/tess.db-${DATE} ${DST_DIR}/tess.db" | ${TEE} -a ${LOG_FILE}
-${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${SRC_USER}@${SRC_HOST}:${SRC_DIR}/tess.db-${DATE} ${DST_DIR}/tess.db | ${TEE} -a ${LOG_FILE}
+echo "getting remote file by rsync" | ${TEE} -a ${log_file}
+echo "${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db" 2>&1 | ${TEE} -a ${log_file}
+${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db 2>&1 | ${TEE} -a ${log_file}
