@@ -29,7 +29,7 @@ date="${DEFAULT_DATE}"
 log_file="${DEFAULT_LOG_FILE_PREFIX}_${DEFAULT_DATE}.log"
 
 
-while getopts ":hi:o:t:l:" opt; do
+while getopts ":hu:s:i:o:m:l:" opt; do
  	case ${opt} in
    	u)
 		src_user="${OPTARG}"
