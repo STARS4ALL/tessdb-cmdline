@@ -26,4 +26,4 @@ LOG_FILE="${HOME}/dbase/log/ida_daily_${LOG_DATE}.log"
 #getting remote backup copy
 echo "getting remote file by rsync" | ${TEE} -a ${LOG_FILE}
 echo "${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${SRC_USER}@${SRC_HOST}:${SRC_DIR}/tess.db-${DATE} ${DST_DIR}/tess.db" | ${TEE} -a ${LOG_FILE}
-${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${SRC_USER}@${SRC_HOST}:${SRC_DIR}/tess.db-${DATE} ${DST_DIR}/tess.db
+${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${SRC_USER}@${SRC_HOST}:${SRC_DIR}/tess.db-${DATE} ${DST_DIR}/tess.db | ${TEE} -a ${LOG_FILE}
