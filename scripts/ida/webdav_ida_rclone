@@ -1,28 +1,64 @@
 #!/bin/bash
 
-DEFAULT_SRC_DIR="/home/rfg/dbase/reports/IDA"
+help() {
+	echo "Usage:"
+	echo "$0 -i <source dir> -o <dst dir> -t <webdav tag> -l <log file path prefix>"
+	echo "Defaults to:"
+	echo "$0 -i $DEFAULT_SRC_DIR -o $DEFAULT_DST_DIR -t $DEFAULT_WEBDAV_TAG -l $DEFAULT_LOG_FILE_PREFIX"
+}
+
+DEFAULT_SRC_DIR="/var/dbase/reports/IDA"
 DEFAULT_DST_DIR="IDA"
 # WebDAV Server is identified by a tag in .config/rclone/rclone.conf
 DEFAULT_WEBDAV_TAG="IDA"
 FLAGS="--verbose"
+LOG_DATE=$(/usr/bin/date +%Y%m%d)
+DEFAULT_LOG_FILE="/var/log/ida_daily"
 
 # Some commands
 NICE=$(which nice)
 IONICE=$(which ionice)
 RCLONE=$(which rclone)
 RCLONE_COMMAND=sync
-
-# Arguments from the command line & default values
-
-SRC_DIR="${1:-$DEFAULT_SRC_DIR}"
-DST_DIR="${2:-$DEFAULT_DST_DIR}"
-WEBDAV_TAG="${3:-$DEFAULT_WEBDAV_TAG}"
-
 TEE=$(which tee)
-LOG_DATE=$(/usr/bin/date +%Y%m%d)
-LOG_FILE="${HOME}/dbase/log/ida_daily_${LOG_DATE}.log"
+
+# default arguments for the command line
+src_dir="$DEFAULT_SRC_DIR"
+dst_dir="$DEFAULT_DST_DIR"
+webdav_tag="$DEFAULT_WEBDAV_TAG"
+log_file="${DEFAULT_LOG_FILE_PREFIX}_${LOG_DATE}.log"
+
+while getopts ":hi:o:t:l:" opt; do
+ 	case ${opt} in
+   	i)
+		src_dir="${OPTARG}"
+      	;;
+    o)
+    	dst_dir="${OPTARG}"
+      	;;
+    t)
+     	webdav_tag="${OPTARG}"
+      	;;
+    l)
+    	log_file="${OPTARG}_${LOG_DATE}.log"
+      	;;
+    h)
+        help
+        exit 0
+      	;;
+    :)
+    	echo "Option -${OPTARG} requires an argument."
+    	exit 1
+      	;;
+    ?)
+      	echo "Invalid option: -${OPTARG}."
+      	exit 1
+      	;;
+  esac
+done
+shift "$((OPTIND-1))"
 
 #do the job
-echo "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${SRC_DIR} ${WEBDAV_TAG}:${DST_DIR} ${FLAGS}" | ${TEE} -a ${LOG_FILE}
-${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${SRC_DIR} ${WEBDAV_TAG}:${DST_DIR} ${FLAGS} | ${TEE} -a ${LOG_FILE}
+echo "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${src_dir} ${webdav_tag}:${dst_dir} ${FLAGS}" | ${TEE} -a ${log_file}
+${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${src_dir} ${webdav_tag}:${dst_dir} ${FLAGS} | ${TEE} -a ${log_file}
 exit $?
