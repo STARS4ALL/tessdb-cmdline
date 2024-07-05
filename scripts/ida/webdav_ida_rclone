@@ -59,6 +59,6 @@ done
 shift "$((OPTIND-1))"
 
 #do the job
-echo "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${src_dir} ${webdav_tag}:${dst_dir} ${FLAGS}" | ${TEE} -a ${log_file}
-${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${src_dir} ${webdav_tag}:${dst_dir} ${FLAGS} | ${TEE} -a ${log_file}
+echo "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${src_dir} ${webdav_tag}:${dst_dir} ${FLAGS}"  2>&1 | ${TEE} -a ${log_file}
+${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${src_dir} ${webdav_tag}:${dst_dir} ${FLAGS}  2>&1 | ${TEE} -a ${log_file}
 exit $?
