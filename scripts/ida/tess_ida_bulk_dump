@@ -24,6 +24,10 @@ DEFAULT_DATABASE="/var/dbase/tess.db"
 DEFAULT_REPORTS_DIR="/var/dbase/reports/IDA"
 DEFAULT_MONTH="latest"
 
+TEE=$(which tee)
+
+LOG_DATE=$(/usr/bin/date +%Y%m%d)
+
 # get the name from the script name without extensions
 name=$(basename ${0%.sh})
 
@@ -40,11 +44,10 @@ month="${3:-$DEFAULT_MONTH}"
 
 
 if  [[ ! -f $dbase || ! -r $dbase ]]; then
-        echo "Database file $dbase does not exists or is not readable."
-        echo "Exiting"
+        echo "Database file $dbase does not exists or is not readable." | ${TEE} -a ${LOG_FILE}
+        echo "Exiting" | ${TEE} -a ${LOG_FILE}
         exit 1
 fi
-
 
 
 photometers=$(query_names ${dbase})
@@ -52,15 +55,17 @@ photometers=$(query_names ${dbase})
 for instrument in $photometers; do
     if [[ "$month" = "latest" ]];
     then
-        echo "Generating latest month IDA file for TESS $instrument under ${out_dir}/${instrument}"
-        ${TESS_IDA} ${instrument} --latest-month -d ${dbase} -o ${out_dir}
+        echo "Generating latest month IDA file for TESS $instrument under ${out_dir}/${instrument}" | ${TEE} -a ${LOG_FILE}
+        ${TESS_IDA} ${instrument} --log-file ${LOG_FILE} --latest-month -d ${dbase} -o ${out_dir} 
     elif [[ "$month" = "previous" ]];
     then
-        echo "Generating previous month IDA file for TESS $instrument under ${out_dir}/${instrument}"
-         ${TESS_IDA} ${instrument} --previous-month -d ${dbase} -o ${out_dir}
+        LOG_FILE="${HOME}/dbase/log/ida_monthly_${LOG_DATE}.log"
+        echo "Generating previous month IDA file for TESS $instrument under ${out_dir}/${instrument}" | ${TEE} -a ${LOG_FILE}
+        ${TESS_IDA} ${instrument} --log-file ${LOG_FILE} --previous-month -d ${dbase} -o ${out_dir}
     else
-        echo "Generating IDA file for TESS $instrument for month $month under ${out_dir}/${instrument}"
-         ${TESS_IDA} ${instrument}  --for-month ${month} -d ${dbase} -o ${out_dir}
+        LOG_FILE="${HOME}/dbase/log/ida_oneoff_${LOG_DATE}.log"
+        echo "Generating IDA file for TESS $instrument for month $month under ${out_dir}/${instrument}" | ${TEE} -a ${LOG_FILE}
+        ${TESS_IDA} ${instrument} --log-file ${LOG_FILE} --for-month ${month} -d ${dbase} -o ${out_dir}
     fi
 done
 

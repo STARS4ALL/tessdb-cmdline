@@ -13,8 +13,9 @@ DEFAULT_REPORTS_DIR="/var/dbase/reports/IDA"
 DEFAULT_START_DATE="2015-01"
 DEFAULT_REGEN_DIR="{HOME}/regenerate.ida.d"
 
-DATE=$(/usr/bin/date +%Y%m%d)
-LOG_FILE="tess_ida_bulk_dump_selective_${DATE}.log"
+TEE=$(which tee)
+LOG_DATE=$(/usr/bin/date +%Y%m%d)
+LOG_FILE="${HOME}/dbase/log/ida_selective_${LOG_DATE}.log"
 
 regen_dir="${3:-$DEFAULT_REGEN_DIR}"
 
@@ -28,12 +29,12 @@ out_dir="${2:-$DEFAULT_REPORTS_DIR}"
 
 
 if  [[ ! -f $dbase || ! -r $dbase ]]; then
-        echo "[WARNING] Database file $dbase does not exists or is not readable. Aborting..."
+        echo "[WARNING] Database file $dbase does not exists or is not readable. Aborting..." | ${TEE} -a ${LOG_FILE}
         exit 1
 fi
 
 if  [[ ! -d "${regen_dir}/input" ]]; then
-        echo "[WARNING] making IDA regeneration files dir structure under ${regen_dir}"
+        echo "[WARNING] making IDA regeneration files dir structure under ${regen_dir}" | ${TEE} -a ${LOG_FILE}
        	mkdir -p "${regen_dir}/input"
        	mkdir -p "${regen_dir}/processed"
 fi
@@ -46,11 +47,11 @@ for instrument in $photometers; do
 	  if [[ -z "$from_month" ]]; then
 		  from_month=${DEFAULT_START_DATE}
 	  fi
-    echo "Generating IDA file for TESS $instrument from ${from_month} under ${out_dir}/${instrument}"
+    echo "Generating IDA file for TESS $instrument from ${from_month} under ${out_dir}/${instrument}" | ${TEE} -a ${LOG_FILE}
     ${TESS_IDA} ${instrument} --console --log-file ${LOG_FILE} --from-month ${from_month} -d ${dbase} -o ${out_dir}
-    echo "moving control file ${regen_dir}/input/${instrument} => ${regen_dir}/processed/${instrument}"
+    echo "moving control file ${regen_dir}/input/${instrument} => ${regen_dir}/processed/${instrument}" | ${TEE} -a ${LOG_FILE}
     if  [[ -f ${regen_dir}/processed/${instrument} ]]; then
-      echo "[WARNING] moving previous input control file to ${regen_dir}/processed/${instrument}.${DATE}"
+      echo "[WARNING] moving previous input control file to ${regen_dir}/processed/${instrument}.${DATE}" | ${TEE} -a ${LOG_FILE}
       mv ${regen_dir}/processed/${instrument} ${regen_dir}/processed/${instrument}.${DATE}
     fi
     mv ${regen_dir}/input/${instrument} ${regen_dir}/processed/${instrument}

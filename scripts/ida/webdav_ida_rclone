@@ -18,7 +18,11 @@ SRC_DIR="${1:-$DEFAULT_SRC_DIR}"
 DST_DIR="${2:-$DEFAULT_DST_DIR}"
 WEBDAV_TAG="${3:-$DEFAULT_WEBDAV_TAG}"
 
+TEE=$(which tee)
+LOG_DATE=$(/usr/bin/date +%Y%m%d)
+LOG_FILE="${HOME}/dbase/log/ida_daily_${LOG_DATE}.log"
+
 #do the job
-echo "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${SRC_DIR} ${WEBDAV_TAG}:${DST_DIR} ${FLAGS}"
-${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${SRC_DIR} ${WEBDAV_TAG}:${DST_DIR} ${FLAGS}
+echo "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${SRC_DIR} ${WEBDAV_TAG}:${DST_DIR} ${FLAGS}" | ${TEE} -a ${LOG_FILE}
+${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${SRC_DIR} ${WEBDAV_TAG}:${DST_DIR} ${FLAGS} | ${TEE} -a ${LOG_FILE}
 exit $?
