@@ -5,7 +5,7 @@ help() {
 	echo "Usage:"
 	echo "$name -u <remote user> -s <source host> -i <source dir> -o <dst dir> -m <YYYY-MM> -l <log file path prefix>"
 	echo "Defaults to:"
-	echo "$name -u $DEFAULT_SRC_USER -s $DEFAULT_SRC_HOST -i $DEFAULT_SRC_DIR -o $DEFAULT_DST_DIR -m $DEFAULT_DATE -l $DEFAULT_LOG_FILE_PREFIX"
+	echo "$name -u $DEFAULT_SRC_USER -s $DEFAULT_SRC_HOST -i $DEFAULT_SRC_DIR -o $DEFAULT_DST_DIR -m $DEFAULT_DATE -l $DEFAULT_LOG_FILE"
 }
 
 DEFAULT_SRC_USER="pi"
@@ -13,7 +13,7 @@ DEFAULT_SRC_HOST="cortex.fis.ucm.es"
 DEFAULT_SRC_DIR="/var/dbase"
 DEFAULT_DST_DIR="/var/dbase"
 DEFAULT_DATE=$(/usr/bin/date +%Y%m%d)
-DEFAULT_LOG_PREFIX=/var/log/ida_daily
+DEFAULT_LOG_FILE=/var/log/ida_daily.log
 
 # Some commands
 NICE=$(which nice)
@@ -27,7 +27,7 @@ src_host="${DEFAULT_SRC_HOST}"
 src_dir="${DEFAULT_SRC_DIR}"
 dst_dir="${DEFAULT_DST_DIR}"
 date="${DEFAULT_DATE}"
-log_file="${DEFAULT_LOG_FILE_PREFIX}_${DEFAULT_DATE}.log"
+log_file="${DEFAULT_LOG_FILE}"
 
 
 while getopts ":hu:s:i:o:m:l:" opt; do
@@ -48,7 +48,7 @@ while getopts ":hu:s:i:o:m:l:" opt; do
      	date="${OPTARG}"
       	;;
     l)
-    	log_file="${OPTARG}_${DEFAULT_DATE}.log"
+    	log_file="${OPTARG}"
       	;;
     h)
         help

@@ -7,7 +7,7 @@ help() {
 	echo "Usage:"
 	echo "$name -i <source dir> -o <dst dir> -t <webdav tag> -l <log file path prefix>"
 	echo "Defaults to:"
-	echo "$name -i $DEFAULT_SRC_DIR -o $DEFAULT_DST_DIR -t $DEFAULT_WEBDAV_TAG -l $DEFAULT_LOG_FILE_PREFIX"
+	echo "$name -i $DEFAULT_SRC_DIR -o $DEFAULT_DST_DIR -t $DEFAULT_WEBDAV_TAG -l $DEFAULT_LOG_FILE"
 }
 
 DEFAULT_SRC_DIR="/var/dbase/reports/IDA"
@@ -15,8 +15,7 @@ DEFAULT_DST_DIR="IDA"
 # WebDAV Server is identified by a tag in .config/rclone/rclone.conf
 DEFAULT_WEBDAV_TAG="IDA"
 FLAGS="--verbose"
-LOG_DATE=$(/usr/bin/date +%Y%m%d)
-DEFAULT_LOG_FILE="/var/log/ida_daily"
+DEFAULT_LOG_FILE="/var/log/ida_daily.log"
 
 # Some commands
 NICE=$(which nice)
@@ -29,7 +28,7 @@ TEE=$(which tee)
 src_dir="$DEFAULT_SRC_DIR"
 dst_dir="$DEFAULT_DST_DIR"
 webdav_tag="$DEFAULT_WEBDAV_TAG"
-log_file="${DEFAULT_LOG_FILE_PREFIX}_${LOG_DATE}.log"
+log_file="${DEFAULT_LOG_FILE}"
 
 while getopts ":hi:o:t:l:" opt; do
  	case ${opt} in
@@ -43,7 +42,7 @@ while getopts ":hi:o:t:l:" opt; do
      	webdav_tag="${OPTARG}"
       	;;
     l)
-    	log_file="${OPTARG}_${LOG_DATE}.log"
+    	log_file="${OPTARG}"
       	;;
     h)
         help
