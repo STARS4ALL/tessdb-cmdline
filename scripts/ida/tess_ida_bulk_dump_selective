@@ -20,7 +20,7 @@ DEFAULT_DATABASE="/var/dbase/tess.db"
 DEFAULT_DST_DIR="/var/dbase/reports/IDA"
 DEFAULT_MONTH="2015-01"
 DEFAULT_LOG_FILE_PREFIX=/var/log/ida_selective
-DEFAULT_REGEN_DIR="{HOME}/regenerate.ida.d"
+DEFAULT_REGEN_DIR="${HOME}/regenerate.ida.d"
 
 TEE=$(which tee)
 TESS_IDA=$(which tess-ida)
