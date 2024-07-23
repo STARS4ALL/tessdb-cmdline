@@ -33,7 +33,7 @@ DEFAULT_MONTH="latest"
 DEFAULT_LOG_FILE=/var/log/ida_daily.log
 
 TEE=$(which tee)
-TESS_IDA=$(which tess-ida)
+TESS_IDA=/usr/local/bin/tess-ida
 
 dbase="${DEFAULT_DATABASE}"
 out_dir="${DEFAULT_DST_DIR}"

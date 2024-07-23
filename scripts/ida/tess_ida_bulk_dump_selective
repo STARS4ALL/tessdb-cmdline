@@ -23,7 +23,7 @@ DEFAULT_LOG_FILE_PREFIX=/var/log/ida_selective
 DEFAULT_REGEN_DIR="${HOME}/regenerate.ida.d"
 
 TEE=$(which tee)
-TESS_IDA=$(which tess-ida)
+TESS_IDA=/usr/local/bin/tess-ida
 DATE=$(/usr/bin/date +%Y%m%d)
 
 
