@@ -4,8 +4,8 @@
 # This data is released under the following license: ODbL 1.0 http://opendatacommons.org/licenses/odbl/summary/
 # Device type: {{ instrument.model }}
 # Instrument ID: {{ instrument.name }}
-# Data supplier: {{ observer.name }}/{{ observer.organization }}
-# Location name: {{ location.place }}/{{ location.town }}/{{ location.sub_region }}/{{ location.region }}/{{ location.country }} 
+# Data supplier: {{ observer.name }} / {{ observer.organization }}
+# Location name: {{ location.place }} / {{ location.town }} / {{ location.sub_region }} / {{ location.region }} / {{ location.country }} 
 # Position: {{ location.latitude }}, {{ location.longitude }}, {{ location.elevation | default('') }}
 # Local timezone: {{ location.timezone }}
 # Time Synchronization: timestamp added by MQTT subscriber
@@ -68,4 +68,3 @@
 # YYYY-MM-DDTHH:mm:ss.fff;YYYY-MM-DDTHH:mm:ss.fff;Celsius;Celsius;Hz;mag/arcsec^2;mag/arcsec^2;Hz;mag/arcsec^2;mag/arcsec^2;Hz;mag/arcsec^2;mag/arcsec^2;Hz;mag/arcsec^2;mag/arcsec^2; Multiple of Tx period
 {% endif -%}
 # END OF HEADER
-
