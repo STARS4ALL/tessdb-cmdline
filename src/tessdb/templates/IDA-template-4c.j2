@@ -27,25 +27,21 @@
 {% endif -%}
 # TESS firmware version: {{ instrument.firmware }}
 # TESS cover offset value: {{ instrument.cover_offset }}
-{% if instrument.zero_point.changed -%}
-# TESS zero point: {{ instrument.zero_point.current.value }} (from {{ instrument.zero_point.current.valid_since }})
-{% else -%}
 # TESS zero point: {{ instrument.zero_point.current.value }}
-{% endif -%}
 {% if instrument.zero_point.current.value == 20.50 -%}
-# Comment: This photometer may have not been calibrated
+# Comment: This photometer may not have been calibrated (Zero Point = 20.50)
 {% else -%}
 # Comment:  
 {% endif -%}
 {% if instrument.mac_address.changed -%}
-# Comment: MAC address was {{ instrument.mac_address.previous.value }} (until {{ instrument.mac_address.previous.valid_until }})
+# Comment: MAC address was {{ instrument.mac_address.previous.value }} until {{ instrument.mac_address.previous.valid_until }}
 {% else -%}
 # Comment:
 {% endif -%}
 {% if instrument.mac_address.changed and instrument.zero_point.changed -%}
 # Comment: Previous Zero Point was {{ instrument.zero_point.previous.value }} due to MAC address change
 {% elif not instrument.mac_address.changed and instrument.zero_point.changed -%}
-# Comment: Previous Zero Point was {{ instrument.zero_point.previous.value }} (until {{ instrument.zero_point.previous.valid_until }})
+# Comment: Current Zero Point valid since {{ instrument.zero_point.current.valid_since }}, Previous Zero Point ({{ instrument.zero_point.previous.value }}) only valid until {{ instrument.zero_point.previous.valid_until }}
 {% else -%}
 # Comment:
 {% endif -%}
@@ -55,7 +51,11 @@
 # Comment:
 {% endif -%}
 # Comment:
+{% if instrument.model == 'TESS-W' -%}
 # Comment: 
+{% else -%}
+# Comment: Current Zero Point in the header corresponds to the UV/IR-cut channel
+{% endif -%}
 # Comment: MSAS = ZP - 2.5*log10(Frequency)
 # blank line 30
 # blank line 31
