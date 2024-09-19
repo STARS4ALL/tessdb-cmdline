@@ -58,6 +58,7 @@ tess-db = "tessdb.tools.tessdb:main"
 zp-tess =  "tessdb.tools.zptess:main"
 cross-db =  "tessdb.tools.crossdb:main"
 tess-ida = "tessdb.reports.ida:main"
+nominatim = "tessdb.tools.nominatim:main"
 
 
 # pyproject.toml
