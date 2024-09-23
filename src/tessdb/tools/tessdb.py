@@ -20,6 +20,12 @@ import fractions
 # -------------------
 # Third party imports
 # -------------------
+# -------------------
+# Third party imports
+# -------------------
+from timezonefinder import TimezoneFinder
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
 
 from lica.cli import execute
 from lica.validators import vfile, vdir, vmac
@@ -55,6 +61,8 @@ HEADER_MAC  = ('mac', 'name', 'valid_since', 'valid_until', 'contiguous_flag', '
 
 package = __name__.split('.')[0]
 log = logging.getLogger(__name__)
+geolocator = Nominatim(user_agent="STARS4ALL project")
+tf = TimezoneFinder()
 
 # -------------------------
 # Module auxiliar functions
@@ -839,7 +847,47 @@ def history(args):
             log.info("------------------------------- %s BROKEN START TIMESTAMP RELATED HISTORY " + "-"*38, break_tstamp)
             for item in broken_start_history: log.info(item)
            
+# =============================
+# PHOTOMETER 'location' COMMAND
+# =============================
 
+def location(args):
+    row = dict()
+    row['longitude'] = args.longitude
+    row['latitude'] = args.latitude
+    log.info(f" ====== Geolocating Latitude {row['latitude']}, Longitude {row['longitude']} ====== ")
+    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=2)
+    location = geolocator.reverse(f"{row['latitude']}, {row['longitude']}", language="en")
+    address = location.raw['address']
+    log.info("RAW NOMINATIM METADATA IS\n%s",address)
+    for location_type in ('village', 'town', 'city', 'municipality'):
+        try:
+            row['town'] = address[location_type]
+        except KeyError:
+            row['town'] = "Unknown"
+            continue
+        else:
+            break
+    for sub_region in ('province', 'state', 'state_district'):
+        try:
+            row['sub_region'] = address[sub_region]
+        except KeyError:
+            row['sub_region'] = "Unknown"
+            continue
+        else:
+            break
+    for region in ('state', 'state_district'):
+        try:
+            row['region'] = address[region]
+        except KeyError:
+            row['region'] = "Unknown"
+            continue
+        else:
+            break
+    row['zipcode'] = address.get('postcode', "Unknown")
+    row['country'] = address.get('country', "Unknown")
+    row['tzone'] = tf.timezone_at(lng=row['longitude'], lat=row['latitude'])
+    log.info(row)
 
 # ============================
 # PARSER AND MAIN ENTRY POINTS
@@ -903,7 +951,9 @@ def add_args(parser):
     grp.add_argument('-n', '--name', type=str, help='Photometer name')
     grp.add_argument('-m', '--mac', type=vmac, help='Photometer MAC Address')
   
-    
+    tdloc = subparser.add_parser('location',  help="Search Nominatim metadata from Coords")
+    tdloc.add_argument('-lo', '--longitude', type=float, required=True, help='Longitude (degrees)')
+    tdloc.add_argument('-la', '--latitude', type=float, required=True, help='latitude (degrees)')
 
 # ================
 # MAIN ENTRY POINT
@@ -915,6 +965,7 @@ ENTRY_POINT = {
     'fix': fix,
     'check': check,
     'history': history,
+    'location': location,
 }
 
 def tessdb_db(args):
