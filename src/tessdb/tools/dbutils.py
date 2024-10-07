@@ -62,6 +62,9 @@ def get_mongo_api_key():
 def get_zptess_connection_string():
    return decouple.config('ZPTESS_URL')
 
+def get_tessdb_connection_string():
+   return decouple.config('TESSDB_URL')
+
 def get_idadb_connection_string():
    return decouple.config('IDADB_URL')
 
