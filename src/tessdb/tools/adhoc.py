@@ -79,9 +79,23 @@ def _zp_photometers_from_tessdb(connection):
     return result
 
 
+def _names_from_mac(connection, mac):
+    params = {'mac_address': mac}
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT name, valid_since, valid_until, valid_state
+        FROM name_to_mac_t
+        WHERE mac_address = :mac_address
+        ''', params)
+    result = [dict(zip(['name', 'valid_since',
+                        'valid_until', 'valid_state'], row)) for row in cursor]
+    return result
+
 # ===================
 # Module entry points
 # ===================
+
 
 def easy(options):
     log.info(
@@ -109,6 +123,7 @@ def easy(options):
         item['mac'] = mac
         item['new_zp'] = zptess_dict[mac][0]['zero_point']
         item['old_zp'] = tessdb_dict[mac][0]['zero_point']
+        item['names'] = _names_from_mac(conn_tessdb, mac)
         items.append(item)
 
     context = {

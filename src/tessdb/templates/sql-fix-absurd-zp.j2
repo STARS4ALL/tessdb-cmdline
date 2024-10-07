@@ -5,7 +5,11 @@
 PRAGMA foreign_keys = OFF;
 BEGIN TRANSACTION;
 {% for item in items -%}
+{% for ctx in item.names -%}
+-- {{ item.mac }} => {{ ctx.name }} {{ ctx.valid_since }} - {{ ctx.valid_until }}  ({{ ctx.valid_state }})
+{% endfor -%}
 UPDATE tess_t SET zp1 = {{ item.new_zp }} WHERE mac_address = '{{ item.mac }}' AND zp1 = {{ item.old_zp }};
+
 {% endfor -%}
 COMMIT;
 PRAGMA foreign_keys = ON;
