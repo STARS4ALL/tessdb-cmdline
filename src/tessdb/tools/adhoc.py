@@ -13,6 +13,7 @@ import os
 import csv
 import logging
 import functools
+import datetime
 
 # -------------------
 # Third party imports
@@ -66,7 +67,7 @@ def _easy_wrong_zp_photometers_from_tessdb(connection):
     return result
 
 
-def _zp_photometers_from_tessdb(connection):
+def _zp_photometers_from_zptess(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
@@ -92,12 +93,33 @@ def _names_from_mac(connection, mac):
                         'valid_until', 'valid_state'], row)) for row in cursor]
     return result
 
+def _render_sql(output_dir, items):
+    context = {
+        'items': items
+    }
+    output = render(SQL_ABSURD_ZP_TEMPLATE, context)
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, "absurd_zp.sql")
+    with open(output_file, "w") as sqlfile:
+        sqlfile.write(output)
+
+def _render_IDA_ctrl_files(output_dir, items):
+    os.makedirs(output_dir, exist_ok=True)
+    for item in items:
+        for name in item['names']:
+            output_file = os.path.join(output_dir, name['name'])
+            with open(output_file, "w") as fd:
+                month = datetime.datetime.strptime(name['valid_since'],"%Y-%m-%d %H:%M:%S%z")
+                month = month.strftime("%Y-%m")
+                fd.write(month +  '\n')
+
+
 # ===================
 # Module entry points
 # ===================
 
 
-def easy(options):
+def easy(args):
     log.info(
         " ====================== FIXING WRONG ZP FOR EASY PHOTOMETERS ======================")
     tessdb = get_tessdb_connection_string()
@@ -111,11 +133,11 @@ def easy(options):
     tessdb_input_list = _easy_wrong_zp_photometers_from_tessdb(conn_tessdb)
     tessdb_dict = group_by_mac(tessdb_input_list)
 
-    zptess_input_list = _zp_photometers_from_tessdb(conn_zptess)
+    zptess_input_list = _zp_photometers_from_zptess(conn_zptess)
     zptess_dict = group_by_mac(zptess_input_list)
 
     common_mac_keys = common_A_B_items(tessdb_dict, zptess_dict)
-    log.info(len(common_mac_keys))
+    log.info("Generating %d SQL statemens", len(common_mac_keys))
 
     items = list()
     for mac in sorted(common_mac_keys):
@@ -125,14 +147,10 @@ def easy(options):
         item['old_zp'] = tessdb_dict[mac][0]['zero_point']
         item['names'] = _names_from_mac(conn_tessdb, mac)
         items.append(item)
-
-    context = {
-        'items': items
-    }
-
-    output = render(SQL_ABSURD_ZP_TEMPLATE, context)
-    with open(options.output_file, "w") as sqlfile:
-        sqlfile.write(output)
+    
+    _render_sql(args.output_dir, items)
+    _render_IDA_ctrl_files(args.output_dir, items)
+    
 
 
 # ================
@@ -147,7 +165,7 @@ def add_args(parser):
     subparser = parser.add_subparsers(dest='command')
     zpt = subparser.add_parser(
         'easy',  help="Generate cross zptess/tessdb CSV comparison")
-    zpt.add_argument('-o', '--output-file', type=str,
+    zpt.add_argument('-o', '--output-dir', type=str,
                      required=True, help='Output SQL File')
 
 
