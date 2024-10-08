@@ -7,7 +7,7 @@ name = "tessdb-cmdline"
 dynamic = ["version"]
 description = "A package to collect measurements published by TESS instruments into a SQlite database"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "Rafael González", email = "rafael08@ucm.es"},
