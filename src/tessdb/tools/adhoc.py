@@ -20,7 +20,7 @@ import datetime
 # -------------------
 
 from lica.cli import execute
-from lica.validators import vfile, vdir
+from lica.validators import vfile, vdir, vmonth
 from lica.sqlite import open_database
 from lica.jinja2 import render_from
 
@@ -103,14 +103,17 @@ def _render_sql(output_dir, items):
     with open(output_file, "w") as sqlfile:
         sqlfile.write(output)
 
-def _render_IDA_ctrl_files(output_dir, items):
+def _render_IDA_ctrl_files(output_dir, items, start_month):
     os.makedirs(output_dir, exist_ok=True)
     for item in items:
         for name in item['names']:
             output_file = os.path.join(output_dir, name['name'])
             with open(output_file, "w") as fd:
-                month = datetime.datetime.strptime(name['valid_since'],"%Y-%m-%d %H:%M:%S%z")
-                month = month.strftime("%Y-%m")
+                if start_month is None:
+                    month = datetime.datetime.strptime(name['valid_since'],"%Y-%m-%d %H:%M:%S%z")
+                    month = month.strftime("%Y-%m")
+                else:
+                    month = start_month.strftime("%Y-%m")
                 fd.write(month +  '\n')
 
 
@@ -125,20 +128,15 @@ def easy(args):
     tessdb = get_tessdb_connection_string()
     log.info("connecting to SQLite database %s", tessdb)
     conn_tessdb, _ = open_database(tessdb)
-
     zptess = get_zptess_connection_string()
     log.info("connecting to SQLite database %s", zptess)
     conn_zptess, _ = open_database(zptess)
-
     tessdb_input_list = _easy_wrong_zp_photometers_from_tessdb(conn_tessdb)
     tessdb_dict = group_by_mac(tessdb_input_list)
-
     zptess_input_list = _zp_photometers_from_zptess(conn_zptess)
     zptess_dict = group_by_mac(zptess_input_list)
-
     common_mac_keys = common_A_B_items(tessdb_dict, zptess_dict)
-    log.info("Generating %d SQL statemens", len(common_mac_keys))
-
+    log.info("Generating %d SQL statements", len(common_mac_keys))
     items = list()
     for mac in sorted(common_mac_keys):
         item = {}
@@ -147,9 +145,8 @@ def easy(args):
         item['old_zp'] = tessdb_dict[mac][0]['zero_point']
         item['names'] = _names_from_mac(conn_tessdb, mac)
         items.append(item)
-    
     _render_sql(args.output_dir, items)
-    _render_IDA_ctrl_files(args.output_dir, items)
+    _render_IDA_ctrl_files(args.output_dir, items, args.start_month)
     
 
 
@@ -161,12 +158,13 @@ def add_args(parser):
     # ------------------------------------------
     # Create second level parsers for 'zptess'
     # ------------------------------------------
-
     subparser = parser.add_subparsers(dest='command')
     zpt = subparser.add_parser(
         'easy',  help="Generate cross zptess/tessdb CSV comparison")
     zpt.add_argument('-o', '--output-dir', type=str,
                      required=True, help='Output SQL File')
+    zpt.add_argument('-m', '--start-month', type=vmonth,
+                     default=None, help='Output SQL File')
 
 
 ENTRY_POINT = {
