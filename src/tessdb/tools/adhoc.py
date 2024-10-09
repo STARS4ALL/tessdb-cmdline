@@ -133,7 +133,7 @@ def fix(args):
     zptess_input_list = _zp_photometers_from_zptess(conn_zptess)
     zptess_dict = group_by_mac(zptess_input_list)
     common_mac_keys = common_A_B_items(tessdb_dict, zptess_dict)
-    log.info("Generating %d SQL statements", len(common_mac_keys))
+    log.info("Generating SQL statements for %d different MACs", len(common_mac_keys))
     items = list()
     for mac in sorted(common_mac_keys):
         item = {}
