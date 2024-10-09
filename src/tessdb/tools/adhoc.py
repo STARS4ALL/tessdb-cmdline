@@ -51,19 +51,16 @@ render = functools.partial(render_from, package)
 # Module auxiliar functions
 # -------------------------
 
-
-def _easy_wrong_zp_photometers_from_tessdb(connection):
+def _wrong_zp_photometers_from_tessdb(connection):
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT mac_address, zp1
+        SELECT mac_address, zp1, valid_since
         FROM tess_t
-        WHERE zp1 < 10 and valid_state = 'Current'
-        GROUP BY mac_address
-        HAVING count(mac_address) = 1
+        WHERE zp1 < 10
         ORDER BY mac_address
         ''')
-    result = [dict(zip(['mac', 'zero_point'], row)) for row in cursor]
+    result = [dict(zip(['mac', 'zero_point', 'valid_since'], row)) for row in cursor]
     return result
 
 
@@ -122,7 +119,7 @@ def _render_IDA_ctrl_files(output_dir, items, start_month):
 # ===================
 
 
-def easy(args):
+def fix(args):
     log.info(
         " ====================== FIXING WRONG ZP FOR EASY PHOTOMETERS ======================")
     tessdb = get_tessdb_connection_string()
@@ -131,7 +128,7 @@ def easy(args):
     zptess = get_zptess_connection_string()
     log.info("connecting to SQLite database %s", zptess)
     conn_zptess, _ = open_database(zptess)
-    tessdb_input_list = _easy_wrong_zp_photometers_from_tessdb(conn_tessdb)
+    tessdb_input_list = _wrong_zp_photometers_from_tessdb(conn_tessdb)
     tessdb_dict = group_by_mac(tessdb_input_list)
     zptess_input_list = _zp_photometers_from_zptess(conn_zptess)
     zptess_dict = group_by_mac(zptess_input_list)
@@ -142,7 +139,7 @@ def easy(args):
         item = {}
         item['mac'] = mac
         item['new_zp'] = zptess_dict[mac][0]['zero_point']
-        item['old_zp'] = tessdb_dict[mac][0]['zero_point']
+        item['old_zps'] = [ v['zero_point'] for v in tessdb_dict[mac]]
         item['names'] = _names_from_mac(conn_tessdb, mac)
         items.append(item)
     _render_sql(args.output_dir, items)
@@ -160,7 +157,7 @@ def add_args(parser):
     # ------------------------------------------
     subparser = parser.add_subparsers(dest='command')
     zpt = subparser.add_parser(
-        'easy',  help="Generate cross zptess/tessdb CSV comparison")
+        'fix',  help="Generate SQL file to fix ZPs < 10.0")
     zpt.add_argument('-o', '--output-dir', type=str,
                      required=True, help='Output SQL File')
     zpt.add_argument('-m', '--start-month', type=vmonth,
@@ -168,7 +165,7 @@ def add_args(parser):
 
 
 ENTRY_POINT = {
-    'easy': easy,
+    'fix': fix,
 }
 
 
