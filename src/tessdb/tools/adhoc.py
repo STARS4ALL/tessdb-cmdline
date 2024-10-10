@@ -10,7 +10,6 @@
 # -------------------
 
 import os
-import csv
 import logging
 import functools
 import datetime
@@ -20,9 +19,10 @@ import datetime
 # -------------------
 
 from lica.cli import execute
-from lica.validators import vfile, vdir, vmonth
+from lica.csv import write_csv
 from lica.sqlite import open_database
 from lica.jinja2 import render_from
+from lica.validators import vfile, vdir, vmonth
 
 # --------------
 # local imports
@@ -113,6 +113,12 @@ def _render_IDA_ctrl_files(output_dir, items, start_month):
                     month = start_month.strftime("%Y-%m")
                 fd.write(month +  '\n')
 
+def _report_remaining_ZPs(output_dir: str, remaining_macs: list, tessdb_dict: dict):
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, "remaining_absurd_zp.csv")
+    flattened_list = [items for mac in remaining_macs for items in tessdb_dict[mac]]
+    write_csv(output_file, header=('mac','zero_point','valid_since'), sequence=flattened_list)
+
 
 # ===================
 # Module entry points
@@ -144,6 +150,9 @@ def fix(args):
         items.append(item)
     _render_sql(args.output_dir, items)
     _render_IDA_ctrl_files(args.output_dir, items, args.start_month)
+    remaining_mac_keys = in_A_not_in_B(tessdb_dict, zptess_dict)
+    log.info("There are %d MACs with wrong ZPs and missing calibration ZPs", len(remaining_mac_keys))
+    _report_remaining_ZPs(args.output_dir, remaining_mac_keys, tessdb_dict)
     
 
 

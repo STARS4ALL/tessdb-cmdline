@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools >= 45", "wheel", "setuptools_scm[toml]>=6.2"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "tessdb-cmdline"
 dynamic = ["version"]
@@ -58,8 +54,12 @@ tess-db = "tessdb.tools.tessdb:main"
 zp-tess =  "tessdb.tools.zptess:main"
 cross-db =  "tessdb.tools.crossdb:main"
 tess-ida = "tessdb.reports.ida:main"
-adhoc-easy = "tessdb.tools.adhoc:main"
+fix-zp = "tessdb.tools.adhoc:main"
 
+
+[build-system]
+requires = ["setuptools >= 45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
 
 # pyproject.toml
 # Autimatically generates a _version-py file from with Git information
