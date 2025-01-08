@@ -1,7 +1,7 @@
 [project]
 name = "tessdb-cmdline"
 dynamic = ["version"]
-description = "A package to collect measurements published by TESS instruments into a SQlite database"
+description = "TESS datadabase report tools"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
@@ -36,7 +36,7 @@ dependencies = [
     'python-dateutil',
     'tabulate', 
     'pytz',
-    'lica@git+https://github.com/guaix-ucm/lica#egg=main',
+    'lica',
 ]
 
 [project.optional-dependencies]
@@ -53,7 +53,7 @@ mongo-db = "tessdb.tools.mongodb:main"
 tess-db = "tessdb.tools.tessdb:main"
 zp-tess =  "tessdb.tools.zptess:main"
 cross-db =  "tessdb.tools.crossdb:main"
-tess-ida = "tessdb.reports.ida:main"
+tess-ida = "tessdb.reports.ida.ida:main"
 fix-zp = "tessdb.tools.adhoc:main"
 
 
@@ -92,3 +92,6 @@ script-files = [
 
 [tool.setuptools.package-data]
 "tessdb.templates" = ["*.j2"]
+
+[tool.ruff]
+line-length = 100

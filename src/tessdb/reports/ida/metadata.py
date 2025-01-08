@@ -11,12 +11,6 @@
 # System wide imports
 # -------------------
 
-import os
-import os.path
-import sys
-import sqlite3
-import datetime
-import time
 import logging
 
 #--------------
@@ -27,8 +21,7 @@ import logging
 # local imports
 # -------------
 
-from .._version import __version__
-from .  import MONTH_FORMAT, TSTAMP_FORMAT, UNKNOWN, EXPIRED, CURRENT
+from .. import MONTH_FORMAT, TSTAMP_FORMAT, EXPIRED
 
 # ----------------
 # Module constants

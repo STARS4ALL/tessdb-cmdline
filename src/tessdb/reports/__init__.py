@@ -16,7 +16,7 @@
 # local imports
 # -------------
 
-from .._version import __version__
+from .._version import __version__ as __version__
 
 # ----------------
 # Module constants

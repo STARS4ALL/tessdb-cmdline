@@ -11,24 +11,17 @@
 # System wide imports
 # -------------------
 
-import os
-import os.path
-import sys
-import sqlite3
-import datetime
 import logging
 
 # ----------------
 # Other librarires
 # ----------------
 
-from dateutil.relativedelta import relativedelta
-
 #--------------
 # local imports
 # -------------
 
-from . import MONTH_FORMAT, TSTAMP_FORMAT, CURRENT, EXPIRED
+from .. import  TSTAMP_FORMAT
 
 from .metadata import tess_type
 

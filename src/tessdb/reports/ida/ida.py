@@ -12,9 +12,7 @@
 # -------------------
 
 import os
-import sys
 import datetime
-#import time
 import logging
 import functools
 
@@ -36,10 +34,10 @@ from lica.jinja2 import render_from
 # local imports
 # -------------
 
-from .._version import __version__
+from ..._version import __version__
 
 
-from . import MONTH_FORMAT, TSTAMP_FORMAT, UNKNOWN
+from .. import MONTH_FORMAT, TSTAMP_FORMAT
 from . import readings, metadata
 
 # ----------------
@@ -208,7 +206,7 @@ def ida(args):
         if nlocations > 0:
             is_single = nlocations == 1
             for count, location_id, site in per_location_list:
-                site = site.decode('utf-8') if type(site) == bytes else site 
+                site = site.decode('utf-8') if type(site) is bytes else site 
                 write_IDA_file(name, month, location_id, connection, output_base_dir, is_single)
                 log.info("[%s]: Generating %s monthly IDA file with %d samples for location '%s'", name, date, count, site)
         else:
