@@ -5,7 +5,9 @@
 import os
 import csv
 import logging
-
+from typing import Sequence
+from argparse import Namespace, ArgumentParser
+from sqlite3 import Connection
 # --------------
 # other imports
 # -------------
@@ -27,22 +29,21 @@ from .._version import __version__
 # Module constants
 # ----------------
 
-HEADER = ("name", "longitude", "latitude")
+HEADER = ("name", "model", "longitude", "latitude")
 FILENAME = "geolist.csv"
 
 # -----------------------
 # Module global variables
 # -----------------------
 
-log = logging.getLogger(__name__)
-package = __name__.split(".")[0]
+log = logging.getLogger(__name__.split(".")[-1])
 
 
-def locations(connection):
+def locations(connection: Connection):
     cursor = connection.cursor()
     cursor.execute(
         """
-        SELECT DISTINCT name, lomgitude, latitude
+        SELECT DISTINCT name, model, longitude, latitude
         FROM tess_v WHERE name like 'stars%' 
         AND longitude IS NOT NULL 
         ORDER BY CAST(SUBSTR(name,6) AS int) ASC
@@ -51,25 +52,24 @@ def locations(connection):
     return cursor.fetchall()
 
 
-def exporter(iterable, dir_path):
+def exporter(sequence: Sequence, dir_path: str) -> None:
     csv_path = os.path.join(dir_path, FILENAME)
     with open(csv_path, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
         writer.writerow(HEADER)
-        for item in iterable:
+        for item in sequence:
             writer.writerow(item)
 
 
-def geolist(args):
+def geolist(args: Namespace) -> None:
     """
     Main entry point
     """
-    output_base_dir = (
-        decouple.config("IDA_BASE_DIR") if args.out_dir is None else args.out_dir
-    )
+    output_base_dir = decouple.config("IDA_BASE_DIR") if args.out_dir is None else args.out_dir
     connection, db_path = open_database(args.dbase, env_var="TESSDB_URL")
     log.info("database opened on %s", db_path)
     geolist = locations(connection)
+    log.info("Got %d photometers with known coordinates", len(geolist))
     exporter(geolist, output_base_dir)
     log.info(
         "Exported geographical distribution of TESS-W on to %s/%s",
@@ -83,13 +83,13 @@ def geolist(args):
 # ===================================
 
 
-def add_args(parser):
+def add_args(parser: ArgumentParser) -> None:
     parser.add_argument(
         "-d", "--dbase", type=vfile, default=None, help="SQLite database full file path"
     )
     parser.add_argument(
         "-o",
-        "--out_dir",
+        "--out-dir",
         type=vdir,
         default=None,
         help="Output directory to dump record",
@@ -101,11 +101,11 @@ def add_args(parser):
 # ================
 
 
-def main():
+def main() -> None:
     execute(
         main_func=geolist,
         add_args_func=add_args,
         name=__name__,
         version=__version__,
-        description="Export TESS data to monthly IDA files",
+        description="Export TESS network geographical data",
     )

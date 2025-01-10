@@ -55,7 +55,7 @@ zp-tess =  "tessdb.tools.zptess:main"
 cross-db =  "tessdb.tools.crossdb:main"
 tess-ida = "tessdb.reports.ida.ida:main"
 fix-zp = "tessdb.tools.adhoc:main"
-geolist = "tessdb.reports.geolist:main"
+tess-geolist = "tessdb.reports.geolist:main"
 
 
 [build-system]
@@ -84,7 +84,7 @@ script-files = [
     "scripts/tools/delete-sql-indexes",
     "scripts/tools/manual-repaired-location-fixes",
     "scripts/reports/tess_readings_unassigned.sh",
-    "scripts/reports/tess_geolist",
+    "scripts/reports/tess_geolist.sh",
     "scripts/ida/tess_ida_bulk_dump",
     "scripts/ida/tess_ida_bulk_dump_all",
     "scripts/ida/tess_ida_bulk_dump_selective",
