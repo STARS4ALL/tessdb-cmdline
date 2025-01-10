@@ -19,9 +19,8 @@ DEFAULT_DATABASE="/var/dbase/tess.db"
 DEFAULT_DST_DIR="/var/dbase/reports/IDA"
 DEFAULT_LOG_FILE=/var/log/tess_geolist.log
 
+TESS_GEOLIST=/usr/local/bin/tess-geolist
 TEE=$(which tee)
-NICE=$(which nice)
-IONICE=$(which ionice)
 
 dbase="${DEFAULT_DATABASE}"
 out_dir="${DEFAULT_DST_DIR}"
@@ -54,14 +53,6 @@ while getopts ":hd:o:m:l:" opt; do
 done
 shift "$((OPTIND-1))"
 
+echo "[INFO] Generating TESS geographical list under ${out_dir}" | ${TEE} -a ${log_file}
+${TESS_GEOLIST} --console --log-file ${log_file} -d ${dbase} -o ${out_dir}
 
-if  [[ ! -f $dbase || ! -r $dbase ]]; then
-        echo "Database file $dbase does not exists or is not readable." | ${TEE} -a ${log_file}
-        echo "Exiting" | ${TEE} -a ${log_file}
-        exit 1
-fi
-
-
-export VIRTUAL_ENV=/home/rfg/stars4all
-echo "${NICE} -n 19 ${IONICE} -c3 ${VIRTUAL_ENV}/bin/tess-geolist -d ${dbase} -o ${out_dir} -l ${log_file} $@"
-${NICE} -n 19 ${IONICE} -c3 ${VIRTUAL_ENV}/bin/tess-geolist -d ${dbase} -o ${out_dir} -l ${log_file} "$@"
