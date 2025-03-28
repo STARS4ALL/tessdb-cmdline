@@ -1,0 +1,168 @@
+#!/bin/bash
+# This script dumps latest month readings from every TESS given in an instrument list file.
+
+# ------------------------------------------------------------------------------
+#                             AUXILIARY FUNCTIONS
+# ------------------------------------------------------------------------------
+
+# --------
+# Commands
+# --------
+
+NICE=$(which nice)
+IONICE=$(which ionice)
+RSYNC=$(which rsync)
+TEE=$(which tee)
+DATE=$(which date)
+SQLITE=$(which sqlite3)
+RCLONE=$(which rclone)
+SSH=$(which SSH)
+TESS_IDA=/usr/local/bin/tess-ida
+
+# --------------
+# Default values
+# --------------
+
+# For download part
+DEFAULT_SRC_USER="pi"
+DEFAULT_SRC_HOST="cortex.fis.ucm.es"
+DEFAULT_SRC_DIR="/var/dbase"
+DEFAULT_DST_DIR="/var/dbase"
+DEFAULT_DATE=$(/usr/bin/date +%Y%m%d)
+
+# For IDA file generation
+DEFAULT_DATABASE="/var/dbase/tess.db"
+DEFAULT_DST_DIR="/var/dbase/reports/IDA"
+DEFAULT_MONTH="latest"
+DEFAULT_LOG_FILE=/var/log/ida_daily.log
+
+# For WebDAV synchronization to NextCloud
+DEFAULT_SRC_DIR="/var/dbase/reports/IDA"
+DEFAULT_DST_DIR="IDA"
+# WebDAV Server is identified by a tag in .config/rclone/rclone.conf
+DEFAULT_WEBDAV_TAG="IDA"
+DEFAULT_WEBDAV_FLAGS="--verbose"
+
+# ------------------
+# Auxilary functions
+# ------------------
+
+query_names() {
+    dbase=$1
+    ${SQLITE} ${dbase} <<EOF
+SELECT name 
+FROM tess_v 
+WHERE name like 'stars%' 
+AND valid_state = 'Current' 
+ORDER by CAST(substr(name, 6) as decimal) ASC;
+EOF
+}
+
+log() {
+    level=$1
+    message=$2
+    tstamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "${tstamp} [${level}] ${message}"
+}
+
+help() {
+    name=$(basename ${0%.sh})
+    echo "Usage:"
+    echo "$name -d <database path> -o <dst dir> -m <latest|previous|YYYY-MM> -l <log file path>"
+    echo "Defaults to:"
+    echo "name -d $DEFAULT_DATABASE -o $DEFAULT_DST_DIR -m $DEFAULT_MONTH -l $DEFAULT_LOG_FILE"
+}
+
+wait_for_backup() {
+    ${SSH} test -f ${src_user}@${src_host}:${src_dir}/tess.db-${date}
+    exit_code=$?
+    while [ ${exit_code} -ne 0 ];
+    do
+        log INFO "Waiting for 60 seconds for next test of tess.db-${date}"
+        sleep 60
+        ${SSH} test -f ${src_user}@${src_host}:${src_dir}/tess.db-${date}
+        exit_code=$?
+    done
+    log INFO "Database backup tess.db-${date} available"
+}
+
+remote_backup() {
+    log INFO "getting remote file by rsync" | ${TEE} -a ${log_file}
+    log INFO "${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db" 2>&1 | ${TEE} -a ${log_file}
+    ${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db 2>&1 | ${TEE} -a ${log_file}
+}
+
+ida_generation() {
+    if  [[ ! -f $dbase || ! -r $dbase ]]; then
+        log ERROR "Database file $dbase does not exists or is not readable." | ${TEE} -a ${log_file}
+        log ERROR "Exiting" | ${TEE} -a ${log_file}
+        exit 1
+    fi
+    photometers=$(query_names ${dbase})
+    # Loops over the instruments file and dumping data
+    for instrument in $photometers; do
+        if [[ "$month" = "latest" ]];
+        then
+            log INFO "Generating latest month IDA file for TESS ${instrument} under ${out_dir}/${instrument}" | ${TEE} -a ${log_file}
+            ${TESS_IDA} ${instrument} --log-file ${log_file} --latest-month -d ${dbase} -o ${out_dir} 
+        elif [[ "$month" = "previous" ]];
+        then
+            log_file="${HOME}/dbase/log/ida_monthly_${LOG_DATE}.log"
+            log INFO "Generating previous month IDA file for TESS ${instrument} under ${out_dir}/${instrument}" | ${TEE} -a ${log_file}
+            ${TESS_IDA} ${instrument} --log-file ${log_file} --previous-month -d ${dbase} -o ${out_dir}
+        else
+            log_file="${HOME}/dbase/log/ida_oneoff_${LOG_DATE}.log"
+            log INFO "Generating IDA file for TESS ${instrument} for month ${month} under ${out_dir}/${instrument}" | ${TEE} -a ${log_file}
+            ${TESS_IDA} ${instrument} --log-file ${log_file} --for-month ${month} -d ${dbase} -o ${out_dir}
+        fi
+    done
+}
+
+sync_nexcloud() {
+    log INFO "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${src_dir} ${webdav_tag}:${dst_dir} ${DEFAULT_WEBDAV_FLAGS}"  2>&1 | ${TEE} -a ${log_file}
+    ${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${src_dir} ${webdav_tag}:${dst_dir} ${DEFAULT_WEBDAV_FLAGS}  2>&1 | ${TEE} -a ${log_file}
+}
+
+# ------------------------------------------------------------------------------- #
+
+
+dbase="${DEFAULT_DATABASE}"
+out_dir="${DEFAULT_DST_DIR}"
+month="${DEFAULT_MONTH}"
+log_file="${DEFAULT_LOG_FILE}"
+
+
+while getopts ":hd:o:m:l:" opt; do
+    case ${opt} in
+    d)
+        dbase="${OPTARG}"
+        ;;
+    o)
+        out_dir="${OPTARG}"
+        ;;
+    m)
+        month="${OPTARG}"
+        ;;
+    l)
+        log_file="${OPTARG}"
+        ;;
+    h)
+        help
+        exit 0
+        ;;
+    :)
+        echo "Option -${OPTARG} requires an argument."
+        exit 1
+        ;;
+    ?)
+        echo "Invalid option: -${OPTARG}."
+        exit 1
+        ;;
+  esac
+done
+shift "$((OPTIND-1))"
+
+wait_for_backup
+remote_backup
+ida_generation
+sync_next_cloud
