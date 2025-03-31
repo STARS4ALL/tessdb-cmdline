@@ -74,8 +74,8 @@ help() {
 
 wait_for_backup() {
     date=$1
-    src_host=$2
-    src_user=$3
+    src_user=$2
+    src_host=$3
     log_file=$4
     ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}
     exit_code=$?
@@ -83,7 +83,7 @@ wait_for_backup() {
     do
         log INFO "Waiting for 60 seconds for next test of tess.db-${date}" 2>&1 | ${TEE} -a ${log_file}
         sleep 60
-        ${SSH} test -f ${src_user}@${src_host}:${src_dir}/tess.db-${date}
+        ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}
         exit_code=$?
     done
     log INFO "Database backup tess.db-${date} available" 2>&1 | ${TEE} -a ${log_file}
@@ -91,8 +91,8 @@ wait_for_backup() {
 
 remote_backup() {
     date=$1
-    src_host=$2
-    src_user=$3
+    src_user=$2
+    src_host=$3
     dst_dir=$4
     log_file=$5
     log INFO "getting remote file by rsync" | ${TEE} -a ${log_file}
@@ -198,7 +198,7 @@ done
 shift "$((OPTIND-1))"
 
 # Execute Pipeline
-wait_for_backup ${date} ${src_host} ${src_user} ${log_file}
-remote_backup ${date} ${src_host} ${src_user} ${src_dbase_dir} ${log_file}
+wait_for_backup ${date} ${src_user} ${src_host} ${log_file}
+remote_backup ${date} ${src_user} ${src_host} ${src_dbase_dir} ${log_file}
 ida_generation ${dbase} ${ida_dir} ${date} ${log_file}
 sync_next_cloud ${ida_dir} ${web_dir}
