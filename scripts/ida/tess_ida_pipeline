@@ -76,7 +76,8 @@ wait_for_backup() {
     date=$1
     src_user=$2
     src_host=$3
-    log_file=$4
+    src_dir=$4
+    log_file=$5
     log DEBUG "${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}" 2>&1 | ${TEE} -a ${log_file}
     ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}
     exit_code=$?
@@ -200,7 +201,7 @@ done
 shift "$((OPTIND-1))"
 
 # Execute Pipeline
-wait_for_backup ${date} ${src_user} ${src_dbase_host} ${log_file}
-remote_backup ${date} ${src_user} ${src_dbase_host} ${src_dbase_dir} ${log_file}
-ida_generation ${dbase} ${ida_dir} ${date} ${log_file}
-sync_next_cloud ${ida_dir} ${web_dir}
+wait_for_backup ${date} ${src_user} ${src_dbase_host} ${src_dbase_dir} ${log_file}
+#remote_backup ${date} ${src_user} ${src_dbase_host} ${src_dbase_dir} ${dst_dbase_dir} ${log_file}
+#ida_generation ${dbase} ${ida_dir} ${date} ${log_file}
+#sync_next_cloud ${ida_dir} ${web_dir}
