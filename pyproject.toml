@@ -4,7 +4,7 @@ dynamic = ["version"]
 description = "TESS datadabase report tools"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "MIT"}
+license-files = ["LICENSE"]
 authors = [
     {name = "Rafael González", email = "rafael08@ucm.es"},
 ]
@@ -16,7 +16,6 @@ classifiers = [
     'Programming Language :: SQL',
     'Development Status :: 4 - Beta',
     "Environment :: Console",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Topic :: Scientific/Engineering :: Astronomy",
     "Topic :: Scientific/Engineering :: Atmospheric Science",
@@ -59,7 +58,7 @@ tess-geolist = "tessdb.reports.geolist:main"
 
 
 [build-system]
-requires = ["setuptools >= 45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools >= 78.1", "wheel", "setuptools_scm[toml]>=8.2"]
 build-backend = "setuptools.build_meta"
 
 # pyproject.toml
@@ -90,6 +89,7 @@ script-files = [
     "scripts/ida/tess_ida_bulk_dump_selective",
     "scripts/ida/tessdb_remote_backup",
     "scripts/ida/webdav_ida_rclone",
+    "scripts/ida/tess_ida_pipeline",
 ]
 
 [tool.setuptools.package-data]
