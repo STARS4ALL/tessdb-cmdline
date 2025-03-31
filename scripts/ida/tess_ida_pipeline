@@ -94,8 +94,9 @@ remote_backup() {
     date=$1
     src_user=$2
     src_host=$3
-    dst_dir=$4
-    log_file=$5
+    src_dir=$4
+    dst_dir=$5
+    log_file=$6
     log INFO "getting remote file by rsync" | ${TEE} -a ${log_file}
     log DEBUG "${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db" 2>&1 | ${TEE} -a ${log_file}
     ${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db 2>&1 | ${TEE} -a ${log_file}
