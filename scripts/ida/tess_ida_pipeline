@@ -167,7 +167,7 @@ while getopts ":hu:s:d:o:i:m:w:l:p:" opt; do
         ;;
     o)
         dst_dbase_dir="${OPTARG}"
-        dbase=="${dst_dbase_dir}/tess.db"
+        dbase="${dst_dbase_dir}/tess.db"
         ;;
     i)
         ida_dir="${OPTARG}"
