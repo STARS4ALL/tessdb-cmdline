@@ -78,14 +78,12 @@ wait_for_backup() {
     src_host=$3
     src_dir=$4
     log_file=$5
-    log DEBUG "${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}" 2>&1 | ${TEE} -a ${log_file}
     ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}
     exit_code=$?
     while [ ${exit_code} -ne 0 ];
     do
         log INFO "Waiting for 60 seconds for next test of tess.db-${date}" 2>&1 | ${TEE} -a ${log_file}
         sleep 60
-        log DEBUG "${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}" 2>&1 | ${TEE} -a ${log_file}
         ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}
         exit_code=$?
     done
@@ -99,14 +97,13 @@ remote_backup() {
     dst_dir=$4
     log_file=$5
     log INFO "getting remote file by rsync" | ${TEE} -a ${log_file}
-    log INFO "${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db" 2>&1 | ${TEE} -a ${log_file}
+    log DEBUG "${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db" 2>&1 | ${TEE} -a ${log_file}
     ${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db 2>&1 | ${TEE} -a ${log_file}
 }
 
 ida_generation() {
     dbase=$1
     ida_dir=$2
-    date=$3
     log_file=$3
     if  [[ ! -f ${dbase} || ! -r ${dbase} ]]; then
         log ERROR "Database file ${dbase} does not exists or is not readable." | ${TEE} -a ${log_file}
@@ -118,16 +115,14 @@ ida_generation() {
     for instrument in ${photometers}; do
         if [[ "${month}" = "latest" ]];
         then
-            log INFO "Generating latest month IDA file for TESS ${instrument} under ${out_dir}/${instrument}" | ${TEE} -a ${log_file}
+            log INFO "Generating latest month IDA file for TESS ${instrument} under ${ida_dir}/${instrument}" | ${TEE} -a ${log_file}
             ${TESS_IDA} ${instrument} --log-file ${log_file} --latest-month -d ${dbase} -o ${ida_dir} 
         elif [[ "$month" = "previous" ]];
         then
-            log_file="${HOME}/dbase/log/ida_monthly_${date}.log"
-            log INFO "Generating previous month IDA file for TESS ${instrument} under ${out_dir}/${instrument}" | ${TEE} -a ${log_file}
+            log INFO "Generating previous month IDA file for TESS ${instrument} under ${ida_dir}/${instrument}" | ${TEE} -a ${log_file}
             ${TESS_IDA} ${instrument} --log-file ${log_file} --previous-month -d ${dbase} -o ${ida_dir}
         else
-            log_file="${HOME}/dbase/log/ida_oneoff_${date}.log"
-            log INFO "Generating IDA file for TESS ${instrument} for month ${month} under ${out_dir}/${instrument}" | ${TEE} -a ${log_file}
+            log INFO "Generating IDA file for TESS ${instrument} for month ${month} under ${ida_dir}/${instrument}" | ${TEE} -a ${log_file}
             ${TESS_IDA} ${instrument} --log-file ${log_file} --for-month ${month} -d ${dbase} -o ${ida_dir}
         fi
     done
@@ -137,7 +132,7 @@ sync_nexcloud() {
     ida_dir=$1
     web_dir=$2
     log_file=$3
-    log INFO "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${ida_dir} ${DEFAULT_WEBDAV_TAG}:${web_dir} ${DEFAULT_WEBDAV_FLAGS}"  2>&1 | ${TEE} -a ${log_file}
+    log DEBUG "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${ida_dir} ${DEFAULT_WEBDAV_TAG}:${web_dir} ${DEFAULT_WEBDAV_FLAGS}"  2>&1 | ${TEE} -a ${log_file}
     ${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${ida_dir} ${DEFAULT_WEBDAV_TAG}:${web_dir} ${DEFAULT_WEBDAV_FLAGS}  2>&1 | ${TEE} -a ${log_file}
 }
 
@@ -155,9 +150,10 @@ month="${DEFAULT_MONTH}"
 ida_dir=${DEFAULT_IDA_DIR}
 web_dir=${DEFAULT_WEB_DIR}
 log_file="${DEFAULT_LOG_FILE}"
+step="all"
 date=$(/usr/bin/date +%Y%m%d)
 
-while getopts ":hu:s:d:o:i:m:w:l:" opt; do
+while getopts ":hu:s:d:o:i:m:w:l:1:2:3:" opt; do
     case ${opt} in
     u)
         src_user="${OPTARG}"
@@ -184,6 +180,9 @@ while getopts ":hu:s:d:o:i:m:w:l:" opt; do
     l)
         log_file="${OPTARG}"
         ;;
+    1|2|3|4|all)
+        step="${OPTARG}"
+        ;;
     h)
         help
         exit 0
@@ -201,7 +200,20 @@ done
 shift "$((OPTIND-1))"
 
 # Execute Pipeline
-wait_for_backup ${date} ${src_user} ${src_dbase_host} ${src_dbase_dir} ${log_file}
-#remote_backup ${date} ${src_user} ${src_dbase_host} ${src_dbase_dir} ${dst_dbase_dir} ${log_file}
-#ida_generation ${dbase} ${ida_dir} ${date} ${log_file}
-#sync_next_cloud ${ida_dir} ${web_dir}
+
+if [[ "${step}" == "all" ]]; then   
+    wait_for_backup ${date} ${src_user} ${src_dbase_host} ${src_dbase_dir} ${log_file}
+    remote_backup ${date} ${src_user} ${src_dbase_host} ${src_dbase_dir} ${dst_dbase_dir} ${log_file}
+    ida_generation ${dbase} ${ida_dir} ${log_file}
+    sync_next_cloud ${ida_dir} ${web_dir}
+elif [[ "${step}" == "1" ]]; then
+    wait_for_backup ${date} ${src_user} ${src_dbase_host} ${src_dbase_dir} ${log_file}
+elif [[ "${step}" == "2" ]]; then
+     remote_backup ${date} ${src_user} ${src_dbase_host} ${src_dbase_dir} ${dst_dbase_dir} ${log_file}
+elif [[ "${step}" == "3" ]]; then
+    ida_generation ${dbase} ${ida_dir} ${log_file}
+elif [[ "${step}" == "4" ]]; then
+    sync_next_cloud ${ida_dir} ${web_dir}
+else
+    log ERROR "Unsupported pipeline step ${step}"
+fi
