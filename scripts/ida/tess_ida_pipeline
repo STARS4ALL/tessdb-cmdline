@@ -16,7 +16,7 @@ TEE=$(which tee)
 DATE=$(which date)
 SQLITE=$(which sqlite3)
 RCLONE=$(which rclone)
-SSH=$(which SSH)
+SSH=$(which ssh)
 TESS_IDA=/usr/local/bin/tess-ida
 
 # --------------
