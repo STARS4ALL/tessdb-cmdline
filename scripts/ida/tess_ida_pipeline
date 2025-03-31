@@ -77,12 +77,14 @@ wait_for_backup() {
     src_user=$2
     src_host=$3
     log_file=$4
+    log DEBUG "${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}" 2>&1 | ${TEE} -a ${log_file}
     ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}
     exit_code=$?
     while [ ${exit_code} -ne 0 ];
     do
         log INFO "Waiting for 60 seconds for next test of tess.db-${date}" 2>&1 | ${TEE} -a ${log_file}
         sleep 60
+        log DEBUG "${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}" 2>&1 | ${TEE} -a ${log_file}
         ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}
         exit_code=$?
     done
