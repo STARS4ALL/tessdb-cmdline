@@ -42,6 +42,8 @@ DEFAULT_WEB_DIR="IDA"
 DEFAULT_WEBDAV_TAG="IDA"
 DEFAULT_WEBDAV_FLAGS="--verbose"
 
+DEFAULT_PIPE_STAGE=all
+
 # ------------------
 # Auxilary functions
 # ------------------
@@ -67,9 +69,9 @@ log() {
 help() {
     name=$(basename ${0%.sh})
     echo "Usage:"
-    echo "$name -u <remote user> -s <source host> -d <source dbase dir> -o<dst dbase dir> -i <IDA dir> -w <Web dir> -l <log file path prefix>"
+    echo "$name -p <pipeline stage> -u <remote user> -s <source host> -d <source dbase dir> -o<dst dbase dir> -m <month> -i <IDA dir> -w <Web dir> -l <log file path prefix>"
     echo "Defaults to:"
-    echo "$name -u $DEFAULT_SRC_USER -s $DEFAULT_SRC_HOST -i $DEFAULT_SRC_DIR -o $DEFAULT_DST_DIR -a $DEFAULT_IDA_DIR -w $DEFAULT_WEB_DIR \
+    echo "$name -p $DEFAULT_PIPE_STAGE -u $DEFAULT_SRC_USER -s $DEFAULT_SRC_HOST -i $DEFAULT_SRC_DIR -o $DEFAULT_DST_DIR -m $DEFAULT_MONTH -i $DEFAULT_IDA_DIR -w $DEFAULT_WEB_DIR \
  -l $DEFAULT_LOG_FILE"
 }
 
@@ -152,7 +154,7 @@ month="${DEFAULT_MONTH}"
 ida_dir=${DEFAULT_IDA_DIR}
 web_dir=${DEFAULT_WEB_DIR}
 log_file="${DEFAULT_LOG_FILE}"
-step="all"
+step="${DEFAULT_PIPE_STAGE}"
 date=$(/usr/bin/date +%Y%m%d)
 
 while getopts ":hu:s:d:o:i:m:w:l:p:" opt; do
