@@ -77,19 +77,21 @@ help() {
 
 wait_for_backup() {
     date=$1
-    src_user=$2
-    src_host=$3
-    src_dir=$4
-    log_file=$5
-    ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}
+    src_user=$1
+    src_host=$2
+    src_dir=$3
+    log_file=$4
+    yesterday=$(/usr/bin/date +%Y%m%d -d "yesterday")
+    ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${yesterday}
     exit_code=$?
-    while [ ${exit_code} -ne 0 ];
+    while [ ${exit_code} -eq 0 ];
     do
-        log INFO "Waiting for 60 seconds for next test of tess.db-${date}" 2>&1 | ${TEE} -a ${log_file}
+        log INFO "Waiting for 60 seconds for tess.db-${yesterday} to be removed" 2>&1 | ${TEE} -a ${log_file}
         sleep 60
-        ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${date}
+        ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${yesterday}
         exit_code=$?
     done
+    date=$(/usr/bin/date +%Y%m%d -d "yesterday")
     log INFO "Database backup tess.db-${date} available" 2>&1 | ${TEE} -a ${log_file}
 }
 
