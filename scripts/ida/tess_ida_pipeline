@@ -86,7 +86,7 @@ wait_for_backup() {
     exit_code=$?
     while [ ${exit_code} -eq 0 ];
     do
-        log INFO "Waiting for 60 seconds for tess.db-${yesterday} to be removed" 2>&1 | ${TEE} -a ${log_file}
+        log INFO "Waiting 60 seconds for tess.db-${yesterday} to be removed" 2>&1 | ${TEE} -a ${log_file}
         sleep 60
         ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${yesterday}
         exit_code=$?
