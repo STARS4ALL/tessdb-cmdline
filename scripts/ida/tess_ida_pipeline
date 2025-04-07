@@ -91,7 +91,6 @@ wait_for_backup() {
         ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${yesterday}
         exit_code=$?
     done
-    date=$(/usr/bin/date +%Y%m%d -d "yesterday")
     log INFO "Database backup tess.db-${date} available" 2>&1 | ${TEE} -a ${log_file}
 }
 
