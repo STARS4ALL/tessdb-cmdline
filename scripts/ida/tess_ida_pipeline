@@ -63,7 +63,7 @@ log() {
     local level=$1
     local message=$2
     local tstamp=$(date '+%Y-%m-%d %H:%M:%S.%3N')
-    echo "${tstamp}.000 [${level}] ${message}"
+    echo "${tstamp} [${level}] ${message}"
 }
 
 help() {
