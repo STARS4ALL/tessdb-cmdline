@@ -77,10 +77,10 @@ help() {
 
 wait_for_backup() {
     date=$1
-    src_user=$1
-    src_host=$2
-    src_dir=$3
-    log_file=$4
+    src_user=$2
+    src_host=$3
+    src_dir=$4
+    log_file=$5
     yesterday=$(/usr/bin/date +%Y%m%d -d "yesterday")
     ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${yesterday}
     exit_code=$?
