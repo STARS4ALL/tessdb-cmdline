@@ -60,14 +60,14 @@ EOF
 }
 
 log() {
-    level=$1
-    message=$2
-    tstamp=$(date '+%Y-%m-%d %H:%M:%S.%3N')
+    local level=$1
+    local message=$2
+    local tstamp=$(date '+%Y-%m-%d %H:%M:%S.%3N')
     echo "${tstamp}.000 [${level}] ${message}"
 }
 
 help() {
-    name=$(basename ${0%.sh})
+    local name=$(basename ${0%.sh})
     echo "Usage:"
     echo "$name -p <pipeline stage> -u <remote user> -s <source host> -d <source dbase dir> -o<dst dbase dir> -m <month> -i <IDA dir> -w <Web dir> -l <log file path prefix>"
     echo "Defaults to:"
@@ -76,14 +76,14 @@ help() {
 }
 
 wait_for_backup() {
-    date=$1
-    src_user=$2
-    src_host=$3
-    src_dir=$4
-    log_file=$5
-    yesterday=$(/usr/bin/date +%Y%m%d -d "yesterday")
+    local date=$1
+    local src_user=$2
+    local src_host=$3
+    local src_dir=$4
+    local log_file=$5
+    local yesterday=$(/usr/bin/date +%Y%m%d -d "yesterday")
     ${SSH} ${src_user}@${src_host} test -f ${src_dir}/tess.db-${yesterday}
-    exit_code=$?
+    local exit_code=$?
     while [ ${exit_code} -eq 0 ];
     do
         log INFO "Waiting 60 seconds for tess.db-${yesterday} to be removed" 2>&1 | ${TEE} -a ${log_file}
@@ -96,27 +96,28 @@ wait_for_backup() {
 }
 
 remote_backup() {
-    date=$1
-    src_user=$2
-    src_host=$3
-    src_dir=$4
-    dst_dir=$5
-    log_file=$6
+    local date=$1
+    local src_user=$2
+    local src_host=$3
+    local src_dir=$4
+    local dst_dir=$5
+    local log_file=$6
     log INFO "getting remote file by rsync" | ${TEE} -a ${log_file}
     log DEBUG "${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db" 2>&1 | ${TEE} -a ${log_file}
     ${NICE} -n 19 ${IONICE} -c3 ${RSYNC} -zavh ${src_user}@${src_host}:${src_dir}/tess.db-${date} ${dst_dir}/tess.db 2>&1 | ${TEE} -a ${log_file}
 }
 
 ida_generation() {
-    dbase=$1
-    ida_dir=$2
-    log_file=$3
+    local month=$1
+    local dbase=$2
+    local ida_dir=$3
+    local log_file=$4
     if  [[ ! -f ${dbase} || ! -r ${dbase} ]]; then
         log ERROR "Database file ${dbase} does not exists or is not readable."  2>&1 | ${TEE} -a ${log_file}
         log ERROR "Exiting" 2>&1 | ${TEE} -a ${log_file}
         exit 1
     fi
-    photometers=$(query_names ${dbase})
+    local photometers=$(query_names ${dbase})
     # Loops over the instruments file and dumping data
     for instrument in ${photometers}; do
         if [[ "${month}" = "latest" ]];
@@ -135,9 +136,9 @@ ida_generation() {
 }
 
 sync_nextcloud() {
-    ida_dir=$1
-    web_dir=$2
-    log_file=$3
+    local ida_dir=$1
+    local web_dir=$2
+    local log_file=$3
     log DEBUG "${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${ida_dir} ${DEFAULT_WEBDAV_TAG}:${web_dir} ${DEFAULT_WEBDAV_FLAGS}"  2>&1 | ${TEE} -a ${log_file}
     ${NICE} -n 19 ${IONICE} -c3 ${RCLONE} ${RCLONE_COMMAND} ${ida_dir} ${DEFAULT_WEBDAV_TAG}:${web_dir} ${DEFAULT_WEBDAV_FLAGS}  2>&1 | ${TEE} -a ${log_file}
 }
@@ -217,7 +218,7 @@ elif [[ "${step}" == "1" ]]; then
 elif [[ "${step}" == "2" ]]; then
      remote_backup ${date} ${src_user} ${src_dbase_host} ${src_dbase_dir} ${dst_dbase_dir} ${log_file}
 elif [[ "${step}" == "3" ]]; then
-    ida_generation ${dbase} ${ida_dir} ${log_file}
+    ida_generation ${month} ${dbase} ${ida_dir} ${log_file}
 elif [[ "${step}" == "4" ]]; then
     sync_nextcloud ${ida_dir} ${web_dir}
 else
