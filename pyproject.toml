@@ -25,16 +25,7 @@ classifiers = [
     'Natural Language :: Spanish',
 ]
 dependencies = [
-    'jinja2',
     'tabulate',
-    'geopy',
-    'timezonefinder',
-    'requests',
-    'validators',
-    'python-decouple',
-    'python-dateutil',
-    'tabulate', 
-    'pytz',
     'lica',
 ]
 
@@ -48,13 +39,7 @@ Homepage = "https://github.com/STARS4ALL/tessdb-cmdline"
 Repository = "https://github.com/STARS4ALL/tessdb-cmdline.git"
 
 [project.scripts]
-mongo-db = "tessdb.tools.mongodb:main"
-tess-db = "tessdb.tools.tessdb:main"
-zp-tess =  "tessdb.tools.zptess:main"
-cross-db =  "tessdb.tools.crossdb:main"
-tess-ida = "tessdb.reports.ida.ida:main"
-fix-zp = "tessdb.tools.adhoc:main"
-tess-geolist = "tessdb.reports.geolist:main"
+tess-observer = "tessdb.cmdline.observer:main"
 
 
 [build-system]
@@ -65,7 +50,7 @@ build-backend = "setuptools.build_meta"
 # Autimatically generates a _version-py file from with Git information
 # This file shold be placed in .gitignore
 [tool.setuptools_scm]
-write_to = "src/tessdb/_version.py"
+write_to = "src/tessdb/cmdline/_version.py"
 
 [tool.setuptools.packages.find]
 # scanning for namespace packages is true by default in pyproject.toml, so
@@ -74,22 +59,8 @@ namespaces = true
 where = ["src"]
 
 [tool.setuptools]
-script-files = [
-    "scripts/tools/tessdb-pause", 
-    "scripts/tools/tessdb-resume",
-    "scripts/tools/auto-apply-sql",
-    "scripts/tools/fast-apply-sql", 
-    "scripts/tools/create-sql-indexes",
-    "scripts/tools/delete-sql-indexes",
-    "scripts/tools/manual-repaired-location-fixes",
-    "scripts/reports/tess_readings_unassigned.sh",
-    "scripts/reports/tess_geolist.sh",
-    "scripts/ida/tess_ida_bulk_dump_selective",
-    "scripts/ida/tess_ida_pipeline",
-]
+script-files = []
 
-[tool.setuptools.package-data]
-"tessdb.templates" = ["*.j2"]
 
 [tool.ruff]
 line-length = 100

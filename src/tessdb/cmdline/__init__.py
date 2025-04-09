@@ -18,7 +18,7 @@ import datetime
 # local imports
 # -------------
 
-from .._version import __version__
+from ._version import __version__ as __version__
 
 # -----------------------
 # Module global variables
@@ -44,10 +44,3 @@ DEFAULT_ALTITUDE = 90.0 # Degrees, 90.0 = Zenith
 # Default dates whend adjusting in a rwnge of dates
 DEFAULT_START_DATE = datetime.datetime(year=2000,month=1,day=1)
 DEFAULT_END_DATE   = datetime.datetime(year=2999,month=12,day=31)
-
-
-__version__ = get_versions()['version']
-
-
-
-del get_versions

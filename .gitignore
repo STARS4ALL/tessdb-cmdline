@@ -29,7 +29,7 @@ src/*.sh
 tess.db*
 *.sql
 sql/
-src/tessdb/_version.py
+_version.py
 IDA/
 *.csv
 
