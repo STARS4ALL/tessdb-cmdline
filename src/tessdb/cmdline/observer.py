@@ -36,20 +36,24 @@ log = logging.getLogger(__name__)
 # CLI Work functions
 # ------------------
 
-def cli_observer_create(args: Namespace) -> None:
-	connection, url = open_database(env_var="DATABASE_URL")
-	log.info("Opening database: %s", url)
-	
+def cli_observer_create_person(args: Namespace) -> None:
+    connection, url = open_database(env_var="DATABASE_URL")
+    log.info("Opening database: %s", url)
+
+def cli_observer_create_organization(args: Namespace) -> None:
+    connection, url = open_database(env_var="DATABASE_URL")
+    log.info("Opening database: %s", url)
+    
 
 def cli_observer_list(args: Namespace) -> None:
-	connection, url = open_database(env_var="DATABASE_URL")
-	log.info("Opening database: %s", url)
-	
+    connection, url = open_database(env_var="DATABASE_URL")
+    log.info("Opening database: %s", url)
+    
 
 def cli_observer_delete(args: Namespace) -> None:
-	connection, url = open_database(env_var="DATABASE_URL")
-	log.info("Opening database: %s", url)
-	
+    connection, url = open_database(env_var="DATABASE_URL")
+    log.info("Opening database: %s", url)
+    
 
 # ======
 # PARSER
@@ -58,9 +62,18 @@ def cli_observer_delete(args: Namespace) -> None:
 def add_args(parser: ArgumentParser):
     subparser = parser.add_subparsers(dest="command")
     parser_create = subparser.add_parser(
-        "create", parents=[], help="Create new observer"
+        "create", help="Create new observer"
     )
-    parser_create.set_defaults(func=cli_observer_create)
+    subsubparser = parser_create.add_subparsers(dest="subcommand")
+    parser_person = subsubparser.add_parser(
+        "person", parents=[], help="Create new observer [person]"
+    )
+    parser_person.set_defaults(func=cli_observer_create_person)
+
+    parser_organization = subsubparser.add_parser(
+        "organization", parents=[], help="Create new observer [organization]"
+    )
+    parser_organization.set_defaults(func=cli_observer_create_organization)
 
     parser_list = subparser.add_parser(
         "list", parents=[], help="List observers"
