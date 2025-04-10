@@ -16,8 +16,7 @@ from argparse import ArgumentParser
 # Third-party library imports
 # ----------------------------
 
-from lica.validators import vdir
-
+from lica.validators import vmac
 
 # --------------
 # local imports
@@ -103,4 +102,25 @@ def history() -> ArgumentParser:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-a", "--all", action="store_true", help="Delete all observer history")
     group.add_argument("-c", "--current", action="store_true", help="Delete current observer")
+    return parser
+
+def mac() -> ArgumentParser:
+    parser = ArgumentParser(add_help=False)
+    parser.add_argument(
+        "-m",
+        "--mac-address",
+        type=vmac,
+        required=True,
+        help="Photometer MAC address (default %(default)s)",
+    )
+    return parser
+
+def commit() -> ArgumentParser:
+    parser = ArgumentParser(add_help=False)
+    parser.add_argument(
+        "--commit",
+        action="store_true",
+        default=False,
+        help="Commit results to database (default %(default)s)",
+    )
     return parser

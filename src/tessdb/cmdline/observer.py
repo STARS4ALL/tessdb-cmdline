@@ -154,6 +154,30 @@ def observer_delete(connection, obs_type: ObserverType, name: str, all_flag: boo
     connection.commit()
 
 
+def observer_assign_photometer(connection, name: str, mac: str, dry_run: bool):
+    cursor = connection.cursor()
+    params = {"name": name, "state": ValidState.CURRENT}
+    sql = "SELECT observer_id FROM observer_t WHERE name = :name AND valid_state = :state"
+    cursor.execute(sql, params)
+    observer = cursor.fetchone()
+    if observer is None:
+        log.info("No observer found to assign to photometer")
+        return
+    observer_id = observer[0]
+    params = {"observer_id": observer_id, "mac": mac}
+    sql = "SELECT observer_id FROM tess_t WHERE mac_address = :mac"
+    cursor.execute(sql, params)
+    result = cursor.fetchall()
+    log.info("Assigning observer_id=%d to photometer MAC=%s", observer_id, mac)
+    log.info("%d photometer entries with MAC = %s affected in tess_t table", len(result), mac)
+    log.info("Previous observer_ids %s", result)
+    if not dry_run:
+        sql = "UPDATE tess_t SET observer_id = :observer_id WHERE mac_address = :mac"
+        cursor.execute(sql, params)
+    log.info("Done")
+    connection.commit()
+
+
 # ------------------
 # CLI Work functions
 # ------------------
@@ -215,6 +239,17 @@ def cli_observer_delete_organization(args: Namespace) -> None:
     )
 
 
+def cli_observer_assign_photometer(args: Namespace) -> None:
+    connection, url = open_database(env_var="DATABASE_URL")
+    log.info("Opening database: %s", url)
+    observer_assign_photometer(
+        connection,
+        " ".join(args.name) if args.name is not None else None,
+        args.mac_address,
+        not args.commit,
+    )
+
+
 # ======
 # PARSER
 # ======
@@ -272,6 +307,16 @@ def add_args(parser: ArgumentParser):
         help="Delete observer [organization]",
     )
     parser_organization.set_defaults(func=cli_observer_delete_organization)
+
+    # -----------------------------
+    # ASSIGN OBSERVER TO PHOTOMETER
+    # -----------------------------
+    parser_assign = subparser.add_parser(
+        "assign",
+        parents=[prs.name("Observer"), prs.mac(), prs.commit()],
+        help="Assign observer to photometer",
+    )
+    parser_assign.set_defaults(func=cli_observer_assign_photometer)
 
 
 def cli_main(args: Namespace) -> None:
