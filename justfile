@@ -44,6 +44,37 @@ test-publish: build
         --extra-index-url https://pypi.org/simple/ \
         -- python -c "from {{module}} import __version__; print(__version__)"
 
+
+# -----------------
+# TEST OBSERVER API
+# -----------------
+test-observer-new-p:
+    #!/usr/bin/env bash
+    set -exuo pipefail
+    uv run tess-observer --console --trace create person  -n Pedro Pérez -a Asociación Astronómica AstroHenares -y AAH -e pedrope@hotmail.com
+
+test-observer-new-o:
+    #!/usr/bin/env bash
+    set -exuo pipefail
+    uv run tess-observer --console --trace create organization  -n Asociación Astronómica AstroHenares -y AAH -e contacto.astrohenares@gmail.com -w https://www.astrohenares.net
+
+
+test-observer-list:
+    #!/usr/bin/env bash
+    set -exuo pipefail
+    uv run tess-observer --console --trace list
+
+test-observer-delete-current:
+    #!/usr/bin/env bash
+    set -exuo pipefail
+    uv run tess-observer --console --trace delete person --name Pedro Pérez --current 
+
+test-observer-delete-all:
+    #!/usr/bin/env bash
+    set -exuo pipefail
+    uv run tess-observer --console --trace delete person --name Pedro Pérez --all 
+
+
 # ==================
 # Backup environment
 # ==================

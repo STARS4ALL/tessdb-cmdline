@@ -16,60 +16,91 @@ from argparse import ArgumentParser
 # Third-party library imports
 # ----------------------------
 
-from lica.validators import vdir, vdate
-from lica.asyncio.photometer import Model as PhotModel, Sensor
+from lica.validators import vdir
+
 
 # --------------
 # local imports
 # -------------
 
+from ..constants import ObserverType
 
-def idir() -> ArgumentParser:
+
+def name(obs_type: str) -> ArgumentParser:
     parser = ArgumentParser(add_help=False)
     parser.add_argument(
-        "-i",
-        "--input-dir",
-        type=vdir,
-        default=os.getcwd(),
-        metavar="<Dir>",
-        help="Input CSV directory (default %(default)s)",
+        "-n",
+        "--name",
+        nargs="+",
+        required=True,
+        help=f"{obs_type} " + "(default %(default)s)",
     )
     return parser
 
 
-
-def buf() -> ArgumentParser:
+def optname(obs_type: str) -> ArgumentParser:
     parser = ArgumentParser(add_help=False)
     parser.add_argument(
-        "-b",
-        "--buffer",
-        type=int,
+        "-n",
+        "--name",
+        nargs="+",
         default=None,
-        help="Circular buffer size (default %(default)s)",
+        help=f"{obs_type} " + "(default %(default)s)",
     )
     return parser
 
 
-def info() -> ArgumentParser:
-    parser = ArgumentParser(add_help=False)
-    parser.add_argument(
-        "--info",
-        default=False,
-        action="store_true",
-        help="Query photometer info and exit (default %(default)s)",
-    )
-    return parser
-
-
-
-def author() -> ArgumentParser:
+def aff() -> ArgumentParser:
     parser = ArgumentParser(add_help=False)
     parser.add_argument(
         "-a",
-        "--author",
+        "--affiliation",
         nargs="+",
         default=None,
-        help="Calibration author (default %(default)s)",
+        help=f"{ObserverType.PERSON} affiliation" + "(default %(default)s)",
     )
     return parser
 
+
+def nym() -> ArgumentParser:
+    parser = ArgumentParser(add_help=False)
+    parser.add_argument(
+        "-y",
+        "--acronym",
+        type=str,
+        default=None,
+        help="Acronym (default %(default)s)",
+    )
+    return parser
+
+
+def web() -> ArgumentParser:
+    parser = ArgumentParser(add_help=False)
+    parser.add_argument(
+        "-w",
+        "--website-url",
+        type=str,
+        default=None,
+        help="Website URL (default %(default)s)",
+    )
+    return parser
+
+
+def email() -> ArgumentParser:
+    parser = ArgumentParser(add_help=False)
+    parser.add_argument(
+        "-e",
+        "--email",
+        type=str,
+        default=None,
+        help="Email (default %(default)s)",
+    )
+    return parser
+
+
+def history() -> ArgumentParser:
+    parser = ArgumentParser(add_help=False)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("-a", "--all", action="store_true", help="Delete all observer history")
+    group.add_argument("-c", "--current", action="store_true", help="Delete current observer")
+    return parser
